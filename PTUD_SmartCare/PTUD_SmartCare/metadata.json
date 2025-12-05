@@ -1,0 +1,9 @@
+
+{
+  "name": "SmartCare",
+  "description": "A medication reminder application that helps users track their schedules and adherence. Features AI-assisted medication entry.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}

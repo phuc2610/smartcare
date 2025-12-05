@@ -1,0 +1,11 @@
+## Copy file này thành local.properties và điền đường dẫn SDK của bạn
+
+sdk.dir=C\:\\Users\\<YourUser>\\AppData\\Local\\Android\\Sdk
+
+## Hoặc trên Linux/Mac:
+# sdk.dir=/Users/<YourUser>/Library/Android/sdk
+
+
+
+
+

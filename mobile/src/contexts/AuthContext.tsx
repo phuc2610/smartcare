@@ -1,0 +1,154 @@
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { User, UserRole } from '../types';
+import { RegisterData, LoginData } from '../services/auth.service';
+import { logger } from '../utils/logger';
+
+// Safe import auth service với fallback
+let authService: any = null;
+let getCurrentUser: (() => Promise<User | null>) | null = null;
+let registerAPI: ((data: RegisterData) => Promise<{ message: string; phone: string }>) | null = null;
+let loginAPI: ((data: { phone: string; password: string }) => Promise<{ user: User; token: string }>) | null = null;
+let verifyOTP: ((phone: string, otp: string) => Promise<{ user: User; token: string }>) | null = null;
+let logoutAPI: (() => Promise<void>) | null = null;
+
+try {
+  authService = require('../services/auth.service');
+  getCurrentUser = authService?.getCurrentUser || null;
+  registerAPI = authService?.register || null;
+  loginAPI = authService?.login || null;
+  verifyOTP = authService?.verifyOTP || null;
+  logoutAPI = authService?.logout || null;
+} catch (error) {
+  console.warn('Failed to load auth.service module (non-critical):', error);
+}
+
+// Safe wrapper functions với guards
+const safeGetCurrentUser = async (): Promise<User | null> => {
+  try {
+    // Guard: Kiểm tra getCurrentUser có tồn tại và là function
+    if (getCurrentUser && typeof getCurrentUser === 'function') {
+      return await getCurrentUser();
+    }
+    console.warn('getCurrentUser is not available');
+    return null;
+  } catch (error) {
+    console.warn('getCurrentUser failed (non-critical):', error);
+    return null;
+  }
+};
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  signIn: (phone: string, password: string) => Promise<void>;
+  signUp: (data: RegisterData) => Promise<void>;
+  verify: (phone: string, otp: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  updateProfile: (updatedUser: User) => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Guard: Đảm bảo getCurrentUser tồn tại và là function
+        const currentUser = await safeGetCurrentUser();
+        setUser(currentUser);
+      } catch (e) {
+        console.warn('Auth Check Failed (non-critical):', e);
+        // Set user to null và tiếp tục, không crash app
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const signIn = async (phone: string, password: string) => {
+    try {
+      // Guard: Kiểm tra loginAPI có tồn tại
+      if (!loginAPI || typeof loginAPI !== 'function') {
+        throw new Error('Login service is not available');
+      }
+      const res = await loginAPI({ phone, password });
+      setUser(res?.user || null);
+    } catch (error: any) {
+      logger.error('Sign in failed', error);
+      // Don't throw - let UI handle error display
+      throw new Error(error?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
+    }
+  };
+
+  const signUp = async (data: RegisterData) => {
+    try {
+      // Guard: Kiểm tra registerAPI có tồn tại
+      if (!registerAPI || typeof registerAPI !== 'function') {
+        throw new Error('Register service is not available');
+      }
+      await registerAPI(data);
+    } catch (error: any) {
+      logger.error('Sign up failed', error);
+      throw new Error(error?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+    }
+  };
+
+  const verify = async (phone: string, otp: string) => {
+    try {
+      // Guard: Kiểm tra verifyOTP có tồn tại
+      if (!verifyOTP || typeof verifyOTP !== 'function') {
+        throw new Error('Verify OTP service is not available');
+      }
+      const res = await verifyOTP(phone, otp);
+      setUser(res?.user || null);
+    } catch (error: any) {
+      logger.error('Verify OTP failed', error);
+      throw new Error(error?.message || 'Xác thực OTP thất bại. Vui lòng thử lại.');
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      // Guard: Kiểm tra logoutAPI có tồn tại
+      if (logoutAPI && typeof logoutAPI === 'function') {
+        await logoutAPI();
+      }
+      // Luôn set user to null, kể cả khi logoutAPI không có
+      setUser(null);
+    } catch (error) {
+      console.warn('Logout failed (non-critical):', error);
+      // Vẫn set user to null ngay cả khi logout fail
+      setUser(null);
+    }
+  };
+
+  const updateProfile = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, isLoading, signIn, signUp, verify, signOut, updateProfile }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+
+
+
+

@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*/.env
+
+# Build
+dist/
+build/
+*.log
+
+# Android
+*.apk
+*.aab
+*.keystore
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+
+# iOS
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/*.xcworkspace
+mobile/ios/*.xcuserdata
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Metro
+.metro-health-check*
+
+# Misc
+*.pem
+coverage/
+
+
+
+
+

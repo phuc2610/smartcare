@@ -1,0 +1,4 @@
+# This directory should contain MaterialIcons font files
+# react-native-vector-icons will auto-link, but fonts need to be copied
+# Run: npx react-native-asset or manually copy fonts from node_modules/react-native-vector-icons/Fonts/
+

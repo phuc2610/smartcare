@@ -1,0 +1,149 @@
+export enum FrequencyType {
+  DAILY = 'DAILY',
+  EVERY_OTHER_DAY = 'EVERY_OTHER_DAY',
+}
+
+export enum ReminderStatus {
+  PENDING = 'PENDING',
+  TAKEN = 'TAKEN',
+  SKIPPED = 'SKIPPED',
+}
+
+export enum UserRole {
+  PATIENT = 'PATIENT',
+  CAREGIVER = 'CAREGIVER',
+}
+
+export interface User {
+  _id: string;
+  name: string;
+  phone: string;
+  role: UserRole;
+  caregiverId?: string;
+  caregiverPhone?: string;
+  email?: string;
+  isVerified: boolean;
+  medicalCondition?: string;
+  height?: number;
+  weight?: number;
+}
+
+export interface Medication {
+  _id: string;
+  userId: string;
+  name: string;
+  dosage: string;
+  unit: string;
+  notes?: string;
+  frequency: FrequencyType;
+  times: string[];
+  startDate: string;
+  createdAt: string;
+}
+
+export interface Reminder {
+  _id: string;
+  medicationId: string;
+  medicationName: string;
+  dosage: string;
+  unit: string;
+  scheduledTime: string;
+  status: ReminderStatus;
+  takenAt?: string;
+  isSynced: boolean;
+  lastUpdated: string;
+}
+
+export type HealthLogType = 'meal' | 'exercise' | 'symptom';
+
+export interface HealthLogDetails {
+  foodName?: string;
+  calories?: number;
+  exerciseType?: string;
+  durationMinutes?: number;
+  caloriesBurned?: number;
+  symptomName?: string;
+  severity?: number;
+  note?: string;
+}
+
+export interface HealthLog {
+  _id: string;
+  userId: string;
+  date: string;
+  type: HealthLogType;
+  details: HealthLogDetails;
+  createdAt: string;
+}
+
+export interface WeeklyStats {
+  date: string;
+  caloriesIn: number;
+  caloriesOut: number;
+}
+
+export interface WellnessLog {
+  _id: string;
+  userId: string;
+  type: 'breathing' | 'music';
+  durationSeconds: number;
+  date: string;
+}
+
+export interface ReportSummary {
+  startDate: string;
+  endDate: string;
+  medicationAdherence: {
+    total: number;
+    taken: number;
+    skipped: number;
+    rate: number;
+  };
+  healthStats: {
+    totalCaloriesIn: number;
+    totalCaloriesOut: number;
+    avgSeverity?: number;
+  };
+  wellnessStats: {
+    totalMinutes: number;
+    sessionsCount: number;
+  };
+  reminders: Reminder[];
+}
+
+export interface Recommendation {
+  id: string;
+  type: 'DIET' | 'EXERCISE' | 'LIFESTYLE';
+  title: string;
+  description: string;
+  iconName: string;
+  color: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: number;
+  isError?: boolean;
+}
+
+export interface Place {
+  id: string;
+  name: string;
+  address: string;
+  type: 'PHARMACY' | 'HOSPITAL';
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+}
+
+export interface LocationCoords {
+  latitude: number;
+  longitude: number;
+}
+
+
+
+
+
