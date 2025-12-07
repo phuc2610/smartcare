@@ -8,8 +8,10 @@ import { COLORS } from '../../utils/constants';
 import { AppHeader } from '../../components/AppHeader';
 import { DatePicker } from '../../components/DatePicker';
 import { TimePicker } from '../../components/TimePicker';
+import { createAppointment } from '../../services/appointment.service';
+import { scheduleAppointmentReminder } from '../../services/notification.service';
 
-type Tab = 'meal' | 'exercise' | 'symptom';
+type Tab = 'meal' | 'exercise' | 'symptom' | 'appointment';
 
 export const HealthTrackingScreen = () => {
   const { user } = useAuth();
@@ -48,6 +50,18 @@ export const HealthTrackingScreen = () => {
   const [symptomName, setSymptomName] = useState('');
   const [severity, setSeverity] = useState(5);
   const [note, setNote] = useState('');
+
+  // Appointment
+  const [appointmentDate, setAppointmentDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [appointmentTime, setAppointmentTime] = useState('08:00');
+  const [doctorName, setDoctorName] = useState('');
+  const [doctorSpecialty, setDoctorSpecialty] = useState('');
+  const [hospitalName, setHospitalName] = useState('');
+  const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [reminderBefore, setReminderBefore] = useState(24);
   const sliderRef = useRef<View>(null);
   const [sliderLayout, setSliderLayout] = useState({ x: 0, width: 0 });
   const thumbPosition = useRef(new Animated.Value(5)).current;
@@ -132,6 +146,61 @@ export const HealthTrackingScreen = () => {
   const handleSubmit = async () => {
     if (!user) return;
 
+    // Handle appointment separately
+    if (activeTab === 'appointment') {
+      if (!doctorName) {
+        Alert.alert('Lỗi', 'Vui lòng nhập tên bác sĩ');
+        return;
+      }
+      try {
+        const appointmentData = {
+          doctorName: doctorName.trim(),
+          doctorSpecialty: doctorSpecialty.trim(),
+          hospitalName: hospitalName.trim(),
+          appointmentDate: new Date(`${appointmentDate}T${appointmentTime}`).toISOString(),
+          appointmentTime: appointmentTime.trim(),
+          notes: appointmentNotes.trim(),
+          reminderBefore,
+        };
+
+        const savedAppointment = await createAppointment(appointmentData);
+
+        // Schedule notification
+        const appointmentDateTime = new Date(savedAppointment.appointment.appointmentDate);
+        if (savedAppointment.appointment.appointmentTime) {
+          const [hours, minutes] = savedAppointment.appointment.appointmentTime.split(':').map(Number);
+          appointmentDateTime.setHours(hours, minutes);
+        }
+        const reminderTime = new Date(appointmentDateTime);
+        reminderTime.setHours(reminderTime.getHours() - savedAppointment.appointment.reminderBefore);
+
+        if (reminderTime > new Date()) {
+          try {
+            await scheduleAppointmentReminder(
+              `Lịch hẹn với ${savedAppointment.appointment.doctorName}`,
+              `${savedAppointment.appointment.hospitalName || 'Bệnh viện'} - ${savedAppointment.appointment.appointmentTime || 'Sắp tới'}`,
+              reminderTime,
+              savedAppointment.appointment._id
+            );
+          } catch (error) {
+            console.error('Failed to schedule notification:', error);
+          }
+        }
+
+        const { showSuccess } = require('../../utils/alert');
+        showSuccess('Thành công', 'Đã tạo lịch hẹn');
+        // Reset form
+        setDoctorName('');
+        setDoctorSpecialty('');
+        setHospitalName('');
+        setAppointmentNotes('');
+        setReminderBefore(24);
+      } catch (error: any) {
+        Alert.alert('Lỗi', error?.message || 'Không thể lưu lịch hẹn');
+      }
+      return;
+    }
+
     let details: any = {};
     if (activeTab === 'meal') {
       if (!foodName) {
@@ -182,7 +251,8 @@ export const HealthTrackingScreen = () => {
         scheduledDateToUse, // scheduledDate (for meal and exercise)
         scheduledTimeToUse // scheduledTime (for meal and exercise)
       );
-      Alert.alert('Thành công', 'Đã ghi nhận');
+      const { showSuccess } = require('../../utils/alert');
+      showSuccess('Thành công', 'Đã ghi nhận');
       // Reset form
       setFoodName('');
       setCalories('');
@@ -219,6 +289,12 @@ export const HealthTrackingScreen = () => {
           onPress={() => setActiveTab('symptom')}
         >
           <Text style={[styles.tabText, activeTab === 'symptom' && styles.tabTextActive]}>Triệu chứng</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'appointment' && styles.tabActive]}
+          onPress={() => setActiveTab('appointment')}
+        >
+          <Text style={[styles.tabText, activeTab === 'appointment' && styles.tabTextActive]}>Lịch tái khám</Text>
         </TouchableOpacity>
       </View>
 
@@ -398,6 +474,70 @@ export const HealthTrackingScreen = () => {
               placeholder="Xảy ra sau khi uống thuốc..."
               value={note}
               onChangeText={setNote}
+              multiline
+            />
+          </>
+        )}
+
+        {activeTab === 'appointment' && (
+          <>
+            <DatePicker
+              label="Ngày hẹn"
+              value={appointmentDate}
+              onChange={setAppointmentDate}
+            />
+            <TimePicker
+              label="Giờ hẹn"
+              value={appointmentTime}
+              onChange={setAppointmentTime}
+            />
+            <Text style={styles.label}>Tên bác sĩ *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nhập tên bác sĩ"
+              value={doctorName}
+              onChangeText={setDoctorName}
+            />
+            <Text style={styles.label}>Chuyên khoa</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="VD: Tim mạch, Nội tiết..."
+              value={doctorSpecialty}
+              onChangeText={setDoctorSpecialty}
+            />
+            <Text style={styles.label}>Bệnh viện/Phòng khám</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nhập tên bệnh viện"
+              value={hospitalName}
+              onChangeText={setHospitalName}
+            />
+            <Text style={styles.label}>Nhắc nhở trước (giờ)</Text>
+            <View style={styles.row}>
+              {[6, 12, 24, 48].map((hours) => (
+                <TouchableOpacity
+                  key={hours}
+                  style={[
+                    styles.reminderButton,
+                    reminderBefore === hours && styles.reminderButtonActive,
+                  ]}
+                  onPress={() => setReminderBefore(hours)}
+                >
+                  <Text style={[
+                    styles.reminderButtonText,
+                    reminderBefore === hours && styles.reminderButtonTextActive,
+                  ]}>
+                    {hours}h
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.label}>Ghi chú</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nhập ghi chú (tùy chọn)"
+              value={appointmentNotes}
+              onChangeText={setAppointmentNotes}
               multiline
             />
           </>
@@ -598,6 +738,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  reminderButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  reminderButtonActive: {
+    backgroundColor: COLORS.primaryLight + '20',
+    borderColor: COLORS.primary,
+  },
+  reminderButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  reminderButtonTextActive: {
+    color: COLORS.primary,
   },
 });
 

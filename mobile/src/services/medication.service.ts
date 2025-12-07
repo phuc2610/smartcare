@@ -92,6 +92,17 @@ export const updateReminder = async (
   return result.data;
 };
 
+export const getMissedMedications = async (userId?: string): Promise<{ missedReminders: Reminder[] }> => {
+  const params = userId ? { userId } : {};
+  const result = await api.get<{ missedReminders: Reminder[] }>('/api/medications/missed', { params });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Get missed medications failed');
+  }
+
+  return result.data;
+};
+
 
 
 

@@ -1,17 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { COLORS } from '../utils/constants';
 
 interface AvatarProps {
   name?: string;
   size?: number;
   backgroundColor?: string;
+  avatarUrl?: string;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ 
   name = 'U', 
   size = 48,
-  backgroundColor = COLORS.primaryLight 
+  backgroundColor = COLORS.primaryLight,
+  avatarUrl
 }) => {
   const initials = name
     .split(' ')
@@ -19,6 +21,23 @@ export const Avatar: React.FC<AvatarProps> = ({
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  if (avatarUrl) {
+    return (
+      <Image
+        source={{ uri: avatarUrl }}
+        style={[
+          styles.container,
+          styles.image,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          }
+        ]}
+      />
+    );
+  }
 
   return (
     <View 
@@ -41,6 +60,10 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  image: {
     borderWidth: 2,
     borderColor: '#fff',
   },

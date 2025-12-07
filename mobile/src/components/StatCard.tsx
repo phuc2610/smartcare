@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from 'react-native-reanimated';
-import { COLORS } from '../utils/constants';
-import { ANIMATION_CONFIG } from '../utils/animations';
+import { COLORS, SPACING, RADIUS, STAGGER_DELAY } from '../theme';
+import { Text } from '../ui/Text';
+import { SPRING, TIMING } from '../theme/motion';
 
 interface StatCardProps {
   value: string | number;
@@ -22,10 +23,10 @@ export const StatCard: React.FC<StatCardProps> = ({
   const translateY = useSharedValue(20);
 
   useEffect(() => {
-    const delay = index * 100;
-    opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
-    scale.value = withDelay(delay, withSpring(1, ANIMATION_CONFIG.smoothSpring));
-    translateY.value = withDelay(delay, withSpring(0, ANIMATION_CONFIG.smoothSpring));
+    const delay = index * STAGGER_DELAY;
+    opacity.value = withDelay(delay, withTiming(1, TIMING.normal));
+    scale.value = withDelay(delay, withSpring(1, SPRING.smooth));
+    translateY.value = withDelay(delay, withSpring(0, SPRING.smooth));
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -38,8 +39,8 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
-      <Text style={[styles.value, { color }]}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text variant="title" style={[styles.value, { color }]}>{value}</Text>
+      <Text variant="caption" color="textSecondary" style={styles.label}>{label}</Text>
     </Animated.View>
   );
 };
@@ -48,18 +49,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    padding: 16,
-    borderRadius: 12,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
   },
   value: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   label: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    // Typography handled by Text component
   },
 });
 

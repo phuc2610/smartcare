@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTodayReminders, updateReminderStatus, updateReminder } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
+import { getAppointments, Appointment } from '../../services/appointment.service';
 import { Reminder, ReminderStatus, HealthLog } from '../../types';
-import { COLORS } from '../../utils/constants';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
+import { Text } from '../../ui/Text';
+import { Card } from '../../ui/Card';
+import { Chip } from '../../ui/Chip';
+import { Screen } from '../../ui/Screen';
 import { SOSButton } from '../../components/SOSButton';
 import { RecommendationList } from '../../components/RecommendationList';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
-import { EmptyState } from '../../components/EmptyState';
+import { Loading } from '../../ui/Loading';
+import { EmptyState } from '../../ui/EmptyState';
 import { EditTaskModal } from '../../components/EditTaskModal';
 
 interface DashboardScreenProps {
@@ -18,34 +24,44 @@ interface DashboardScreenProps {
   hideSOS?: boolean;
 }
 
-type TabType = 'medication' | 'health';
-
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   targetUserId,
   readOnly = false,
   hideSOS = false,
 }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('medication');
+  const navigation = useNavigation<any>();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [healthLogs, setHealthLogs] = useState<HealthLog[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editingTask, setEditingTask] = useState<Reminder | HealthLog | null>(null);
   const [editingType, setEditingType] = useState<'medication' | 'health'>('medication');
+  const [filter, setFilter] = useState<'all' | 'medication' | 'meal' | 'exercise' | 'appointment'>('all');
 
   const effectiveUserId = targetUserId || user?._id;
 
   const fetchData = async () => {
     if (!effectiveUserId) return;
     try {
-      if (activeTab === 'medication') {
-        const data = await getTodayReminders(effectiveUserId);
-        setReminders(data.reminders);
-      } else {
-        const data = await getTodayHealthLogs(effectiveUserId);
-        setHealthLogs(data.healthLogs);
-      }
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      const [remindersData, healthLogsData, appointmentsData] = await Promise.all([
+        getTodayReminders(effectiveUserId),
+        getTodayHealthLogs(effectiveUserId),
+        getAppointments({ upcoming: true }),
+      ]);
+      setReminders(remindersData.reminders);
+      setHealthLogs(healthLogsData.healthLogs);
+      // Filter appointments for today
+      const todayAppointments = appointmentsData.appointments.filter(apt => {
+        const aptDate = new Date(apt.appointmentDate);
+        return aptDate >= startOfDay && aptDate <= endOfDay && !apt.isCompleted;
+      });
+      setAppointments(todayAppointments);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -57,7 +73,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   useEffect(() => {
     setLoading(true);
     fetchData();
-  }, [effectiveUserId, activeTab]);
+  }, [effectiveUserId]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
   const handleCheckReminder = async (id: string) => {
     if (readOnly) return;
@@ -82,6 +103,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     if (!editingTask || editingType !== 'medication') return;
     try {
       await updateReminder(editingTask._id, data);
+      setEditingTask(null);
       fetchData();
     } catch (error) {
       console.error('Failed to update reminder:', error);
@@ -91,25 +113,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const handleDeleteReminder = async (id: string) => {
     if (readOnly) return;
-    Alert.alert(
+    const { showConfirm, showInfo, showError } = require('../../utils/alert');
+    showConfirm(
       'Xác nhận',
       'Bạn có chắc muốn xóa mục này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // TODO: Implement delete reminder
-              Alert.alert('Thông báo', 'Chức năng xóa sẽ được thêm sau');
-            } catch (error) {
-              console.error('Failed to delete reminder:', error);
-              Alert.alert('Lỗi', 'Không thể xóa');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          // TODO: Implement delete reminder
+          showInfo('Thông báo', 'Chức năng xóa sẽ được thêm sau');
+        } catch (error) {
+          console.error('Failed to delete reminder:', error);
+          showError('Lỗi', 'Không thể xóa');
+        }
+      }
     );
   };
 
@@ -128,25 +144,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const handleDeleteHealthLog = async (id: string) => {
     if (readOnly) return;
-    Alert.alert(
+    const { showConfirm, showError } = require('../../utils/alert');
+    showConfirm(
       'Xác nhận',
       'Bạn có chắc muốn xóa mục này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteHealthLog(id);
-              fetchData();
-            } catch (error) {
-              console.error('Failed to delete health log:', error);
-              Alert.alert('Lỗi', 'Không thể xóa');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await deleteHealthLog(id);
+          fetchData();
+        } catch (error) {
+          console.error('Failed to delete health log:', error);
+          showError('Lỗi', 'Không thể xóa');
+        }
+      }
     );
   };
 
@@ -163,6 +173,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     if (!editingTask || editingType !== 'health') return;
     try {
       await updateHealthLog(editingTask._id, data);
+      setEditingTask(null);
       fetchData();
     } catch (error) {
       console.error('Failed to update health log:', error);
@@ -175,135 +186,329 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const pendingHealthLogs = healthLogs.filter(h => !h.isCompleted);
   const completedHealthLogs = healthLogs.filter(h => h.isCompleted);
 
+  const medicationCount = reminders.length;
+  const mealCount = healthLogs.filter(h => h.type === 'meal').length;
+  const exerciseCount = healthLogs.filter(h => h.type === 'exercise').length;
+  const appointmentCount = appointments.length;
+
+  // Filter tasks based on selected filter
+  const getFilteredReminders = () => {
+    if (filter === 'all' || filter === 'medication') {
+      return { pending: pendingReminders, completed: completedReminders };
+    }
+    return { pending: [], completed: [] };
+  };
+
+  const getFilteredHealthLogs = () => {
+    if (filter === 'all') {
+      return {
+        pending: pendingHealthLogs,
+        completed: completedHealthLogs,
+      };
+    }
+    if (filter === 'meal') {
+      return {
+        pending: pendingHealthLogs.filter(h => h.type === 'meal'),
+        completed: completedHealthLogs.filter(h => h.type === 'meal'),
+      };
+    }
+    if (filter === 'exercise') {
+      return {
+        pending: pendingHealthLogs.filter(h => h.type === 'exercise'),
+        completed: completedHealthLogs.filter(h => h.type === 'exercise'),
+      };
+    }
+    return { pending: [], completed: [] };
+  };
+
+  const getFilteredAppointments = () => {
+    if (filter === 'all' || filter === 'appointment') {
+      return appointments;
+    }
+    return [];
+  };
+
+  const filteredReminders = getFilteredReminders();
+  const filteredHealthLogs = getFilteredHealthLogs();
+  const filteredAppointments = getFilteredAppointments();
+
+  const hasAnyTasks = () => {
+    return (
+      filteredReminders.pending.length > 0 ||
+      filteredReminders.completed.length > 0 ||
+      filteredHealthLogs.pending.length > 0 ||
+      filteredHealthLogs.completed.length > 0 ||
+      filteredAppointments.length > 0
+    );
+  };
+
   if (loading) {
-    return <LoadingSpinner message="Đang tải..." />;
+    return <Loading message="Đang tải..." />;
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchData} />}
-      >
-        {!readOnly && (
-          <View style={styles.header}>
-            <Text style={styles.greeting}>Chào bạn, 👋</Text>
-            <Text style={styles.subtitle}>Chúc bạn một ngày khỏe mạnh!</Text>
+    <Screen scrollable scrollViewProps={{ refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} /> }}>
+      {/* Personalized Header */}
+      {!readOnly && (
+        <View style={styles.header}>
+          <View>
+            <Text variant="display" color="text" style={styles.greeting}>
+              Chào {user?.name?.split(' ')[0] || 'bạn'}, 👋
+            </Text>
+            <View style={styles.statusChip}>
+              <TouchableOpacity
+                onPress={() => setFilter('all')}
+                activeOpacity={0.7}
+              >
+                <Chip
+                  label="Tất cả"
+                  variant={filter === 'all' ? 'primary' : 'default'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFilter('medication')}
+                activeOpacity={0.7}
+              >
+                <Chip
+                  label={`${medicationCount} thuốc`}
+                  variant={filter === 'medication' ? 'primary' : 'default'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFilter('meal')}
+                activeOpacity={0.7}
+              >
+                <Chip
+                  label={`${mealCount} bữa ăn`}
+                  variant={filter === 'meal' ? 'primary' : 'default'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFilter('exercise')}
+                activeOpacity={0.7}
+              >
+                <Chip
+                  label={`${exerciseCount} vận động`}
+                  variant={filter === 'exercise' ? 'primary' : 'default'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFilter('appointment')}
+                activeOpacity={0.7}
+              >
+                <Chip
+                  label={`${appointmentCount} lịch hẹn`}
+                  variant={filter === 'appointment' ? 'primary' : 'default'}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+        </View>
+      )}
 
-        {!hideSOS && <SOSButton />}
-        {!hideSOS && <RecommendationList />}
+      {/* Health Tips */}
+      {!hideSOS && <RecommendationList />}
 
-        {/* Tabs */}
-        {!readOnly && (
-          <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'medication' && styles.tabActive]}
-              onPress={() => setActiveTab('medication')}
-            >
-              <Text style={[styles.tabText, activeTab === 'medication' && styles.tabTextActive]}>
-                💊 Thuốc
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'health' && styles.tabActive]}
-              onPress={() => setActiveTab('health')}
-            >
-              <Text style={[styles.tabText, activeTab === 'health' && styles.tabTextActive]}>
-                🍽️ Bữa ăn & Vận động
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+      {/* Today Plan Checklist */}
+      {!readOnly && (
+        <Card style={styles.planCard}>
+          <Text variant="section" color="text" style={styles.planTitle}>
+            Kế hoạch hôm nay
+          </Text>
+          
+          {/* Medication Tasks */}
+          {(filter === 'all' || filter === 'medication') && (
+            <>
+              {filteredReminders.pending.length > 0 || filteredReminders.completed.length > 0 ? (
+                <View style={styles.taskSection}>
+                  {filteredReminders.pending.map(item => (
+                    <TaskItem
+                      key={item._id}
+                      type="medication"
+                      item={item}
+                      onCheck={() => handleCheckReminder(item._id)}
+                      onPress={() => handleEditReminder(item._id)}
+                      onDelete={() => handleDeleteReminder(item._id)}
+                      readOnly={readOnly}
+                    />
+                  ))}
+                  {filteredReminders.completed.map(item => (
+                    <TaskItem
+                      key={item._id}
+                      type="medication"
+                      item={item}
+                      completed
+                      readOnly={true}
+                    />
+                  ))}
+      </View>
+              ) : filter === 'medication' ? (
+        <EmptyState 
+                  icon="💊"
+                  title="Không có thuốc hôm nay"
+                  message="Chưa có lịch uống thuốc nào được lên kế hoạch."
+                />
+              ) : null}
+            </>
+          )}
 
-        {activeTab === 'medication' ? (
-          <>
-            {reminders.length === 0 ? (
-              <EmptyState
-                icon="✅"
-                title="Hôm nay không có lịch uống thuốc"
-                message="Bạn đã hoàn thành tất cả các liều thuốc hôm nay!"
-              />
-            ) : (
-              <>
-                {pendingReminders.length > 0 && (
-                  <View style={styles.list}>
-                    {pendingReminders.map(item => (
-                      <MedicationItem
+          {/* Health Log Tasks - Meal */}
+          {(filter === 'all' || filter === 'meal') && (
+        <>
+              {filteredHealthLogs.pending.filter(h => h.type === 'meal').length > 0 ||
+              filteredHealthLogs.completed.filter(h => h.type === 'meal').length > 0 ? (
+                <View style={styles.taskSection}>
+                  {filteredHealthLogs.pending
+                    .filter(h => h.type === 'meal')
+                    .map(item => (
+                      <TaskItem
                         key={item._id}
+                        type="health"
                         item={item}
-                        onCheck={handleCheckReminder}
-                        onEdit={handleEditReminder}
-                        onDelete={handleDeleteReminder}
+                        onCheck={() => handleCheckHealthLog(item._id)}
+                        onPress={() => handleEditHealthLog(item._id)}
+                        onDelete={() => handleDeleteHealthLog(item._id)}
                         readOnly={readOnly}
                       />
-                    ))}
-                  </View>
-                )}
-
-                {completedReminders.length > 0 && (
-                  <View style={styles.list}>
-                    {completedReminders.map(item => (
-                      <MedicationItem
+              ))}
+                  {filteredHealthLogs.completed
+                    .filter(h => h.type === 'meal')
+                    .map(item => (
+                      <TaskItem
                         key={item._id}
+                        type="health"
                         item={item}
-                        onCheck={handleCheckReminder}
-                        onEdit={handleEditReminder}
-                        onDelete={handleDeleteReminder}
+                        completed
                         readOnly={true}
                       />
                     ))}
-                  </View>
-                )}
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            {healthLogs.length === 0 ? (
-              <EmptyState
-                icon="📋"
-                title="Chưa có bữa ăn hoặc vận động hôm nay"
-                message="Hãy thêm bữa ăn hoặc vận động để theo dõi!"
-              />
-            ) : (
-              <>
-                {pendingHealthLogs.length > 0 && (
-                  <View style={styles.list}>
-                    {pendingHealthLogs.map(item => (
-                      <HealthLogItem
+            </View>
+              ) : filter === 'meal' ? (
+                <EmptyState
+                  icon="🍽️"
+                  title="Không có bữa ăn hôm nay"
+                  message="Chưa có bữa ăn nào được lên kế hoạch."
+                />
+              ) : null}
+            </>
+          )}
+
+          {/* Health Log Tasks - Exercise */}
+          {(filter === 'all' || filter === 'exercise') && (
+            <>
+              {filteredHealthLogs.pending.filter(h => h.type === 'exercise').length > 0 ||
+              filteredHealthLogs.completed.filter(h => h.type === 'exercise').length > 0 ? (
+                <View style={styles.taskSection}>
+                  {filteredHealthLogs.pending
+                    .filter(h => h.type === 'exercise')
+                    .map(item => (
+                      <TaskItem
                         key={item._id}
+                        type="health"
                         item={item}
-                        onCheck={handleCheckHealthLog}
-                        onEdit={handleEditHealthLog}
-                        onDelete={handleDeleteHealthLog}
+                        onCheck={() => handleCheckHealthLog(item._id)}
+                        onPress={() => handleEditHealthLog(item._id)}
+                        onDelete={() => handleDeleteHealthLog(item._id)}
                         readOnly={readOnly}
                       />
                     ))}
-                  </View>
-                )}
-
-                {completedHealthLogs.length > 0 && (
-                  <View style={styles.list}>
-                    {completedHealthLogs.map(item => (
-                      <HealthLogItem
+                  {filteredHealthLogs.completed
+                    .filter(h => h.type === 'exercise')
+                    .map(item => (
+                      <TaskItem
                         key={item._id}
+                        type="health"
                         item={item}
-                        onCheck={handleCheckHealthLog}
-                        onEdit={handleEditHealthLog}
-                        onDelete={handleDeleteHealthLog}
+                        completed
                         readOnly={true}
                       />
-                    ))}
-                  </View>
-                )}
-              </>
-            )}
-          </>
-        )}
-      </ScrollView>
+                ))}
+              </View>
+              ) : filter === 'exercise' ? (
+                <EmptyState
+                  icon="🏃"
+                  title="Không có vận động hôm nay"
+                  message="Chưa có hoạt động vận động nào được lên kế hoạch."
+                />
+              ) : null}
+        </>
+      )}
 
+      {/* Appointments Section */}
+      {(filter === 'all' || filter === 'appointment') && (
+        <View style={styles.section}>
+          {filteredAppointments.length > 0 ? (
+            <>
+              {filteredAppointments.map(appointment => (
+                <Card key={appointment._id} style={styles.taskCard}>
+                  <View style={styles.taskContent}>
+                    <View style={styles.taskInfo}>
+                      <View style={styles.taskHeader}>
+                        <View style={styles.iconContainer}>
+                          <Icon name="event" size={20} color={COLORS.primary} />
+                        </View>
+                        <Text variant="body" color="text" semibold style={styles.taskTitle}>
+                          {appointment.doctorName}
+                        </Text>
+                      </View>
+                      {appointment.doctorSpecialty && (
+                        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
+                          {appointment.doctorSpecialty}
+                        </Text>
+                      )}
+                      {appointment.hospitalName && (
+                        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
+                          {appointment.hospitalName}
+                        </Text>
+                      )}
+                      <View style={styles.taskMeta}>
+                        <View style={styles.iconContainerSmall}>
+                          <Icon name="schedule" size={14} color={COLORS.textSecondary} />
+                        </View>
+                        <Text variant="caption" color="textSecondary" style={styles.taskMetaText}>
+                          {new Date(appointment.appointmentDate).toLocaleDateString('vi-VN', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                          {appointment.appointmentTime && ` • ${appointment.appointmentTime}`}
+                        </Text>
+                      </View>
+                      {appointment.notes && (
+                        <Text variant="caption" color="textSecondary" style={styles.taskNotes}>
+                          {appointment.notes}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              ))}
+            </>
+          ) : filter === 'appointment' ? (
+            <EmptyState
+              icon="📅"
+              title="Không có lịch hẹn hôm nay"
+              message="Chưa có lịch tái khám nào được lên kế hoạch."
+            />
+          ) : null}
+        </View>
+      )}
+
+          {filter === 'all' && !hasAnyTasks() && (
+            <EmptyState
+              icon="✅"
+              title="Không có nhiệm vụ hôm nay"
+              message="Bạn đã hoàn thành tất cả hoặc chưa có lịch trình nào."
+            />
+          )}
+        </Card>
+      )}
+
+      {/* SOS Button */}
+      {!hideSOS && <SOSButton />}
+
+      {/* Edit Task Modal */}
       <EditTaskModal
         visible={editingTask !== null}
         onClose={() => setEditingTask(null)}
@@ -311,348 +516,255 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         task={editingTask}
         type={editingType}
       />
-    </View>
+    </Screen>
   );
 };
 
-const MedicationItem: React.FC<{
-  item: Reminder;
-  onCheck: (id: string) => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+// Task Item Component
+interface TaskItemProps {
+  type: 'medication' | 'health';
+  item: Reminder | HealthLog;
+  completed?: boolean;
+  onCheck?: () => void;
+  onPress?: () => void;
+  onDelete?: () => void;
   readOnly?: boolean;
-}> = ({ item, onCheck, onEdit, onDelete, readOnly }) => {
-  const isTaken = item.status === ReminderStatus.TAKEN;
-  const time = new Date(item.scheduledTime).toLocaleTimeString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+}
 
-  return (
-    <View style={styles.item}>
-      <View style={styles.itemIcon}>
-        <Text style={styles.itemIconText}>💊</Text>
-      </View>
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.time}>{time}</Text>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>Uống thuốc</Text>
-          </View>
-        </View>
-        <Text style={[styles.itemName, isTaken && styles.itemNameTaken]}>
-          {item.medicationName}
-        </Text>
-        <Text style={styles.itemSubtext}>
-          {item.dosage} {item.unit}
-        </Text>
-      </View>
-      <View style={styles.itemActions}>
-        {isTaken ? (
-          <View style={styles.checkIcon}>
-            <Text style={styles.checkText}>✓</Text>
-          </View>
-        ) : readOnly ? (
-          <View style={styles.checkIconDisabled}>
-            <Text style={styles.checkTextDisabled}>○</Text>
-          </View>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onCheck(item._id)}
-            >
-              <Icon name="check-circle" size={24} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onEdit(item._id)}
-            >
-              <Icon name="edit" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onDelete(item._id)}
-            >
-              <Icon name="delete" size={20} color={COLORS.error} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    </View>
-  );
-};
+const TaskItem: React.FC<TaskItemProps> = ({
+  type,
+  item,
+  completed = false,
+  onCheck,
+  onPress,
+  onDelete,
+  readOnly = false,
+}) => {
+  const getIcon = () => {
+    if (type === 'medication') return '💊';
+    if ('type' in item) {
+      return item.type === 'meal' ? '🍽️' : '🏃';
+    }
+    return '📋';
+  };
 
-const HealthLogItem: React.FC<{
-  item: HealthLog;
-  onCheck: (id: string) => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  readOnly?: boolean;
-}> = ({ item, onCheck, onEdit, onDelete, readOnly }) => {
-  const isCompleted = item.isCompleted || false;
-  const time = item.scheduledTime
-    ? item.scheduledTime
-    : new Date(item.date).toLocaleTimeString('vi-VN', {
+  const getTitle = () => {
+    if (type === 'medication') {
+      return (item as Reminder).medicationName;
+    }
+    const healthLog = item as HealthLog;
+    if (healthLog.type === 'meal') {
+      return healthLog.details.foodName || 'Bữa ăn';
+    } else if (healthLog.type === 'exercise') {
+      return healthLog.details.exerciseType || 'Vận động';
+    }
+    return '';
+  };
+
+  const getSubtitle = () => {
+    if (type === 'medication') {
+      const reminder = item as Reminder;
+      const time = new Date(reminder.scheduledTime).toLocaleTimeString('vi-VN', {
         hour: '2-digit',
         minute: '2-digit',
       });
-
-  const getTitle = () => {
-    if (item.type === 'meal') {
-      return item.details.foodName || 'Bữa ăn';
-    } else if (item.type === 'exercise') {
-      return item.details.exerciseType || 'Vận động';
+      return `${time} • ${reminder.dosage} ${reminder.unit}`;
+    }
+    const healthLog = item as HealthLog;
+    if (healthLog.type === 'meal') {
+      let timeStr = '';
+      if (healthLog.scheduledTime) {
+        // scheduledTime is already in "HH:mm" format
+        timeStr = `${healthLog.scheduledTime} • `;
+      }
+      return `${timeStr}${healthLog.details.calories || 0} kcal`;
+    } else if (healthLog.type === 'exercise') {
+      let timeStr = '';
+      if (healthLog.scheduledTime) {
+        const time = new Date(healthLog.scheduledTime).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        timeStr = `${time} • `;
+      }
+      return `${timeStr}${healthLog.details.durationMinutes || 0} phút • ${healthLog.details.caloriesBurned || 0} kcal`;
     }
     return '';
-  };
-
-  const getSubtext = () => {
-    if (item.type === 'meal') {
-      return `${item.details.calories || 0} kcal`;
-    } else if (item.type === 'exercise') {
-      return `${item.details.durationMinutes || 0} phút • ${item.details.caloriesBurned || 0} kcal`;
-    }
-    return '';
-  };
-
-  const getIcon = () => {
-    return item.type === 'meal' ? '🍽️' : '🏃';
-  };
-
-  const getTag = () => {
-    return item.type === 'meal' ? 'Bữa ăn' : 'Vận động';
   };
 
   return (
-    <View style={styles.item}>
-      <View style={styles.itemIcon}>
-        <Text style={styles.itemIconText}>{getIcon()}</Text>
-      </View>
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.time}>{time}</Text>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{getTag()}</Text>
-          </View>
+    <View style={[styles.taskItem, completed && styles.taskItemCompleted]}>
+      {/* Checkbox */}
+      {!readOnly && (
+        <TouchableOpacity
+          onPress={onCheck}
+          style={styles.checkboxContainer}
+          activeOpacity={0.7}
+        >
+          {completed ? (
+            <Icon name="check-circle" size={24} color={COLORS.success} />
+          ) : (
+            <Icon name="radio-button-unchecked" size={24} color={COLORS.textSecondary} />
+          )}
+        </TouchableOpacity>
+      )}
+      {readOnly && completed && (
+        <View style={styles.checkboxContainer}>
+          <Icon name="check-circle" size={24} color={COLORS.success} />
         </View>
-        <Text style={[styles.itemName, isCompleted && styles.itemNameTaken]}>
+      )}
+      {readOnly && !completed && (
+        <View style={styles.checkboxContainer}>
+          <Icon name="radio-button-unchecked" size={24} color={COLORS.border} />
+        </View>
+      )}
+
+      {/* Icon */}
+      <View style={styles.taskIcon}>
+        <Text variant="title">{getIcon()}</Text>
+      </View>
+
+      {/* Content - Clickable to view details */}
+      <TouchableOpacity
+        style={styles.taskContent}
+        onPress={onPress}
+        activeOpacity={0.7}
+        disabled={!onPress}
+      >
+        <Text
+          variant="body"
+          color={completed ? 'textSecondary' : 'text'}
+          style={[styles.taskTitle, completed && styles.taskTitleCompleted]}
+        >
           {getTitle()}
         </Text>
-        <Text style={styles.itemSubtext}>{getSubtext()}</Text>
-      </View>
-      <View style={styles.itemActions}>
-        {isCompleted ? (
-          <View style={styles.checkIcon}>
-            <Text style={styles.checkText}>✓</Text>
-          </View>
-        ) : readOnly ? (
-          <View style={styles.checkIconDisabled}>
-            <Text style={styles.checkTextDisabled}>○</Text>
-          </View>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onCheck(item._id)}
-            >
-              <Icon name="check-circle" size={24} color={COLORS.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onEdit(item._id)}
-            >
-              <Icon name="edit" size={20} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => onDelete(item._id)}
-            >
-              <Icon name="delete" size={20} color={COLORS.error} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
+          {getSubtitle()}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Actions - Only delete button */}
+      {!completed && !readOnly && onDelete && (
+        <TouchableOpacity onPress={onDelete} style={styles.taskActionButton}>
+          <Icon name="delete" size={18} color={COLORS.error} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 8,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
-    marginHorizontal: 4,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primaryLight,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-  },
-  tabTextActive: {
-    color: COLORS.primary,
-  },
-  scrollView: {
-    flex: 1,
-  },
   header: {
-    padding: 16,
-    marginBottom: 8,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    marginBottom: SPACING.md,
   },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
+  statusChip: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    flexWrap: 'wrap',
   },
-  section: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+  planCard: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.md,
   },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
+  planTitle: {
+    marginBottom: SPACING.lg,
   },
-  list: {
-    paddingHorizontal: 16,
+  taskSection: {
+    gap: SPACING.sm,
   },
-  item: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+  taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
-  itemIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  itemIconText: {
-    fontSize: 24,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 8,
-  },
-  time: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  tag: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  itemNameTaken: {
-    textDecorationLine: 'line-through',
-    color: COLORS.textSecondary,
-  },
-  itemSubtext: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 4,
-  },
-  checkButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  checkIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.success + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkText: {
-    color: COLORS.success,
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  checkIconDisabled: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
+  taskItemCompleted: {
     opacity: 0.5,
   },
-  checkTextDisabled: {
-    color: COLORS.textSecondary,
-    fontSize: 24,
+  checkboxContainer: {
+    marginRight: SPACING.sm,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  taskIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  taskContent: {
+    flex: 1,
+  },
+  taskTitle: {
+    marginBottom: SPACING.xs / 2,
+  },
+  taskTitleCompleted: {
+    textDecorationLine: 'line-through',
+  },
+  taskSubtitle: {
+    // Typography handled by Text component
+  },
+  taskActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  taskActionButton: {
+    padding: SPACING.xs,
+  },
+  taskCheck: {
+    marginLeft: SPACING.sm,
+  },
+  section: {
+    marginTop: SPACING.md,
+  },
+  taskCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  taskInfo: {
+    flex: 1,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconContainerSmall: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.xs,
+  },
+  taskMetaText: {
+    marginLeft: SPACING.xs / 2,
+  },
+  taskNotes: {
+    marginTop: SPACING.xs,
+    fontStyle: 'italic',
   },
 });

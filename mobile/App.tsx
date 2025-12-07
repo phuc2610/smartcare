@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar, AppState, AppStateStatus, LogBox } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { AlertProvider } from './src/contexts/AlertContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import 'react-native-gesture-handler';
@@ -57,8 +58,10 @@ const App = () => {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <RootNavigator />
+        <AlertProvider>
+          <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+          <RootNavigator />
+        </AlertProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

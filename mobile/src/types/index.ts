@@ -26,6 +26,7 @@ export interface User {
   medicalCondition?: string;
   height?: number;
   weight?: number;
+  avatar?: string;
 }
 
 export interface Medication {

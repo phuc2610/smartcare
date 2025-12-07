@@ -6,13 +6,19 @@ const updateProfileSchema = z.object({
     height: z.number().optional(),
     weight: z.number().optional(),
     medicalCondition: z.string().optional(),
+    avatar: z.string().url().optional(),
   }),
 });
 
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-passwordHash -otpCode');
-    res.json({ user });
+    res.json({ 
+      user: {
+        ...user.toObject(),
+        avatar: user.avatar || null,
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -20,7 +26,7 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { height, weight, medicalCondition } = req.body;
+    const { height, weight, medicalCondition, avatar } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -30,6 +36,7 @@ const updateProfile = async (req, res) => {
     if (height !== undefined) user.height = height;
     if (weight !== undefined) user.weight = weight;
     if (medicalCondition !== undefined) user.medicalCondition = medicalCondition;
+    if (avatar !== undefined) user.avatar = avatar;
 
     await user.save();
 
@@ -42,6 +49,7 @@ const updateProfile = async (req, res) => {
         medicalCondition: user.medicalCondition,
         height: user.height,
         weight: user.weight,
+        avatar: user.avatar,
         caregiverId: user.caregiverId,
         caregiverPhone: user.caregiverPhone,
         isVerified: user.isVerified,

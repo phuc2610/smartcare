@@ -88,11 +88,13 @@ export const AddMedicationScreen = ({ navigation }: any) => {
         startDate: new Date(startDate).toISOString(),
       });
       
-      Alert.alert('Thành công', 'Đã thêm thuốc mới', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      const { showSuccess } = require('../../utils/alert');
+      showSuccess('Thành công', 'Đã thêm thuốc mới', () => {
+        setTimeout(() => navigation.goBack(), 300);
+      });
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể thêm thuốc');
+      const { showError } = require('../../utils/alert');
+      showError('Lỗi', error.response?.data?.error || 'Không thể thêm thuốc');
     }
   };
 

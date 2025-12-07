@@ -1,31 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Switch,
   Alert,
   TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { COLORS } from '../../utils/constants';
+import { COLORS, SPACING, RADIUS } from '../../theme/tokens';
+import { SHADOWS } from '../../theme/shadows';
+import { Text } from '../../ui/Text';
+import { Card } from '../../ui/Card';
+import { Screen } from '../../ui/Screen';
+import { Button } from '../../ui/Button';
 import { AppHeader } from '../../components/AppHeader';
 import { getNotificationSettings, updateNotificationSettings } from '../../services/settings.service';
 
 interface NotificationSettings {
-  medicationReminderBefore: number; // minutes before
-  mealReminderBefore: number; // minutes before
-  exerciseReminderBefore: number; // minutes before
+  medicationReminderBefore: number;
+  mealReminderBefore: number;
+  exerciseReminderBefore: number;
   medicationEnabled: boolean;
   mealEnabled: boolean;
   exerciseEnabled: boolean;
 }
 
-export const SettingsScreen = ({ navigation }: any) => {
-  const { user, signOut } = useAuth();
+export const SettingsScreen = () => {
+  const navigation = useNavigation<any>();
+  const { signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
     medicationReminderBefore: 15,
@@ -91,10 +96,16 @@ export const SettingsScreen = ({ navigation }: any) => {
   }) => (
     <View style={styles.settingItem}>
       <View style={styles.settingLeft}>
-        <Icon name={icon} size={24} color={COLORS.primary} style={styles.settingIcon} />
+        <View style={styles.iconContainer}>
+          <Icon name={icon} size={20} color={COLORS.primary} />
+        </View>
         <View style={styles.settingText}>
-          <Text style={styles.settingTitle}>{title}</Text>
-          {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+          <Text variant="body" color="text" semibold>{title}</Text>
+          {subtitle && (
+            <Text variant="caption" color="textSecondary" style={styles.subtitle}>
+              {subtitle}
+            </Text>
+          )}
         </View>
       </View>
       <View style={styles.settingRight}>
@@ -102,7 +113,7 @@ export const SettingsScreen = ({ navigation }: any) => {
           <Switch
             value={value}
             onValueChange={onValueChange}
-            trackColor={{ false: '#e5e7eb', true: COLORS.primary }}
+            trackColor={{ false: COLORS.border, true: COLORS.primaryLight }}
             thumbColor="#fff"
           />
         ) : (
@@ -113,8 +124,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                 const newValue = Math.max(min || 0, value - 5);
                 onValueChange(newValue);
               }}
+              activeOpacity={0.7}
             >
-              <Icon name="remove" size={20} color={COLORS.primary} />
+              <Icon name="remove" size={18} color={COLORS.primary} />
             </TouchableOpacity>
             <TextInput
               style={styles.numberInput}
@@ -127,15 +139,18 @@ export const SettingsScreen = ({ navigation }: any) => {
               keyboardType="numeric"
               selectTextOnFocus
             />
-            <Text style={styles.numberUnit}>phút</Text>
+            <Text variant="caption" color="textSecondary" style={styles.numberUnit}>
+              phút
+            </Text>
             <TouchableOpacity
               style={styles.numberButton}
               onPress={() => {
                 const newValue = Math.min(max || 60, value + 5);
                 onValueChange(newValue);
               }}
+              activeOpacity={0.7}
             >
-              <Icon name="add" size={20} color={COLORS.primary} />
+              <Icon name="add" size={18} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
         )}
@@ -144,20 +159,25 @@ export const SettingsScreen = ({ navigation }: any) => {
   );
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <AppHeader title="Cài đặt" showBack onBack={() => navigation?.goBack()} />
-      <ScrollView style={styles.scrollView}>
+      <Screen scrollable>
         {/* Thông báo & Nhắc nhở */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Thông báo & Nhắc nhở</Text>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            🔔 Thông báo & Nhắc nhở
+          </Text>
 
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <SettingItem
               icon="medication"
               title="Nhắc nhở uống thuốc"
               value={settings.medicationEnabled}
               onValueChange={(val) => setSettings({ ...settings, medicationEnabled: val })}
             />
+            {settings.medicationEnabled && (
+              <View style={styles.divider} />
+            )}
             {settings.medicationEnabled && (
               <SettingItem
                 icon="schedule"
@@ -170,15 +190,18 @@ export const SettingsScreen = ({ navigation }: any) => {
                 max={60}
               />
             )}
-          </View>
+          </Card>
 
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <SettingItem
               icon="restaurant"
               title="Nhắc nhở bữa ăn"
               value={settings.mealEnabled}
               onValueChange={(val) => setSettings({ ...settings, mealEnabled: val })}
             />
+            {settings.mealEnabled && (
+              <View style={styles.divider} />
+            )}
             {settings.mealEnabled && (
               <SettingItem
                 icon="schedule"
@@ -191,15 +214,18 @@ export const SettingsScreen = ({ navigation }: any) => {
                 max={60}
               />
             )}
-          </View>
+          </Card>
 
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <SettingItem
               icon="fitness-center"
               title="Nhắc nhở vận động"
               value={settings.exerciseEnabled}
               onValueChange={(val) => setSettings({ ...settings, exerciseEnabled: val })}
             />
+            {settings.exerciseEnabled && (
+              <View style={styles.divider} />
+            )}
             {settings.exerciseEnabled && (
               <SettingItem
                 icon="schedule"
@@ -212,198 +238,216 @@ export const SettingsScreen = ({ navigation }: any) => {
                 max={60}
               />
             )}
-          </View>
+          </Card>
         </View>
 
         {/* Nút lưu */}
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
-        >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Đang lưu...' : 'Lưu cài đặt'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.saveButtonContainer}>
+          <Button
+            title={loading ? 'Đang lưu...' : 'Lưu cài đặt'}
+            onPress={handleSave}
+            variant="primary"
+            loading={loading}
+            style={styles.saveButton}
+          />
+        </View>
 
         {/* Tài khoản */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Tài khoản</Text>
-          <View style={styles.card}>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            👤 Tài khoản
+          </Text>
+          <Card style={styles.card}>
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigation?.navigate('Profile')}
+              activeOpacity={0.7}
             >
-              <Icon name="account-circle" size={24} color={COLORS.primary} />
-              <Text style={styles.menuText}>Thông tin cá nhân</Text>
+              <View style={styles.iconContainer}>
+                <Icon name="account-circle" size={20} color={COLORS.primary} />
+              </View>
+              <Text variant="body" color="text" style={styles.menuText}>
+                Thông tin cá nhân
+              </Text>
               <Icon name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
+            <View style={styles.divider} />
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigation?.navigate('ChangePassword')}
+              activeOpacity={0.7}
             >
-              <Icon name="lock" size={24} color={COLORS.primary} />
-              <Text style={styles.menuText}>Đổi mật khẩu</Text>
+              <View style={styles.iconContainer}>
+                <Icon name="lock" size={20} color={COLORS.primary} />
+              </View>
+              <Text variant="body" color="text" style={styles.menuText}>
+                Đổi mật khẩu
+              </Text>
               <Icon name="chevron-right" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
-          </View>
+          </Card>
+        </View>
+
+        {/* Nhắc nhở tùy chỉnh */}
+        <View style={styles.section}>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            📅 Nhắc nhở
+          </Text>
+          <Card style={styles.card}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation?.navigate('CustomReminder')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.iconContainer}>
+                <Icon name="notifications" size={20} color={COLORS.primary} />
+              </View>
+              <Text variant="body" color="text" style={styles.menuText}>
+                Nhắc nhở tùy chỉnh
+              </Text>
+              <Icon name="chevron-right" size={24} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </Card>
         </View>
 
         {/* Khác */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚙️ Khác</Text>
-          <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem}>
-              <Icon name="info" size={24} color={COLORS.primary} />
-              <Text style={styles.menuText}>Về ứng dụng</Text>
-              <Text style={styles.menuSubtext}>Version 1.0.0</Text>
-            </TouchableOpacity>
-          </View>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            ⚙️ Khác
+          </Text>
+          <Card style={styles.card}>
+            <View style={styles.menuItem}>
+              <View style={styles.iconContainer}>
+                <Icon name="info" size={20} color={COLORS.primary} />
+              </View>
+              <Text variant="body" color="text" style={styles.menuText}>
+                Về ứng dụng
+              </Text>
+              <Text variant="caption" color="textSecondary" style={styles.menuSubtext}>
+                Version 1.0.0
+              </Text>
+            </View>
+          </Card>
         </View>
 
         {/* Đăng xuất */}
-        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <Text style={styles.logoutButtonText}>Đăng xuất</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+        <View style={styles.logoutContainer}>
+          <Button
+            title="Đăng xuất"
+            onPress={signOut}
+            variant="outline"
+            style={styles.logoutButton}
+            textStyle={styles.logoutButtonText}
+          />
+        </View>
+      </Screen>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+    marginTop: SPACING['2xl'],
+    paddingHorizontal: SPACING.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    marginBottom: SPACING.md,
   },
   settingItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: SPACING.md,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  settingIcon: {
-    marginRight: 12,
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primaryLight + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
   },
   settingText: {
     flex: 1,
   },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  settingSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  subtitle: {
+    marginTop: SPACING.xs / 2,
   },
   settingRight: {
-    marginLeft: 12,
+    marginLeft: SPACING.md,
   },
   numberInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
   },
   numberButton: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary + '20',
+    borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primaryLight + '20',
     justifyContent: 'center',
     alignItems: 'center',
   },
   numberInput: {
     width: 50,
-    height: 40,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
+    height: 36,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.sm,
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
   },
   numberUnit: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginRight: 4,
+    marginRight: SPACING.xs,
+  },
+  saveButtonContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.md,
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    margin: 16,
-    marginTop: 24,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    width: '100%',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: SPACING.md,
   },
   menuText: {
     flex: 1,
-    fontSize: 16,
-    color: COLORS.text,
-    marginLeft: 12,
+    marginLeft: SPACING.md,
   },
   menuSubtext: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginRight: 8,
+    marginRight: SPACING.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: SPACING.xs,
+  },
+  logoutContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING['3xl'],
   },
   logoutButton: {
-    backgroundColor: COLORS.error + '20',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    margin: 16,
-    marginTop: 24,
+    width: '100%',
+    borderColor: COLORS.error,
   },
   logoutButtonText: {
     color: COLORS.error,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
-

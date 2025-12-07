@@ -16,6 +16,8 @@ const uploadRoutes = require('./routes/upload.routes');
 const caregiverRoutes = require('./routes/caregiver.routes');
 const wellnessRoutes = require('./routes/wellness.routes');
 const settingsRoutes = require('./routes/settings.routes');
+const customReminderRoutes = require('./routes/customReminders.routes');
+const appointmentRoutes = require('./routes/appointments.routes');
 
 const app = express();
 
@@ -54,6 +56,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/caregiver', caregiverRoutes);
 app.use('/api/wellness', wellnessRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/custom-reminders', customReminderRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // Error handler
 app.use(errorHandler);

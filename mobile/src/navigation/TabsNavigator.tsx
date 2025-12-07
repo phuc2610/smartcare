@@ -5,10 +5,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { ANIMATION_CONFIG } from '../utils/animations';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import { COLORS } from '../utils/constants';
+import { COLORS, SPACING } from '../theme/tokens';
+import { SHADOWS } from '../theme/shadows';
+import { SPRING } from '../theme/motion';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AddMedicationScreen } from '../screens/Medication/AddMedicationScreen';
 import { HealthTrackingScreen } from '../screens/Health/HealthTrackingScreen';
@@ -19,6 +20,8 @@ import { ChatAIScreen } from '../screens/AI/ChatAIScreen';
 import { WellnessScreen } from '../screens/Wellness/WellnessScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 import { ChangePasswordScreen } from '../screens/Settings/ChangePasswordScreen';
+import { CustomReminderScreen } from '../screens/Reminders/CustomReminderScreen';
+import { AppointmentScreen } from '../screens/Appointments/AppointmentScreen';
 import { AppHeader } from '../components/AppHeader';
 
 const Tab = createBottomTabNavigator();
@@ -29,7 +32,7 @@ const AnimatedTabIcon = React.memo(({ name, size, color, focused }: { name: stri
   const scale = useSharedValue(focused ? 1.1 : 1);
   
   React.useEffect(() => {
-    scale.value = withSpring(focused ? 1.1 : 1, ANIMATION_CONFIG.smoothSpring);
+    scale.value = withSpring(focused ? 1.1 : 1, SPRING.smooth);
   }, [focused]);
   
   const animatedStyle = useAnimatedStyle(() => ({
@@ -50,11 +53,11 @@ const AnimatedAddButton = React.memo(({ focused }: { focused: boolean }) => {
   
   React.useEffect(() => {
     if (focused) {
-      scale.value = withSpring(1.1, ANIMATION_CONFIG.spring);
-      rotation.value = withSpring(90, ANIMATION_CONFIG.smoothSpring);
+      scale.value = withSpring(1.1, SPRING.bouncy);
+      rotation.value = withSpring(90, SPRING.smooth);
     } else {
-      scale.value = withSpring(1, ANIMATION_CONFIG.smoothSpring);
-      rotation.value = withSpring(0, ANIMATION_CONFIG.smoothSpring);
+      scale.value = withSpring(1, SPRING.smooth);
+      rotation.value = withSpring(0, SPRING.smooth);
     }
   }, [focused]);
   
@@ -97,7 +100,7 @@ const MainTabs = () => {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIconStyle: styles.tabBarIcon,
@@ -222,31 +225,41 @@ export const TabsNavigator = () => {
           headerShown: false,
         }} 
       />
+      <Stack.Screen 
+        name="CustomReminder" 
+        component={CustomReminderScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Appointment" 
+        component={AppointmentScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
     </Stack.Navigator>
   );
 };
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border,
     height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 8,
+    paddingBottom: SPACING.sm,
+    paddingTop: SPACING.sm,
+    ...SHADOWS.tabBar,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   tabBarIcon: {
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   addButton: {
     width: 56,
@@ -256,11 +269,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -28,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    ...SHADOWS.floating,
   },
   addButtonContainer: {
     top: -10,

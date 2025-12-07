@@ -7,6 +7,7 @@ const {
   updateReminder,
   getMedications,
   deleteMedication,
+  getMissedMedications,
   createMedicationSchema,
   updateReminderSchema,
 } = require('../controllers/medication.controller');
@@ -15,6 +16,7 @@ const validate = require('../middleware/validate');
 
 router.post('/', authenticate, validate(createMedicationSchema), createMedication);
 router.get('/today', authenticate, getTodayReminders);
+router.get('/missed', authenticate, getMissedMedications);
 router.get('/', authenticate, getMedications);
 router.patch('/:id/take', authenticate, updateReminderStatus);
 router.patch('/reminders/:id', authenticate, validate(updateReminderSchema), updateReminder);

@@ -180,6 +180,28 @@ const generateRemindersForMedication = async (medication) => {
   }
 };
 
+const getMissedMedications = async (req, res) => {
+  try {
+    const targetUserId = req.query.userId || req.user._id.toString();
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+
+    const medications = await Medication.find({ userId: targetUserId });
+    const medicationIds = medications.map(m => m._id);
+
+    // Find reminders that are past due (more than 1 hour ago) and still PENDING
+    const missedReminders = await Reminder.find({
+      medicationId: { $in: medicationIds },
+      scheduledTime: { $lte: oneHourAgo },
+      status: 'PENDING',
+    }).sort({ scheduledTime: -1 }).limit(50);
+
+    res.json({ missedReminders });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   createMedication,
   getTodayReminders,
@@ -187,6 +209,7 @@ module.exports = {
   updateReminder,
   getMedications,
   deleteMedication,
+  getMissedMedications,
   createMedicationSchema,
   updateReminderSchema,
 };

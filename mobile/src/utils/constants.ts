@@ -15,20 +15,8 @@ export const STORAGE_KEYS = {
   USER: '@smartcare_user',
 };
 
-export const COLORS = {
-  primary: '#0d9488',
-  primaryLight: '#14b8a6',
-  primaryDark: '#0f766e',
-  secondary: '#6366f1',
-  success: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-  background: '#f3f4f6',
-  surface: '#ffffff',
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-};
+// Re-export from theme for backward compatibility
+export { COLORS } from '../theme';
 
 
 

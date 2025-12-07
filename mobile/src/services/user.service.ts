@@ -16,6 +16,7 @@ export const updateProfile = async (data: {
   height?: number;
   weight?: number;
   medicalCondition?: string;
+  avatar?: string;
 }): Promise<{ user: User }> => {
   const result = await api.patch<{ user: User }>('/api/users/me', data);
   

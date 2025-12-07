@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema({
     mealEnabled: { type: Boolean, default: true },
     exerciseEnabled: { type: Boolean, default: true },
   },
+  avatar: { type: String, default: null },
 }, {
   timestamps: true,
 });

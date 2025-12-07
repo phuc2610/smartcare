@@ -282,11 +282,20 @@ const exportPDF = async (req, res) => {
     // Pipe PDF to response
     doc.pipe(res);
 
+    // Helper function to format dates
+    const formatDateStr = (date) => {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    
     // Header
     doc.fontSize(20).text('BÁO CÁO SỨC KHỎE', { align: 'center' });
     doc.moveDown(0.5);
-    doc.fontSize(12).text(`Người bệnh: ${user.name}`, { align: 'center' });
-    doc.text(`Số điện thoại: ${user.phone}`, { align: 'center' });
+    doc.fontSize(12);
+    doc.text(`Người bệnh: ${user.name}`, { align: 'center' });
+    doc.text(`SĐT: ${user.phone}`, { align: 'center' });
     if (user.medicalCondition && user.medicalCondition !== 'Normal') {
       doc.text(`Tình trạng: ${user.medicalCondition}`, { align: 'center' });
     }
@@ -294,39 +303,46 @@ const exportPDF = async (req, res) => {
     
     const rangeLabel = range === 'today' ? 'Hôm nay' : range === 'week' ? 'Tuần này' : range === 'month' ? 'Tháng này' : `${range}`;
     doc.text(`Kỳ báo cáo: ${rangeLabel}`, { align: 'center' });
-    doc.text(`Từ: ${startDate.toLocaleDateString('vi-VN')} - Đến: ${endDate.toLocaleDateString('vi-VN')}`, { align: 'center' });
+    doc.text(`Từ: ${formatDateStr(startDate)} - Đến: ${formatDateStr(endDate)}`, { align: 'center' });
     doc.moveDown(1);
 
     // Medication Adherence
     doc.fontSize(16).text('1. TUÂN THỦ UỐNG THUỐC', { underline: true });
     doc.moveDown(0.3);
     doc.fontSize(12);
-    doc.text(`Tổng số lần nhắc nhở: ${totalReminders}`);
-    doc.text(`Đã uống: ${takenReminders}`);
-    doc.text(`Tỷ lệ tuân thủ: ${adherenceRate}%`);
+    
+    // Create table for medication adherence
+    const tableTop = doc.y;
+    const tableLeft = 50;
+    const colWidth = 120;
+    const rowHeight = 20;
+    
+    // Table header
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.text('Tổng', tableLeft, tableTop);
+    doc.text('Đã uống', tableLeft + colWidth, tableTop);
+    doc.text('Tỷ lệ tuân thủ', tableLeft + colWidth * 2, tableTop);
+    
+    // Table data
+    doc.font('Helvetica');
+    doc.text(`${totalReminders}`, tableLeft, tableTop + rowHeight);
+    doc.text(`${takenReminders}`, tableLeft + colWidth, tableTop + rowHeight);
+    doc.text(`${adherenceRate}%`, tableLeft + colWidth * 2, tableTop + rowHeight);
+    
+    doc.y = tableTop + rowHeight * 2;
     doc.moveDown(1);
 
     // Health Stats
     doc.fontSize(16).text('2. THỐNG KÊ SỨC KHỎE', { underline: true });
     doc.moveDown(0.3);
     doc.fontSize(12);
-    doc.text(`Tổng calo nạp vào: ${totalCaloriesIn.toLocaleString('vi-VN')} kcal`);
-    doc.text(`Tổng calo tiêu thụ: ${totalCaloriesOut.toLocaleString('vi-VN')} kcal`);
-    doc.text(`Cân bằng calo: ${(totalCaloriesIn - totalCaloriesOut).toLocaleString('vi-VN')} kcal`);
+    doc.text(`Tổng calo nạp vào: ${totalCaloriesIn} kcal`);
+    doc.text(`Tổng calo tiêu thụ: ${totalCaloriesOut} kcal`);
+    const calorieBalance = totalCaloriesIn - totalCaloriesOut;
+    doc.text(`Cân bằng calo: ${calorieBalance} kcal`);
     doc.moveDown(1);
 
-    // Exercises
-    if (exercises.length > 0) {
-      doc.fontSize(16).text('3. VẬN ĐỘNG', { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(12);
-      exercises.slice(0, 10).forEach((ex, idx) => {
-        doc.text(`${idx + 1}. ${ex.exerciseType} - ${ex.durationMinutes} phút - ${ex.caloriesBurned} kcal`);
-      });
-      doc.moveDown(1);
-    }
-
-    // Meals
+    // Meals (section 4, skip section 3)
     if (meals.length > 0) {
       doc.fontSize(16).text('4. BỮA ĂN', { underline: true });
       doc.moveDown(0.3);
@@ -339,37 +355,20 @@ const exportPDF = async (req, res) => {
         mealsByDate[meal.date].push(meal);
       });
       Object.keys(mealsByDate).sort().reverse().slice(0, 10).forEach(date => {
-        doc.text(`Ngày ${new Date(date).toLocaleDateString('vi-VN')}:`);
+        // Format date as DD/MM/YYYY
+        const [year, month, day] = date.split('-');
+        const formattedDate = `${day}/${month}/${year}`;
+        doc.text(`Ngày ${formattedDate}:`);
         mealsByDate[date].forEach(meal => {
-          doc.text(`  - ${meal.foodName}: ${meal.calories} kcal`, { indent: 20 });
+          // Format: "-FoodName: calories kcal" (exactly like screenshot)
+          const foodText = meal.foodName || 'Bữa ăn';
+          doc.text(`-${foodText}: ${meal.calories} kcal`, { indent: 20 });
         });
       });
       doc.moveDown(1);
     }
 
-    // Symptoms
-    const symptomsList = Object.keys(symptomsByDate).map(date => ({
-      date,
-      symptoms: symptomsByDate[date],
-    })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
-
-    if (symptomsList.length > 0) {
-      doc.fontSize(16).text('5. TRIỆU CHỨNG', { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(12);
-      symptomsList.forEach(day => {
-        doc.text(`Ngày ${new Date(day.date).toLocaleDateString('vi-VN')}:`);
-        day.symptoms.forEach(symptom => {
-          doc.text(`  - ${symptom.symptomName} (Mức độ: ${symptom.severity}/10)`, { indent: 20 });
-          if (symptom.note) {
-            doc.text(`    Ghi chú: ${symptom.note}`, { indent: 30 });
-          }
-        });
-      });
-      doc.moveDown(1);
-    }
-
-    // Wellness
+    // Wellness (section 6, skip section 5 if no symptoms)
     if (wellnessLogs.length > 0) {
       doc.fontSize(16).text('6. THƯ GIÃN', { underline: true });
       doc.moveDown(0.3);
@@ -380,8 +379,15 @@ const exportPDF = async (req, res) => {
     }
 
     // Footer
+    const now = new Date();
+    const formatTime = (date) => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    };
     doc.fontSize(10).text(
-      `Xuất báo cáo ngày: ${new Date().toLocaleString('vi-VN')}`,
+      `Xuất báo cáo ngày: ${formatTime(now)} ${formatDateStr(now)}`,
       { align: 'center' }
     );
 

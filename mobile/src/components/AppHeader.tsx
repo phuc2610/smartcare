@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { COLORS } from '../utils/constants';
-import { ANIMATION_CONFIG } from '../utils/animations';
+import { COLORS, SPACING, SHADOWS } from '../theme';
+import { Text } from '../ui/Text';
+import { MOTION } from '../theme/motion';
 
 interface AppHeaderProps {
   title: string;
@@ -47,7 +48,7 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
           <View style={styles.placeholder} />
         )}
         
-        <Text style={styles.title}>{title}</Text>
+        <Text variant="section" color="text" style={styles.title}>{title}</Text>
         
         <View style={styles.rightActions}>
           {rightAction || (
@@ -86,12 +87,12 @@ const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string;
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.85, ANIMATION_CONFIG.spring);
+    scale.value = withSpring(0.85, { damping: 15, stiffness: 150 });
     opacity.value = withTiming(0.6, { duration: 100 });
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, ANIMATION_CONFIG.smoothSpring);
+    scale.value = withSpring(1, { damping: 20, stiffness: 100 });
     opacity.value = withTiming(1, { duration: 100 });
   };
 
@@ -112,43 +113,36 @@ const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomColor: COLORS.border,
+    ...SHADOWS.header,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
     minHeight: 56,
   },
   backButton: {
-    marginRight: 12,
-    padding: 4,
+    marginRight: SPACING.md,
+    padding: SPACING.xs,
   },
   placeholder: {
     width: 32,
   },
   title: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
   },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
   },
   iconButton: {
-    padding: 4,
-    marginLeft: 4,
+    padding: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
 });
 

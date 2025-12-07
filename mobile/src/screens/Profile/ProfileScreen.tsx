@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform } from 'react-native';
+import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType } from 'react-native-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile as updateProfileAPI } from '../../services/user.service';
+import { uploadImage } from '../../services/upload.service';
 import { identifyDisease } from '../../services/ai.service';
 import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
 import { UserRole } from '../../types';
@@ -17,6 +19,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Link account states
   const [linkLoading, setLinkLoading] = useState(false);
@@ -40,6 +43,79 @@ export const ProfileScreen = ({ navigation, route }: any) => {
       }
     }
   }, [user]);
+
+  const handleChangeAvatar = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [
+            'Hủy',
+            'Chụp ảnh',
+            'Chọn từ thư viện',
+          ],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            handleImagePicker('camera');
+          } else if (buttonIndex === 2) {
+            handleImagePicker('library');
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Đổi ảnh đại diện',
+        '',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Chụp ảnh', onPress: () => handleImagePicker('camera') },
+          { text: 'Chọn từ thư viện', onPress: () => handleImagePicker('library') },
+        ]
+      );
+    }
+  };
+
+  const handleImagePicker = async (source: 'camera' | 'library') => {
+    const options = {
+      mediaType: 'photo' as MediaType,
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    };
+
+    try {
+      const response: ImagePickerResponse = source === 'camera'
+        ? await launchCamera(options)
+        : await launchImageLibrary(options);
+
+      if (response.didCancel || !response.assets || response.assets.length === 0) {
+        return;
+      }
+
+      const asset = response.assets[0];
+      if (!asset.uri) return;
+
+      setUploadingAvatar(true);
+      
+      // Upload to Cloudinary
+      const uploadResult = await uploadImage(asset.uri);
+      
+      // Update user profile with avatar URL
+      const updatedUser = await updateProfileAPI({
+        avatar: uploadResult.url,
+      });
+
+      updateProfile(updatedUser.user);
+      const { showSuccess } = require('../../utils/alert');
+      showSuccess('Thành công', 'Đã cập nhật ảnh đại diện');
+    } catch (error: any) {
+      console.error('[Profile] Avatar upload error:', error);
+      Alert.alert('Lỗi', 'Không thể tải ảnh lên');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -123,7 +199,27 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
       <View style={styles.header}>
-        <Avatar name={user?.name || 'U'} size={96} />
+        <TouchableOpacity
+          onPress={handleChangeAvatar}
+          disabled={uploadingAvatar}
+          activeOpacity={0.7}
+        >
+          <View style={styles.avatarContainer}>
+            <Avatar 
+              name={user?.name || 'U'} 
+              size={96} 
+              avatarUrl={user?.avatar}
+            />
+            {uploadingAvatar && (
+              <View style={styles.uploadingOverlay}>
+                <Text style={styles.uploadingText}>Đang tải lên...</Text>
+              </View>
+            )}
+            <View style={styles.editAvatarBadge}>
+              <Text style={styles.editAvatarText}>✏️</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.name}>{user?.name}</Text>
         <Text style={styles.phone}>{user?.phone}</Text>
         <View style={styles.badges}>
@@ -286,6 +382,42 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: '#fff',
     marginBottom: 16,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 8,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  editAvatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  editAvatarText: {
+    fontSize: 16,
   },
   name: {
     fontSize: 24,

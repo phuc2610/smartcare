@@ -1,11 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatWithAI, getChatHistory } from '../../services/ai.service';
 import { ChatMessage } from '../../types';
-import { COLORS } from '../../utils/constants';
+import { COLORS, SPACING, RADIUS } from '../../theme/tokens';
+import { SHADOWS } from '../../theme/shadows';
+import { Text } from '../../ui/Text';
+import { Card } from '../../ui/Card';
+import { Chip } from '../../ui/Chip';
+import { Screen } from '../../ui/Screen';
+import { Loading } from '../../ui/Loading';
 import { Avatar } from '../../components/Avatar';
 import { useFocusEffect } from '@react-navigation/native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import { SPRING } from '../../theme/motion';
+
+const QUICK_ACTIONS = [
+  'Tôi cảm thấy mệt mỏi',
+  'Đau đầu nên làm gì?',
+  'Cách cải thiện giấc ngủ',
+  'Chế độ ăn uống lành mạnh',
+];
 
 export const ChatAIScreen = () => {
   const { user } = useAuth();
@@ -15,7 +31,6 @@ export const ChatAIScreen = () => {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Load chat history when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       loadChatHistory();
@@ -28,7 +43,6 @@ export const ChatAIScreen = () => {
       const history = await getChatHistory();
       
       if (history.messages && history.messages.length > 0) {
-        // Convert database format to ChatMessage format
         const chatMessages: ChatMessage[] = history.messages.flatMap(msg => [
           {
             id: `user-${msg.timestamp}`,
@@ -45,7 +59,6 @@ export const ChatAIScreen = () => {
         ]);
         setMessages(chatMessages);
       } else {
-        // No history, show welcome message
         setMessages([
           {
             id: 'welcome',
@@ -57,7 +70,6 @@ export const ChatAIScreen = () => {
       }
     } catch (error) {
       console.error('[Chat] Failed to load history:', error);
-      // Show welcome message on error
       setMessages([
         {
           id: 'welcome',
@@ -75,18 +87,19 @@ export const ChatAIScreen = () => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages, isTyping]);
 
-  const handleSend = async () => {
-    if (!inputText.trim()) return;
+  const handleSend = async (text?: string) => {
+    const messageText = text || inputText.trim();
+    if (!messageText) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
-      text: inputText,
+      text: messageText,
       sender: 'user',
       timestamp: Date.now(),
     };
 
     setMessages(prev => [...prev, userMsg]);
-    setInputText('');
+    if (!text) setInputText('');
     setIsTyping(true);
 
     try {
@@ -112,87 +125,205 @@ export const ChatAIScreen = () => {
     }
   };
 
+  if (loadingHistory) {
+    return (
+      <Screen>
+        <Loading message="Đang tải lịch sử chat..." />
+      </Screen>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={90}
       >
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messages}
-        contentContainerStyle={styles.messagesContent}
-      >
-        {loadingHistory ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Đang tải lịch sử chat...</Text>
-          </View>
-        ) : (
-          messages.map(msg => {
-          const isBot = msg.sender === 'bot';
-          return (
-            <View
-              key={msg.id}
-              style={[styles.messageContainer, isBot ? styles.botContainer : styles.userContainer]}
-            >
-              {isBot && <Avatar name="AI" size={32} backgroundColor={COLORS.primaryLight} />}
-              <View style={[styles.message, isBot ? styles.botMessage : styles.userMessage, msg.isError && styles.errorMessage]}>
-                <Text style={[styles.messageText, isBot && styles.botMessageText, msg.isError && styles.errorText]}>
-                  {msg.text}
-                </Text>
-              </View>
-              {!isBot && <Avatar name={user?.name || 'U'} size={32} />}
-            </View>
-          );
-        }))}
-        {isTyping && (
-          <View style={[styles.messageContainer, styles.botContainer]}>
-            <Avatar name="AI" size={32} backgroundColor={COLORS.primaryLight} />
-            <View style={[styles.message, styles.botMessage]}>
-              <View style={styles.typingIndicator}>
-                <View style={[styles.typingDot, { animationDelay: '0ms' }]} />
-                <View style={[styles.typingDot, { animationDelay: '150ms' }]} />
-                <View style={[styles.typingDot, { animationDelay: '300ms' }]} />
-              </View>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-
-      <View style={styles.inputContainer}>
-        <View style={styles.inputWrapper}>
-          <Text style={styles.aiIcon}>✨</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Hỏi về sức khỏe của bạn..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            placeholderTextColor={COLORS.textSecondary}
-          />
-        </View>
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isTyping) && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!inputText.trim() || isTyping}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messages}
+          contentContainerStyle={styles.messagesContent}
+          showsVerticalScrollIndicator={false}
         >
-          {isTyping ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.sendButtonText}>➤</Text>
+          {messages.length === 1 && messages[0].sender === 'bot' && (
+            <View style={styles.quickActionsContainer}>
+              <Text variant="caption" color="textSecondary" style={styles.quickActionsTitle}>
+                Câu hỏi nhanh
+              </Text>
+              <View style={styles.quickActions}>
+                {QUICK_ACTIONS.map((action, index) => (
+                  <Chip
+                    key={index}
+                    label={action}
+                    variant="default"
+                    onPress={() => handleSend(action)}
+                    style={styles.quickActionChip}
+                  />
+                ))}
+              </View>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
+
+          {messages.map((msg, index) => {
+            const isBot = msg.sender === 'bot';
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isBot={isBot}
+                userName={user?.name}
+                index={index}
+              />
+            );
+          })}
+
+          {isTyping && <TypingIndicator />}
+        </ScrollView>
+
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <Icon name="auto-awesome" size={18} color={COLORS.primary} style={styles.aiIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Hỏi về sức khỏe của bạn..."
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              placeholderTextColor={COLORS.textSecondary}
+              maxLength={500}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || isTyping) && styles.sendButtonDisabled]}
+            onPress={() => handleSend()}
+            disabled={!inputText.trim() || isTyping}
+            activeOpacity={0.7}
+          >
+            {isTyping ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Icon name="send" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
-    </View>
+    </Screen>
   );
 };
 
+// Message Bubble Component
+const MessageBubble = React.memo(({
+  message,
+  isBot,
+  userName,
+  index,
+}: {
+  message: ChatMessage;
+  isBot: boolean;
+  userName?: string;
+  index: number;
+}) => {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 300 });
+    translateY.value = withSpring(0, SPRING.smooth);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.messageContainer,
+        isBot ? styles.botContainer : styles.userContainer,
+        animatedStyle,
+      ]}
+    >
+      {isBot && (
+        <Avatar name="AI" size={32} backgroundColor={COLORS.primaryLight} />
+      )}
+      <View
+        style={[
+          styles.message,
+          isBot ? styles.botMessage : styles.userMessage,
+          message.isError && styles.errorMessage,
+        ]}
+      >
+        <Text
+          variant="bodySmall"
+          color={isBot ? 'text' : 'text'}
+          style={[
+            isBot ? {} : styles.userMessageText,
+            message.isError && styles.errorText,
+          ]}
+        >
+          {message.text}
+        </Text>
+      </View>
+      {!isBot && (
+        <Avatar name={userName || 'U'} size={32} />
+      )}
+    </Animated.View>
+  );
+});
+
+// Typing Indicator Component
+const TypingIndicator = React.memo(() => {
+  const dot1 = useSharedValue(0.3);
+  const dot2 = useSharedValue(0.3);
+  const dot3 = useSharedValue(0.3);
+
+  useEffect(() => {
+    const animate = (dot: any, delay: number) => {
+      'worklet';
+      setTimeout(() => {
+        dot.value = withTiming(1, { duration: 400 }, () => {
+          dot.value = withTiming(0.3, { duration: 400 });
+        });
+      }, delay);
+    };
+
+    const interval = setInterval(() => {
+      animate(dot1, 0);
+      animate(dot2, 200);
+      animate(dot3, 400);
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const dot1Style = useAnimatedStyle(() => ({
+    opacity: dot1.value,
+  }));
+  const dot2Style = useAnimatedStyle(() => ({
+    opacity: dot2.value,
+  }));
+  const dot3Style = useAnimatedStyle(() => ({
+    opacity: dot3.value,
+  }));
+
+  return (
+    <View style={[styles.messageContainer, styles.botContainer]}>
+      <Avatar name="AI" size={32} backgroundColor={COLORS.primaryLight} />
+      <View style={[styles.message, styles.botMessage]}>
+        <View style={styles.typingIndicator}>
+          <Animated.View style={[styles.typingDot, dot1Style]} />
+          <Animated.View style={[styles.typingDot, dot2Style]} />
+          <Animated.View style={[styles.typingDot, dot3Style]} />
+        </View>
+      </View>
+    </View>
+  );
+});
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: COLORS.background,
   },
   keyboardView: {
@@ -202,13 +333,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
+    padding: SPACING.lg,
+  },
+  quickActionsContainer: {
+    marginBottom: SPACING.lg,
+  },
+  quickActionsTitle: {
+    marginBottom: SPACING.sm,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  quickActionChip: {
+    marginRight: SPACING.xs,
   },
   messageContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 12,
-    gap: 8,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   botContainer: {
     justifyContent: 'flex-start',
@@ -218,36 +363,31 @@ const styles = StyleSheet.create({
   },
   message: {
     maxWidth: '75%',
-    padding: 12,
-    borderRadius: 16,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
   },
   userMessage: {
     backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
+  },
+  userMessageText: {
+    color: '#fff',
   },
   botMessage: {
-    backgroundColor: '#fff',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    backgroundColor: COLORS.surface,
+    borderBottomLeftRadius: RADIUS.sm,
+    ...SHADOWS.card,
   },
   errorMessage: {
-    backgroundColor: '#fee2e2',
-    borderColor: '#fecaca',
-  },
-  messageText: {
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  botMessageText: {
-    color: COLORS.text,
+    backgroundColor: COLORS.error + '20',
+    borderWidth: 1,
+    borderColor: COLORS.error + '40',
   },
   errorText: {
     color: COLORS.error,
   },
   typingIndicator: {
     flexDirection: 'row',
-    gap: 4,
+    gap: SPACING.xs,
     alignItems: 'center',
   },
   typingDot: {
@@ -255,30 +395,31 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.textSecondary,
-    opacity: 0.5,
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: '#fff',
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border,
     alignItems: 'flex-end',
-    gap: 8,
+    gap: SPACING.sm,
+    ...SHADOWS.header,
   },
   inputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.background,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     maxHeight: 100,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   aiIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    marginRight: SPACING.xs,
   },
   input: {
     flex: 1,
@@ -293,25 +434,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.card,
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
 });
-
