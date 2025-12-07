@@ -1,17 +1,7 @@
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL, STORAGE_KEYS } from './constants';
+import { API_BASE_URL, STORAGE_KEYS, USE_MOCK_API } from './constants';
 import { logger } from './logger';
-
-// Check if should use mock
-let Config: any = null;
-try {
-  Config = require('react-native-config').default || require('react-native-config');
-} catch (error) {
-  // Silent
-}
-
-const USE_MOCK_API = Config?.USE_MOCK_API === 'true';
 
 // Result type
 export type ApiResult<T> =
@@ -32,6 +22,16 @@ interface RequestConfig {
 const DEFAULT_TIMEOUT = 10000; // 10s
 const DEFAULT_RETRIES = 2;
 
+if (!API_BASE_URL || API_BASE_URL.trim() === '') {
+  const errorMsg = `API_BASE_URL is missing or empty. Current value: "${API_BASE_URL}". Please set it in mobile/.env file and rebuild the app (npm run android).`;
+  console.error('[API]', errorMsg);
+  console.error('[API] Make sure:');
+  console.error('[API] 1. File mobile/.env exists');
+  console.error('[API] 2. File contains: API_BASE_URL=http://10.0.2.2:4000');
+  console.error('[API] 3. You have rebuilt the app after creating/editing .env');
+  throw new Error(errorMsg);
+}
+
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -39,6 +39,16 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+if (__DEV__) {
+  console.log('[API] baseUrl =', API_BASE_URL);
+  console.log('[API] USE_MOCK_API =', USE_MOCK_API);
+}
+
+logger.config('API client initialized', {
+  baseURL: API_BASE_URL,
+  useMockApi: USE_MOCK_API,
 });
 
 // Request interceptor - Add token
@@ -101,7 +111,7 @@ export const request = async <T = any>(config: RequestConfig): Promise<ApiResult
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      logger.api(`${method} ${path}`, { attempt: attempt + 1, body, params });
+      logger.api(`${method} ${url}`, { attempt: attempt + 1, body, params });
 
       const axiosConfig: AxiosRequestConfig = {
         method,
@@ -114,7 +124,7 @@ export const request = async <T = any>(config: RequestConfig): Promise<ApiResult
 
       const response = await apiClient.request<T>(axiosConfig);
 
-      logger.api(`${method} ${path} SUCCESS`, { status: response.status });
+      logger.api(`${method} ${url} SUCCESS`, { status: response.status });
       return { ok: true, data: response.data, status: response.status };
     } catch (error: any) {
       lastError = error;
@@ -122,7 +132,7 @@ export const request = async <T = any>(config: RequestConfig): Promise<ApiResult
       const isRetryable = isNetworkError || (error.response?.status >= 500 && error.response?.status < 600);
       const status = error.response?.status;
 
-      logger.api(`${method} ${path} FAILED`, {
+      logger.api(`${method} ${url} FAILED`, {
         attempt: attempt + 1,
         status,
         error: error.message,
@@ -160,6 +170,29 @@ export const request = async <T = any>(config: RequestConfig): Promise<ApiResult
     error: lastError?.message || 'Request failed after retries',
     status: lastError?.response?.status,
   };
+};
+
+export const healthCheck = async () => {
+  const url = `${API_BASE_URL}/health`;
+  try {
+    logger.api('HEALTHCHECK start', { url });
+    const response = await apiClient.get(url, { timeout: 5000 });
+    logger.api('HEALTHCHECK success', { status: response.status, data: response.data });
+    return { ok: true, data: response.data, status: response.status as number };
+  } catch (error: any) {
+    logger.error('HEALTHCHECK failed', {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      url,
+    });
+    return {
+      ok: false,
+      error: error?.message || 'Healthcheck failed',
+      status: error?.response?.status,
+      data: error?.response?.data,
+    };
+  }
 };
 
 // Convenience methods

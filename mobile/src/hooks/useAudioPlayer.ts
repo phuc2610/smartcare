@@ -18,16 +18,22 @@ export const useAudioPlayer = () => {
 
   useEffect(() => {
     const setupPlayer = async () => {
-      await TrackPlayer.setupPlayer();
-      await TrackPlayer.updateOptions({
-        capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-        compactCapabilities: [Capability.Play, Capability.Pause],
-      });
+      try {
+        await TrackPlayer.setupPlayer();
+        await TrackPlayer.updateOptions({
+          capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
+          compactCapabilities: [Capability.Play, Capability.Pause],
+        });
+      } catch (error) {
+        console.warn('TrackPlayer setup error:', error);
+      }
     };
     setupPlayer();
 
     return () => {
-      TrackPlayer.destroy();
+      // Cleanup: stop and reset player (destroy() doesn't exist)
+      TrackPlayer.stop().catch(() => {});
+      TrackPlayer.reset().catch(() => {});
     };
   }, []);
 

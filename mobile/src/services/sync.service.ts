@@ -73,7 +73,7 @@ const syncMedications = async (): Promise<void> => {
     
     for (const op of queue) {
       try {
-        const result = await api.post('/medications', op.data);
+        const result = await api.post('/api/medications', op.data);
         if (result.ok) {
           synced.push(op.id);
           logger.logger.log('SYNC', `Synced medication: ${op.id}`);
@@ -106,7 +106,7 @@ const syncHealthLogs = async (): Promise<void> => {
     
     for (const op of queue) {
       try {
-        const result = await api.post('/health/logs', op.data);
+        const result = await api.post('/api/health/logs', op.data);
         if (result.ok) {
           synced.push(op.id);
           logger.logger.log('SYNC', `Synced health log: ${op.id}`);
@@ -139,7 +139,7 @@ const syncReminders = async (): Promise<void> => {
     
     for (const op of queue) {
       try {
-        const result = await api.patch(`/medications/${op.data.id}/take`, { status: op.data.status });
+        const result = await api.patch(`/api/medications/${op.data.id}/take`, { status: op.data.status });
         if (result.ok) {
           synced.push(op.id);
           logger.logger.log('SYNC', `Synced reminder: ${op.id}`);

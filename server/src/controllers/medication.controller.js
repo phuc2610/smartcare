@@ -83,6 +83,42 @@ const updateReminderStatus = async (req, res) => {
   }
 };
 
+const updateReminderSchema = z.object({
+  body: z.object({
+    scheduledTime: z.string().datetime().optional(),
+    dosage: z.string().optional(),
+    unit: z.string().optional(),
+  }),
+});
+
+const updateReminder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { scheduledTime, dosage, unit } = req.body;
+
+    const reminder = await Reminder.findById(id);
+    if (!reminder) {
+      return res.status(404).json({ error: 'Reminder not found' });
+    }
+
+    if (scheduledTime) {
+      reminder.scheduledTime = new Date(scheduledTime);
+    }
+    if (dosage !== undefined) {
+      reminder.dosage = dosage;
+    }
+    if (unit !== undefined) {
+      reminder.unit = unit;
+    }
+    reminder.lastUpdated = new Date();
+    await reminder.save();
+
+    res.json({ reminder });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const getMedications = async (req, res) => {
   try {
     const medications = await Medication.find({ userId: req.user._id }).sort({ createdAt: -1 });
@@ -148,9 +184,11 @@ module.exports = {
   createMedication,
   getTodayReminders,
   updateReminderStatus,
+  updateReminder,
   getMedications,
   deleteMedication,
   createMedicationSchema,
+  updateReminderSchema,
 };
 
 

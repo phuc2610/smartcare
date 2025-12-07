@@ -9,18 +9,17 @@ export const uploadImage = async (uri: string): Promise<{ url: string; publicId:
     name: 'medication.jpg',
   } as any);
 
-  const result = await api.post<{ url: string; publicId: string }>('/upload/image', formData, {
+  const result = await api.post<{ url: string; publicId: string }>('/api/upload/image', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Upload image failed');
   }
-  
-  logger.api('Upload image failed, using mock', result.error);
-  return { url: uri, publicId: 'mock_public_id' };
+
+  return result.data;
 };
 
 

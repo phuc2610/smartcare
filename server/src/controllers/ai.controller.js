@@ -9,34 +9,123 @@ const chatSchema = z.object({
 
 const chat = async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
     const { message } = req.body;
     const user = req.user;
 
-    const systemInstruction = `You are SmartCare AI, a helpful and empathetic health assistant.
-    User Name: ${user.name || 'Friend'}.
-    Medical Condition: ${user.medicalCondition || 'None specified'}.
+    const medicalCondition = user.medicalCondition || 'None specified';
     
-    Rules:
-    1. Answer in Vietnamese.
-    2. Keep answers concise (under 100 words) but helpful.
-    3. If the user asks about serious symptoms, always advise seeing a doctor.
-    4. Do not prescribe medicines, only give general lifestyle/dietary advice.
-    5. Always include a medical disclaimer at the end.
-    `;
+    // Create context-specific instructions based on medical condition
+    let conditionContext = '';
+    if (medicalCondition === 'Diabetes') {
+      conditionContext = `Người dùng đang mắc bệnh TIỂU ĐƯỜNG. Khi trả lời, bạn cần:
+      - Tư vấn về chế độ ăn uống phù hợp với bệnh tiểu đường (hạn chế đường, tinh bột, tăng cường rau xanh)
+      - Khuyến khích vận động nhẹ nhàng, đều đặn
+      - Nhắc nhở về việc kiểm tra đường huyết thường xuyên
+      - Tránh các thực phẩm có chỉ số đường huyết cao
+      - Tư vấn về dấu hiệu hạ đường huyết và cách xử lý`;
+    } else if (medicalCondition === 'Hypertension') {
+      conditionContext = `Người dùng đang mắc bệnh TĂNG HUYẾT ÁP. Khi trả lời, bạn cần:
+      - Tư vấn về chế độ ăn ít muối, ít chất béo
+      - Khuyến khích vận động vừa phải, tránh gắng sức
+      - Nhắc nhở về việc đo huyết áp thường xuyên
+      - Tránh stress, giữ tinh thần thoải mái
+      - Hạn chế rượu bia, thuốc lá`;
+    } else if (medicalCondition === 'Obesity') {
+      conditionContext = `Người dùng đang mắc bệnh BÉO PHÌ. Khi trả lời, bạn cần:
+      - Tư vấn về chế độ ăn giảm calo, tăng cường protein và chất xơ
+      - Khuyến khích vận động đều đặn, tăng dần cường độ
+      - Tư vấn về cách theo dõi cân nặng
+      - Tránh các thực phẩm nhiều đường, chất béo
+      - Khuyến khích thay đổi lối sống từ từ, bền vững`;
+    } else if (medicalCondition === 'Gastritis') {
+      conditionContext = `Người dùng đang mắc bệnh VIÊM DẠ DÀY. Khi trả lời, bạn cần:
+      - Tư vấn về chế độ ăn nhẹ, dễ tiêu, tránh đồ cay nóng, chua
+      - Khuyến khích ăn nhiều bữa nhỏ, không để bụng đói
+      - Tránh rượu bia, cà phê, thuốc lá
+      - Tư vấn về cách giảm stress vì stress ảnh hưởng đến dạ dày
+      - Nhắc nhở về việc uống thuốc đúng giờ nếu có`;
+    } else if (medicalCondition === 'Other') {
+      conditionContext = `Người dùng có tình trạng bệnh lý khác. Hãy tư vấn một cách cẩn thận và khuyến khích tham khảo ý kiến bác sĩ.`;
+    } else {
+      conditionContext = `Người dùng chưa có tình trạng bệnh lý cụ thể. Tư vấn về sức khỏe tổng quát và phòng ngừa bệnh.`;
+    }
+
+    const systemInstruction = `Bạn là SmartCare AI, một trợ lý sức khỏe thông minh và đồng cảm.
+
+THÔNG TIN NGƯỜI DÙNG:
+- Tên: ${user.name || 'Bạn'}
+- Tình trạng bệnh lý: ${medicalCondition}
+
+${conditionContext}
+
+QUY TẮC TRẢ LỜI:
+1. Trả lời bằng tiếng Việt, thân thiện và dễ hiểu.
+2. Giữ câu trả lời ngắn gọn (dưới 100 từ) nhưng hữu ích.
+3. LUÔN tư vấn dựa trên tình trạng bệnh lý "${medicalCondition}" của người dùng.
+4. Nếu người dùng hỏi về triệu chứng nghiêm trọng, luôn khuyên đi khám bác sĩ.
+5. KHÔNG kê đơn thuốc, chỉ đưa ra lời khuyên về lối sống và chế độ ăn uống.
+6. Nếu câu hỏi không liên quan đến sức khỏe, hãy nhẹ nhàng chuyển hướng về chủ đề sức khỏe.
+7. Luôn kết thúc bằng lời khuyên y tế (disclaimer).
+
+Hãy trả lời câu hỏi của người dùng một cách chính xác và phù hợp với tình trạng bệnh lý của họ.`;
+
+    // Get recent chat history for context (last 5 conversations)
+    const ChatMessage = require('../models/ChatMessage');
+    let conversationHistory = [];
+    try {
+      const recentMessages = await ChatMessage.find({ userId: user._id })
+        .sort({ timestamp: -1 })
+        .limit(5)
+        .lean();
+      
+      // Reverse to get chronological order (oldest first)
+      recentMessages.reverse();
+      
+      // Build conversation history
+      conversationHistory = recentMessages.flatMap(msg => [
+        { role: 'user', content: msg.message },
+        { role: 'assistant', content: msg.response },
+      ]);
+    } catch (historyError) {
+      console.error('Failed to load chat history:', historyError);
+      // Continue without history
+    }
+
+    // Build messages array with system instruction, history, and current message
+    const messages = [
+      { role: 'system', content: systemInstruction },
+      ...conversationHistory,
+      { role: 'user', content: message },
+    ];
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemInstruction },
-        { role: 'user', content: message },
-      ],
+      messages: messages,
       max_tokens: 200,
     });
 
     const response = completion.choices[0].message.content;
     const disclaimer = '\n\n⚠️ Lưu ý: Đây chỉ là tư vấn thông tin, không thay thế chẩn đoán y tế. Vui lòng tham khảo ý kiến bác sĩ cho các vấn đề sức khỏe nghiêm trọng.';
+    const fullResponse = response + disclaimer;
 
-    res.json({ response: response + disclaimer });
+    // Save chat message to database
+    try {
+      await ChatMessage.create({
+        userId: user._id,
+        message: message,
+        response: fullResponse,
+        sender: 'user',
+        timestamp: new Date(),
+      });
+    } catch (dbError) {
+      console.error('Failed to save chat message:', dbError);
+      // Continue even if save fails
+    }
+
+    res.json({ response: fullResponse });
   } catch (error) {
     console.error('OpenAI Error:', error);
     res.status(500).json({ error: 'AI service error' });
@@ -52,6 +141,9 @@ const parseMedicationSchema = z.object({
 
 const parseMedication = async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
     const { imageUrl, instruction } = req.body;
 
     let prompt = '';
@@ -97,6 +189,9 @@ const estimateCaloriesSchema = z.object({
 
 const estimateCalories = async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
     const { query, type } = req.body;
 
     const prompt =
@@ -127,9 +222,22 @@ const identifyDiseaseSchema = z.object({
 
 const identifyDisease = async (req, res) => {
   try {
+    if (!openai) {
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
     const { input } = req.body;
 
-    const prompt = `Input: '${input}'. Classify this medical condition into one: ['Diabetes', 'Hypertension', 'Obesity', 'Gastritis', 'Normal', 'Other']. Return JSON with "condition" property.`;
+    const prompt = `Input: '${input}'. Classify this medical condition description into ONE of these categories: ['Diabetes', 'Hypertension', 'Obesity', 'Gastritis', 'Normal', 'Other']. 
+
+Rules:
+- If the input clearly describes diabetes, blood sugar issues, or related symptoms, return "Diabetes"
+- If the input describes high blood pressure, hypertension, or related symptoms, return "Hypertension"  
+- If the input describes obesity, overweight, or weight-related issues, return "Obesity"
+- If the input describes stomach issues, gastritis, or digestive problems, return "Gastritis"
+- If the input is empty, unclear, or indicates no medical condition, return "Normal"
+- Only return "Other" if the condition doesn't fit any of the above categories
+
+Return JSON with "condition" property containing exactly one of the categories above.`;
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -146,14 +254,288 @@ const identifyDisease = async (req, res) => {
   }
 };
 
+const getHealthRecommendationsSchema = z.object({
+  body: z.object({
+    medicalCondition: z.string().optional(),
+  }),
+});
+
+const getHealthRecommendations = async (req, res) => {
+  try {
+    if (!openai) {
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
+    
+    const medicalCondition = req.body.medicalCondition || req.user?.medicalCondition || 'Normal';
+
+    if (medicalCondition === 'Normal' || !medicalCondition) {
+      // Return default recommendations for normal health
+      return res.json({
+        recommendations: [
+          {
+            id: 'n1',
+            type: 'LIFESTYLE',
+            title: 'Uống đủ nước',
+            description: 'Cố gắng uống đủ 2 lít nước mỗi ngày.',
+            iconName: 'GlassWater',
+            color: 'bg-blue-50 text-blue-500',
+          },
+        ],
+      });
+    }
+
+    const prompt = `You are a health expert. Generate 2-3 personalized health recommendations for a Vietnamese patient with medical condition: "${medicalCondition}".
+
+Requirements:
+- Recommendations should be specific, actionable, and suitable for Vietnamese patients
+- Each recommendation should have: type (DIET, EXERCISE, or LIFESTYLE), title (short, clear), description (detailed, practical)
+- Focus on practical daily habits that help manage the condition
+- Use Vietnamese language
+- Return JSON object with "recommendations" array containing objects with: id, type, title, description, iconName, color
+
+Example format:
+{
+  "recommendations": [
+    {
+      "id": "rec1",
+      "type": "DIET",
+      "title": "Hạn chế tinh bột",
+      "description": "Giảm cơm trắng, thay bằng gạo lứt hoặc yến mạch để kiểm soát đường huyết tốt hơn.",
+      "iconName": "Utensils",
+      "color": "bg-green-100 text-green-600"
+    }
+  ]
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 600,
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    
+    // Ensure result has recommendations array
+    const recommendations = Array.isArray(result.recommendations) 
+      ? result.recommendations 
+      : (Array.isArray(result) ? result : []);
+    
+    res.json({ recommendations });
+  } catch (error) {
+    console.error('Health Recommendations Error:', error);
+    // Fallback to default recommendations on error
+    res.json({
+      recommendations: [
+        {
+          id: 'default1',
+          type: 'LIFESTYLE',
+          title: 'Uống đủ nước',
+          description: 'Cố gắng uống đủ 2 lít nước mỗi ngày.',
+          iconName: 'GlassWater',
+          color: 'bg-blue-50 text-blue-500',
+        },
+      ],
+    });
+  }
+};
+
+const analyzeReportSchema = z.object({
+  body: z.object({
+    range: z.enum(['week', 'month']),
+    medicalCondition: z.string().optional(),
+    reportData: z.object({
+      totalCaloriesIn: z.number(),
+      totalCaloriesOut: z.number(),
+      meals: z.array(z.object({
+        foodName: z.string(),
+        calories: z.number(),
+        date: z.string().optional(),
+      })).optional(),
+      exercises: z.array(z.object({
+        exerciseType: z.string(),
+        durationMinutes: z.number(),
+        caloriesBurned: z.number(),
+      })).optional(),
+      symptoms: z.array(z.object({
+        symptomName: z.string(),
+        severity: z.number(),
+        note: z.string().optional(),
+      })).optional(),
+    }),
+  }),
+});
+
+const analyzeReport = async (req, res) => {
+  try {
+    const { range, medicalCondition, reportData } = req.body;
+    const userId = req.user._id;
+    
+    // Check if we have a cached result in database
+    const today = new Date();
+    const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Calculate expiresAt: 12:00 of the next day (so it expires after 12h or when new day starts)
+    const expiresAt = new Date(today);
+    expiresAt.setDate(expiresAt.getDate() + 1); // Tomorrow
+    expiresAt.setHours(12, 0, 0, 0); // 12:00 tomorrow
+    
+    const AIReport = require('../models/AIReport');
+    
+    // Try to find existing report
+    const existingReport = await AIReport.findOne({
+      userId,
+      range,
+      medicalCondition: medicalCondition || 'none',
+      dateKey,
+    });
+    
+    // Check if existing report is still valid (not expired)
+    if (existingReport && existingReport.expiresAt > today) {
+      return res.json({ notes: existingReport.notes });
+    }
+    
+    // If expired or not found, check if we need to generate new one
+    if (!openai) {
+      // If AI is disabled but we have expired cache, return it
+      if (existingReport) {
+        return res.json({ notes: existingReport.notes });
+      }
+      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
+    }
+
+    // Group meals by date
+    const mealsByDate = {};
+    if (reportData.meals && reportData.meals.length > 0) {
+      reportData.meals.forEach((meal) => {
+        const dateKey = meal.date || new Date().toISOString().split('T')[0];
+        if (!mealsByDate[dateKey]) {
+          mealsByDate[dateKey] = [];
+        }
+        mealsByDate[dateKey].push({ foodName: meal.foodName, calories: meal.calories });
+      });
+    }
+
+    const mealsByDateText = Object.keys(mealsByDate).map(date => {
+      const meals = mealsByDate[date];
+      return `  - ${date}: ${meals.map(m => m.foodName).join(', ')}`;
+    }).join('\n');
+
+    const exercisesText = reportData.exercises && reportData.exercises.length > 0
+      ? reportData.exercises.map((e) => `  - ${e.exerciseType}: ${e.durationMinutes} phút`).join('\n')
+      : '  - Chưa có vận động';
+
+    const prompt = `Bạn là chuyên gia sức khỏe phân tích báo cáo sức khỏe của bệnh nhân cho ${range === 'week' ? 'tuần này' : 'tháng này'}.
+
+Tình trạng bệnh lý: ${medicalCondition || 'Không xác định'}
+
+Bữa ăn theo ngày:
+${mealsByDateText || '  - Chưa có dữ liệu'}
+
+Vận động:
+${exercisesText}
+
+${reportData.symptoms && reportData.symptoms.length > 0 ? `Triệu chứng:\n${reportData.symptoms.map((s) => `  - ${s.symptomName} (mức độ: ${s.severity}/10${s.note ? `, ghi chú: ${s.note}` : ''})`).join('\n')}` : 'Triệu chứng: Không có'}
+
+Hãy phân tích và đưa ra lưu ý bằng tiếng Việt (200-300 từ) theo các điểm sau:
+1. **Ăn uống**: Phân tích xem các món ăn có phù hợp với tình trạng bệnh "${medicalCondition || 'của bệnh nhân'}" không. Nếu có món ăn không hợp lý, hãy chỉ rõ ngày nào và món gì không nên ăn, tại sao, và nên thay thế bằng gì.
+2. **Vận động**: Đánh giá xem bệnh nhân đã vận động đủ chưa (dựa vào tần suất và thời gian, KHÔNG dựa vào calories). Nếu chưa đủ, đưa ra khuyến nghị cụ thể.
+3. **Triệu chứng**: Nếu có triệu chứng, đưa ra lời khuyên về cách xử lý phù hợp với tình trạng bệnh.
+
+Trả về JSON với property "notes" chứa phân tích.`;
+
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 500,
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content);
+    const notes = result.notes || result.analysis || 'Không có lưu ý đặc biệt.';
+    
+    // Save or update in database
+    await AIReport.findOneAndUpdate(
+      {
+        userId,
+        range,
+        medicalCondition: medicalCondition || 'none',
+        dateKey,
+      },
+      {
+        userId,
+        range,
+        medicalCondition: medicalCondition || 'none',
+        dateKey,
+        notes,
+        expiresAt,
+      },
+      {
+        upsert: true,
+        new: true,
+      }
+    );
+    
+    res.json({ notes });
+  } catch (error) {
+    console.error('Report Analysis Error:', error);
+    
+    // Try to return cached data if available
+    try {
+      const AIReport = require('../models/AIReport');
+      const existingReport = await AIReport.findOne({
+        userId: req.user._id,
+        range: req.body.range,
+        medicalCondition: req.body.medicalCondition || 'none',
+        dateKey: new Date().toISOString().split('T')[0],
+      });
+      
+      if (existingReport) {
+        return res.json({ notes: existingReport.notes });
+      }
+    } catch (cacheError) {
+      console.error('Failed to load cached report:', cacheError);
+    }
+    
+    res.status(500).json({ error: 'Failed to analyze report' });
+  }
+};
+
+const getChatHistory = async (req, res) => {
+  try {
+    const ChatMessage = require('../models/ChatMessage');
+    const userId = req.user._id;
+    
+    // Get last 50 messages, sorted by timestamp descending
+    const messages = await ChatMessage.find({ userId })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .select('message response sender timestamp')
+      .lean();
+
+    // Reverse to get chronological order (oldest first)
+    messages.reverse();
+
+    res.json({ messages });
+  } catch (error) {
+    console.error('Get Chat History Error:', error);
+    res.status(500).json({ error: 'Failed to get chat history' });
+  }
+};
+
 module.exports = {
   chat,
   parseMedication,
   estimateCalories,
   identifyDisease,
+  getHealthRecommendations,
+  analyzeReport,
+  getChatHistory,
   chatSchema,
   parseMedicationSchema,
   estimateCaloriesSchema,
   identifyDiseaseSchema,
+  getHealthRecommendationsSchema,
+  analyzeReportSchema,
 };
 

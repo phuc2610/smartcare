@@ -20,6 +20,7 @@ const FallbackScreen = () => (
 
 // Lazy load AuthScreen với error boundary
 let AuthScreenComponent: React.ComponentType<any> = FallbackScreen;
+let ForgotPasswordScreenComponent: React.ComponentType<any> = FallbackScreen;
 
 try {
   // Try to load AuthScreen - if it fails, use fallback
@@ -31,6 +32,17 @@ try {
 } catch (error) {
   logger.nav('Failed to load AuthScreen module (using fallback)', error);
   // AuthScreenComponent already set to FallbackScreen
+}
+
+try {
+  // Try to load ForgotPasswordScreen
+  const ForgotPasswordModule = require('../screens/Auth/ForgotPasswordScreen');
+  const LoadedForgotPassword = ForgotPasswordModule?.ForgotPasswordScreen || ForgotPasswordModule?.default;
+  if (LoadedForgotPassword && typeof LoadedForgotPassword === 'function') {
+    ForgotPasswordScreenComponent = LoadedForgotPassword;
+  }
+} catch (error) {
+  logger.nav('Failed to load ForgotPasswordScreen module (using fallback)', error);
 }
 
 export const RootNavigator = () => {
@@ -50,7 +62,14 @@ export const RootNavigator = () => {
         {user ? (
           <Stack.Screen name="Main" component={TabsNavigator} />
         ) : (
-          <Stack.Screen name="Auth" component={AuthScreenComponent} />
+          <>
+            <Stack.Screen name="Auth" component={AuthScreenComponent} />
+            <Stack.Screen 
+              name="ForgotPassword" 
+              component={ForgotPasswordScreenComponent}
+              options={{ headerShown: true, title: 'Quên mật khẩu' }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

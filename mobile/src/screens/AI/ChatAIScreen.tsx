@@ -1,25 +1,75 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { chatWithAI } from '../../services/ai.service';
+import { chatWithAI, getChatHistory } from '../../services/ai.service';
 import { ChatMessage } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Avatar } from '../../components/Avatar';
-import { AppHeader } from '../../components/AppHeader';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const ChatAIScreen = () => {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      text: `Xin chào ${user?.name || 'bạn'}! Tôi là trợ lý AI của SmartCare. Bạn cảm thấy trong người thế nào?`,
-      sender: 'bot',
-      timestamp: Date.now(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Load chat history when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadChatHistory();
+    }, [])
+  );
+
+  const loadChatHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const history = await getChatHistory();
+      
+      if (history.messages && history.messages.length > 0) {
+        // Convert database format to ChatMessage format
+        const chatMessages: ChatMessage[] = history.messages.flatMap(msg => [
+          {
+            id: `user-${msg.timestamp}`,
+            text: msg.message,
+            sender: 'user' as const,
+            timestamp: new Date(msg.timestamp).getTime(),
+          },
+          {
+            id: `bot-${msg.timestamp}`,
+            text: msg.response,
+            sender: 'bot' as const,
+            timestamp: new Date(msg.timestamp).getTime(),
+          },
+        ]);
+        setMessages(chatMessages);
+      } else {
+        // No history, show welcome message
+        setMessages([
+          {
+            id: 'welcome',
+            text: `Xin chào ${user?.name || 'bạn'}! Tôi là trợ lý AI của SmartCare. Bạn cảm thấy trong người thế nào?`,
+            sender: 'bot',
+            timestamp: Date.now(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('[Chat] Failed to load history:', error);
+      // Show welcome message on error
+      setMessages([
+        {
+          id: 'welcome',
+          text: `Xin chào ${user?.name || 'bạn'}! Tôi là trợ lý AI của SmartCare. Bạn cảm thấy trong người thế nào?`,
+          sender: 'bot',
+          timestamp: Date.now(),
+        },
+      ]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -64,7 +114,6 @@ export const ChatAIScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Trợ lý AI" />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -75,7 +124,13 @@ export const ChatAIScreen = () => {
         style={styles.messages}
         contentContainerStyle={styles.messagesContent}
       >
-        {messages.map(msg => {
+        {loadingHistory ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Đang tải lịch sử chat...</Text>
+          </View>
+        ) : (
+          messages.map(msg => {
           const isBot = msg.sender === 'bot';
           return (
             <View
@@ -91,7 +146,7 @@ export const ChatAIScreen = () => {
               {!isBot && <Avatar name={user?.name || 'U'} size={32} />}
             </View>
           );
-        })}
+        }))}
         {isTyping && (
           <View style={[styles.messageContainer, styles.botContainer]}>
             <Avatar name="AI" size={32} backgroundColor={COLORS.primaryLight} />
@@ -246,6 +301,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
 });
 

@@ -71,29 +71,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (phone: string, password: string) => {
+    logger.auth('AuthContext.signIn: Starting', { phone });
     try {
       // Guard: Kiểm tra loginAPI có tồn tại
       if (!loginAPI || typeof loginAPI !== 'function') {
+        logger.error('AuthContext.signIn: loginAPI not available');
         throw new Error('Login service is not available');
       }
+      logger.auth('AuthContext.signIn: Calling loginAPI');
       const res = await loginAPI({ phone, password });
+      logger.auth('AuthContext.signIn: API success', { hasUser: !!res?.user, userId: res?.user?._id });
       setUser(res?.user || null);
+      logger.auth('AuthContext.signIn: User state updated');
     } catch (error: any) {
-      logger.error('Sign in failed', error);
-      // Don't throw - let UI handle error display
+      logger.error('AuthContext.signIn: Failed', { 
+        message: error?.message, 
+        stack: error?.stack,
+        error 
+      });
       throw new Error(error?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
     }
   };
 
   const signUp = async (data: RegisterData) => {
+    logger.auth('AuthContext.signUp: Starting', { phone: data.phone, name: data.name, role: data.role });
     try {
       // Guard: Kiểm tra registerAPI có tồn tại
       if (!registerAPI || typeof registerAPI !== 'function') {
+        logger.error('AuthContext.signUp: registerAPI not available');
         throw new Error('Register service is not available');
       }
-      await registerAPI(data);
+      logger.auth('AuthContext.signUp: Calling registerAPI');
+      const result = await registerAPI(data);
+      logger.auth('AuthContext.signUp: API success', { message: result?.message, phone: result?.phone });
     } catch (error: any) {
-      logger.error('Sign up failed', error);
+      logger.error('AuthContext.signUp: Failed', { 
+        message: error?.message, 
+        stack: error?.stack,
+        error 
+      });
       throw new Error(error?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     }
   };

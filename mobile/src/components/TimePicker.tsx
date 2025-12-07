@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
-// Note: Install @react-native-community/datetimepicker if needed
-// import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform, TextInput, ScrollView } from 'react-native';
 import { COLORS } from '../utils/constants';
 
 interface TimePickerProps {
@@ -18,26 +16,49 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   error = false 
 }) => {
   const [show, setShow] = useState(false);
-  const [time, setTime] = useState(() => {
-    const [hours, minutes] = value.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours || 8, minutes || 0, 0, 0);
-    return date;
+  const [inputValue, setInputValue] = useState(value || '08:00');
+  const [hours, setHours] = useState(() => {
+    const [h] = (value || '08:00').split(':').map(Number);
+    return h || 8;
+  });
+  const [minutes, setMinutes] = useState(() => {
+    const [, m] = (value || '08:00').split(':').map(Number);
+    return m || 0;
   });
 
-  const handleChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShow(false);
-    }
-    if (selectedTime) {
-      setTime(selectedTime);
-      const hours = selectedTime.getHours().toString().padStart(2, '0');
-      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-      onChange(`${hours}:${minutes}`);
+  const displayTime = value || '08:00';
+
+  const handleTimeInput = (text: string) => {
+    setInputValue(text);
+    // Validate format HH:mm
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (timeRegex.test(text)) {
+      onChange(text);
     }
   };
 
-  const displayTime = value || '08:00';
+  const handleHourChange = (hour: number) => {
+    const newHour = Math.max(0, Math.min(23, hour));
+    setHours(newHour);
+    const newTime = `${String(newHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    onChange(newTime);
+  };
+
+  const handleMinuteChange = (minute: number) => {
+    const newMinute = Math.max(0, Math.min(59, minute));
+    setMinutes(newMinute);
+    const newTime = `${String(hours).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`;
+    onChange(newTime);
+  };
+
+  const handleQuickSelect = (time: string) => {
+    setInputValue(time);
+    onChange(time);
+    const [h, m] = time.split(':').map(Number);
+    setHours(h);
+    setMinutes(m);
+    setShow(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -68,33 +89,78 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                   <Text style={styles.doneText}>Xong</Text>
                 </TouchableOpacity>
               </View>
-              {/* DateTimePicker - Uncomment when package is installed */}
-              {/* <DateTimePicker
-                value={time}
-                mode="time"
-                is24Hour={true}
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleChange}
-                style={styles.picker}
-              /> */}
               <View style={styles.picker}>
-                <Text style={styles.pickerText}>Time Picker (Install @react-native-community/datetimepicker)</Text>
+                <Text style={styles.pickerLabel}>Nhập giờ (HH:mm)</Text>
+                <TextInput
+                  style={styles.timeInput}
+                  value={inputValue}
+                  onChangeText={handleTimeInput}
+                  placeholder="08:00"
+                  placeholderTextColor={COLORS.textSecondary}
+                  keyboardType="numeric"
+                />
+                
+                <View style={styles.scrollPicker}>
+                  <View style={styles.scrollColumn}>
+                    <Text style={styles.scrollLabel}>Giờ</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[styles.scrollItem, hours === i && styles.scrollItemActive]}
+                          onPress={() => handleHourChange(i)}
+                        >
+                          <Text style={[styles.scrollItemText, hours === i && styles.scrollItemTextActive]}>
+                            {String(i).padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  
+                  <View style={styles.scrollColumn}>
+                    <Text style={styles.scrollLabel}>Phút</Text>
+                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                      {Array.from({ length: 60 }, (_, i) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[styles.scrollItem, minutes === i && styles.scrollItemActive]}
+                          onPress={() => handleMinuteChange(i)}
+                        >
+                          <Text style={[styles.scrollItemText, minutes === i && styles.scrollItemTextActive]}>
+                            {String(i).padStart(2, '0')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                <View style={styles.quickSelect}>
+                  <TouchableOpacity 
+                    style={styles.quickButton}
+                    onPress={() => handleQuickSelect('08:00')}
+                  >
+                    <Text style={styles.quickButtonText}>08:00</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.quickButton}
+                    onPress={() => handleQuickSelect('12:00')}
+                  >
+                    <Text style={styles.quickButtonText}>12:00</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.quickButton}
+                    onPress={() => handleQuickSelect('18:00')}
+                  >
+                    <Text style={styles.quickButtonText}>18:00</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
         </Modal>
       )}
-
-      {/* Android DateTimePicker - Uncomment when package is installed */}
-      {/* {Platform.OS === 'android' && show && (
-        <DateTimePicker
-          value={time}
-          mode="time"
-          is24Hour={true}
-          display="default"
-          onChange={handleChange}
-        />
-      )} */}
     </View>
   );
 };
@@ -164,13 +230,75 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   picker: {
+    padding: 16,
+  },
+  pickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
+  timeInput: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 16,
+  },
+  scrollPicker: {
+    flexDirection: 'row',
     height: 200,
-    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 16,
+  },
+  scrollColumn: {
+    flex: 1,
     alignItems: 'center',
   },
-  pickerText: {
-    fontSize: 14,
+  scrollLabel: {
+    fontSize: 12,
+    fontWeight: '600',
     color: COLORS.textSecondary,
+    marginBottom: 8,
+  },
+  scrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollItem: {
+    padding: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  scrollItemActive: {
+    backgroundColor: COLORS.primaryLight,
+  },
+  scrollItemText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  scrollItemTextActive: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+  },
+  quickSelect: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickButton: {
+    flex: 1,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  quickButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });
 

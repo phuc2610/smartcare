@@ -47,15 +47,6 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack 
         <Text style={styles.title}>{title}</Text>
         
         <View style={styles.rightActions}>
-          {/* Map Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleNavigate('Map')}
-            activeOpacity={0.7}
-          >
-            <Icon name="place" size={24} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          
           {/* Wellness Icon */}
           <TouchableOpacity
             style={styles.iconButton}
@@ -74,13 +65,13 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack 
             <Icon name="chat-bubble-outline" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
           
-          {/* Profile Icon */}
+          {/* Link Icon */}
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => handleNavigate('Profile')}
+            onPress={() => handleNavigate('Link')}
             activeOpacity={0.7}
           >
-            <Icon name="account-circle" size={24} color={COLORS.textSecondary} />
+            <Icon name="link" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>

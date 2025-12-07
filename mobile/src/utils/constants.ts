@@ -1,32 +1,14 @@
-// Safe import Config với fallback
-let Config: any = null;
-try {
-  Config = require('react-native-config').default || require('react-native-config');
-} catch (error) {
-  console.warn('react-native-config not available, using defaults');
-}
+// Import from centralized env config
+import {
+  API_BASE_URL,
+  USE_MOCK_API,
+  DEBUG_LOGS,
+  MAP_PROVIDER,
+  EMERGENCY_PHONE,
+} from '../config/env';
 
-// Safe access to Config with fallbacks
-const getConfig = (key: string, defaultValue: string): string => {
-  try {
-    // Guard: Check if Config exists and is not null
-    if (Config != null && typeof Config === 'object' && Config[key] != null) {
-      return String(Config[key]);
-    }
-  } catch (error) {
-    // Silent fail - return default
-  }
-  return defaultValue;
-};
-
-// Lazy evaluation để tránh crash khi module load
-export const API_BASE_URL = getConfig('API_BASE_URL', 'http://10.0.2.2:4000');
-export const EMERGENCY_PHONE = getConfig('EMERGENCY_PHONE', '115');
-export const MAP_PROVIDER = getConfig('MAP_PROVIDER', 'osm');
-
-// Feature flags
-export const USE_MOCK_API = getConfig('USE_MOCK_API', 'false') === 'true';
-export const DEBUG_LOGS = getConfig('DEBUG_LOGS', __DEV__ ? 'true' : 'false') === 'true';
+// Re-export for backward compatibility
+export { API_BASE_URL, USE_MOCK_API, DEBUG_LOGS, MAP_PROVIDER, EMERGENCY_PHONE };
 
 export const STORAGE_KEYS = {
   TOKEN: '@smartcare_token',

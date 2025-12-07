@@ -6,7 +6,7 @@ export const logWellnessSession = async (
   type: 'breathing' | 'music',
   durationSeconds: number
 ): Promise<void> => {
-  const result = await api.post('/wellness/log', { type, durationSeconds });
+  const result = await api.post('/api/wellness/log', { type, durationSeconds });
   
   if (result.ok) {
     logger.api('Log wellness session SUCCESS - saved to MongoDB', { status: result.status });

@@ -7,7 +7,6 @@ import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
-import { AppHeader } from '../../components/AppHeader';
 
 export const ProfileScreen = ({ navigation, route }: any) => {
   const { user, updateProfile, signOut } = useAuth();
@@ -22,7 +21,16 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     if (user) {
       setHeight(user.height?.toString() || '');
       setWeight(user.weight?.toString() || '');
-      setConditionInput(user.medicalCondition && user.medicalCondition !== 'Normal' ? user.medicalCondition : '');
+      // Keep the original medicalCondition description if it exists, otherwise use empty string
+      // If medicalCondition is a standard category (Diabetes, Hypertension, etc.), we'll show it
+      // If it's 'Normal' or empty, show empty string for user to input
+      if (user.medicalCondition && user.medicalCondition !== 'Normal' && user.medicalCondition !== 'Other') {
+        // If it's a standard category, we might want to show it or let user edit
+        // For now, show empty to let user input their own description
+        setConditionInput('');
+      } else {
+        setConditionInput('');
+      }
     }
   }, [user]);
 
@@ -32,10 +40,16 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     setAnalyzing(true);
 
     try {
-      let finalCondition = 'Normal';
+      let finalCondition = user.medicalCondition || 'Normal'; // Keep existing condition by default
+      
+      // Only identify disease if user has entered new input
       if (conditionInput.trim()) {
         const result = await identifyDisease(conditionInput);
-        finalCondition = result.condition;
+        finalCondition = result.condition || finalCondition; // Use identified condition or keep existing
+      }
+      // If no input and no existing condition, keep as Normal
+      if (!conditionInput.trim() && !user.medicalCondition) {
+        finalCondition = 'Normal';
       }
 
       const updatedUser = await updateProfileAPI({
@@ -47,7 +61,19 @@ export const ProfileScreen = ({ navigation, route }: any) => {
       updateProfile(updatedUser.user);
       Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${finalCondition}`);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể lưu');
+      console.error('[Profile] Save error:', error);
+      // If AI fails, still save other fields but keep existing medicalCondition
+      try {
+        const updatedUser = await updateProfileAPI({
+          height: Number(height) || undefined,
+          weight: Number(weight) || undefined,
+          // Don't update medicalCondition if AI failed
+        });
+        updateProfile(updatedUser.user);
+        Alert.alert('Thành công', 'Đã lưu chiều cao và cân nặng');
+      } catch (saveError: any) {
+        Alert.alert('Lỗi', saveError.response?.data?.error || 'Không thể lưu');
+      }
     } finally {
       setAnalyzing(false);
       setLoading(false);
@@ -56,7 +82,6 @@ export const ProfileScreen = ({ navigation, route }: any) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Hồ sơ cá nhân" />
       <ScrollView style={styles.scrollView}>
       <View style={styles.header}>
         <Avatar name={user?.name || 'U'} size={96} />

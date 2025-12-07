@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { logWellnessSession } from '../../services/wellness.service';
 import { COLORS } from '../../utils/constants';
-import { AppHeader } from '../../components/AppHeader';
 
 const SOUND_LIBRARY = [
   { id: 'rain', title: 'Mưa Rơi', uri: 'https://assets.mixkit.co/active_storage/sfx/1253/1253-preview.mp3' },
@@ -18,7 +17,6 @@ export const WellnessScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Góc thư giãn" />
       <ScrollView style={styles.scrollView}>
       <View style={styles.header}>
         <Text style={styles.title}>Góc thư giãn 🌿</Text>

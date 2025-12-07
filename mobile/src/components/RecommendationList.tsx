@@ -1,60 +1,125 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { Recommendation } from '../types';
 import { COLORS } from '../utils/constants';
+import { getHealthRecommendations } from '../services/ai.service';
 
-const RECOMMENDATIONS_DB: Record<string, Recommendation[]> = {
-  Diabetes: [
-    {
-      id: 'd1',
-      type: 'DIET',
-      title: 'Hạn chế tinh bột',
-      description: 'Giảm cơm trắng, thay bằng gạo lứt hoặc yến mạch.',
-      iconName: 'Utensils',
-      color: 'bg-green-100 text-green-600',
-    },
-    {
-      id: 'd2',
-      type: 'EXERCISE',
-      title: 'Đi bộ sau ăn',
-      description: 'Đi bộ nhẹ 15p sau bữa tối giúp ổn định đường huyết.',
-      iconName: 'Footprints',
-      color: 'bg-orange-100 text-orange-600',
-    },
-  ],
-  Hypertension: [
-    {
-      id: 'h1',
-      type: 'DIET',
-      title: 'Ăn nhạt',
-      description: 'Giảm muối trong khẩu phần ăn (< 5g/ngày).',
-      iconName: 'Soup',
-      color: 'bg-blue-100 text-blue-600',
-    },
-  ],
-  Normal: [
-    {
-      id: 'n1',
-      type: 'LIFESTYLE',
-      title: 'Uống đủ nước',
-      description: 'Cố gắng uống đủ 2 lít nước mỗi ngày.',
-      iconName: 'GlassWater',
-      color: 'bg-blue-50 text-blue-500',
-    },
-  ],
-};
+const CACHE_KEY_PREFIX = 'health_recommendations_';
+const CACHE_EXPIRY_DAYS = 7; // Cache for 7 days
+
+interface CachedRecommendations {
+  recommendations: Recommendation[];
+  timestamp: number;
+  medicalCondition: string;
+}
 
 export const RecommendationList = () => {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [loading, setLoading] = useState(false);
+  const previousConditionRef = useRef<string | undefined>(undefined);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (user?.medicalCondition) {
-      const data = RECOMMENDATIONS_DB[user.medicalCondition] || RECOMMENDATIONS_DB['Normal'];
-      setRecommendations(data);
-    }
-  }, [user]);
+    const fetchRecommendations = async () => {
+      if (!user?.medicalCondition) {
+        setRecommendations([]);
+        previousConditionRef.current = undefined;
+        hasLoadedRef.current = false;
+        return;
+      }
+
+      const medicalCondition = user.medicalCondition;
+      
+      // If condition hasn't changed and we've already loaded, don't fetch again
+      if (previousConditionRef.current === medicalCondition && hasLoadedRef.current) {
+        return;
+      }
+
+      // Try to load from cache first
+      const cacheKey = `${CACHE_KEY_PREFIX}${medicalCondition}`;
+      let useCache = false;
+      
+      try {
+        const cachedData = await AsyncStorage.getItem(cacheKey);
+        if (cachedData) {
+          const parsed: CachedRecommendations = JSON.parse(cachedData);
+          const now = Date.now();
+          const cacheAge = now - parsed.timestamp;
+          const cacheExpiry = CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+          
+          // Use cache if it's still valid and for the same condition
+          if (cacheAge < cacheExpiry && parsed.medicalCondition === medicalCondition) {
+            setRecommendations(parsed.recommendations || []);
+            previousConditionRef.current = medicalCondition;
+            hasLoadedRef.current = true;
+            useCache = true;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load from cache:', error);
+      }
+
+      // Only fetch from API if no valid cache
+      if (!useCache) {
+        setLoading(true);
+        try {
+          const data = await getHealthRecommendations(medicalCondition);
+          const recommendationsData = data.recommendations || [];
+          setRecommendations(recommendationsData);
+          
+          // Save to cache
+          const cacheData: CachedRecommendations = {
+            recommendations: recommendationsData,
+            timestamp: Date.now(),
+            medicalCondition: medicalCondition,
+          };
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
+          
+          previousConditionRef.current = medicalCondition;
+          hasLoadedRef.current = true;
+        } catch (error) {
+          console.error('Failed to fetch recommendations:', error);
+          // Try to use cache even if expired as fallback
+          try {
+            const cachedData = await AsyncStorage.getItem(cacheKey);
+            if (cachedData) {
+              const parsed: CachedRecommendations = JSON.parse(cachedData);
+              if (parsed.medicalCondition === medicalCondition) {
+                setRecommendations(parsed.recommendations || []);
+                previousConditionRef.current = medicalCondition;
+                hasLoadedRef.current = true;
+              } else {
+                setRecommendations([]);
+              }
+            } else {
+              setRecommendations([]);
+            }
+          } catch (cacheError) {
+            setRecommendations([]);
+          }
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchRecommendations();
+  }, [user?.medicalCondition]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Gợi ý sức khỏe</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingText}>AI đang phân tích...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (recommendations.length === 0) return null;
 
@@ -111,6 +176,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     lineHeight: 18,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
 });
 

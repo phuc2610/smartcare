@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +15,6 @@ import { LinkAccountScreen } from '../screens/Caregiver/LinkAccountScreen';
 import { CaregiverDashboardScreen } from '../screens/Caregiver/CaregiverDashboardScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import { ChatAIScreen } from '../screens/AI/ChatAIScreen';
-import { MapScreen } from '../screens/Map/MapScreen';
 import { WellnessScreen } from '../screens/Wellness/WellnessScreen';
 import { AppHeader } from '../components/AppHeader';
 
@@ -107,12 +106,12 @@ const MainTabs = () => {
         </>
       )}
       <Tab.Screen
-        name="Link"
-        component={LinkAccountScreen}
+        name="Profile"
+        component={ProfileScreen}
         options={{
-          tabBarLabel: 'Liên kết',
+          tabBarLabel: 'Hồ sơ',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="link" size={size || 24} color={color} />
+            <Icon name="account-circle" size={size || 24} color={color} />
           ),
         }}
       />
@@ -126,9 +125,8 @@ export const TabsNavigator = () => {
       screenOptions={{
         header: ({ route, navigation: nav }) => {
           const titles: Record<string, string> = {
-            Profile: 'Hồ sơ cá nhân',
+            Link: 'Liên kết',
             Chat: 'Trợ lý AI',
-            Map: 'Bản đồ Y tế',
             Wellness: 'Góc thư giãn',
           };
           return (
@@ -147,8 +145,8 @@ export const TabsNavigator = () => {
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
+        name="Link" 
+        component={LinkAccountScreen} 
         options={{ 
           headerShown: true,
         }} 
@@ -156,13 +154,6 @@ export const TabsNavigator = () => {
       <Stack.Screen 
         name="Chat" 
         component={ChatAIScreen} 
-        options={{ 
-          headerShown: true,
-        }} 
-      />
-      <Stack.Screen 
-        name="Map" 
-        component={MapScreen} 
         options={{ 
           headerShown: true,
         }} 

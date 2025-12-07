@@ -3,65 +3,108 @@ import { Recommendation } from '../types';
 import { logger } from '../utils/logger';
 
 export const chatWithAI = async (message: string): Promise<{ response: string }> => {
-  const result = await api.post<{ response: string }>('/ai/chat', { message });
+  const result = await api.post<{ response: string }>('/api/ai/chat', { message });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'AI chat failed');
   }
-  
-  logger.api('AI chat failed, using mock', result.error);
-  return { response: 'Xin lỗi, tôi không thể kết nối với AI service. Vui lòng thử lại sau.' };
+
+  return result.data;
 };
 
 export const parseMedicationFromImage = async (
   imageUrl: string
 ): Promise<{ medication: Partial<any> }> => {
-  const result = await api.post<{ medication: Partial<any> }>('/ai/medication/parse', { imageUrl });
+  const result = await api.post<{ medication: Partial<any> }>('/api/ai/medication/parse', { imageUrl });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Parse medication from image failed');
   }
-  
-  logger.api('Parse medication from image failed, using mock', result.error);
-  return { medication: { name: 'Unknown', dosage: 'N/A' } };
+
+  return result.data;
 };
 
 export const parseMedicationFromText = async (
   instruction: string
 ): Promise<{ medication: Partial<any> }> => {
-  const result = await api.post<{ medication: Partial<any> }>('/ai/medication/parse', { instruction });
+  const result = await api.post<{ medication: Partial<any> }>('/api/ai/medication/parse', { instruction });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Parse medication from text failed');
   }
-  
-  logger.api('Parse medication from text failed, using mock', result.error);
-  return { medication: { name: 'Unknown', dosage: 'N/A' } };
+
+  return result.data;
 };
 
 export const estimateCalories = async (
   query: string,
   type: 'food' | 'exercise'
 ): Promise<{ calories: number }> => {
-  const result = await api.post<{ calories: number }>('/ai/meal/estimate', { query, type });
+  const result = await api.post<{ calories: number }>('/api/ai/meal/estimate', { query, type });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Estimate calories failed');
   }
-  
-  logger.api('Estimate calories failed, using mock', result.error);
-  return { calories: type === 'food' ? 200 : 100 };
+
+  return result.data;
 };
 
 export const identifyDisease = async (input: string): Promise<{ condition: string }> => {
-  const result = await api.post<{ condition: string }>('/ai/disease/identify', { input });
+  const result = await api.post<{ condition: string }>('/api/ai/disease/identify', { input });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Identify disease failed');
   }
+
+  return result.data;
+};
+
+export const getHealthRecommendations = async (
+  medicalCondition?: string
+): Promise<{ recommendations: Recommendation[] }> => {
+  const result = await api.post<{ recommendations: Recommendation[] }>('/api/ai/health/recommendations', {
+    medicalCondition,
+  });
   
-  logger.api('Identify disease failed, using mock', result.error);
-  return { condition: 'Không xác định được. Vui lòng tham khảo ý kiến bác sĩ.' };
+  if (!result.ok) {
+    throw new Error(result.error || 'Get health recommendations failed');
+  }
+
+  return result.data;
+};
+
+export const getChatHistory = async (): Promise<{ messages: Array<{ message: string; response: string; sender: string; timestamp: string }> }> => {
+  const result = await api.get<{ messages: Array<{ message: string; response: string; sender: string; timestamp: string }> }>('/api/ai/chat/history');
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Get chat history failed');
+  }
+
+  return result.data;
+};
+
+export const analyzeReport = async (
+  range: 'week' | 'month',
+  medicalCondition: string | undefined,
+  reportData: {
+    totalCaloriesIn: number;
+    totalCaloriesOut: number;
+    meals?: Array<{ foodName: string; calories: number; date: string }>;
+    exercises?: Array<{ exerciseType: string; durationMinutes: number; caloriesBurned: number }>;
+    symptoms?: Array<{ symptomName: string; severity: number; note?: string }>;
+  }
+): Promise<{ notes: string }> => {
+  const result = await api.post<{ notes: string }>('/api/ai/report/analyze', {
+    range,
+    medicalCondition,
+    reportData,
+  });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Analyze report failed');
+  }
+
+  return result.data;
 };
 
 

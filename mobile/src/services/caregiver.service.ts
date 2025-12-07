@@ -1,39 +1,35 @@
 import { api } from '../utils/api-wrapper';
 import { User } from '../types';
-import { mockData } from '../mocks';
 import { logger } from '../utils/logger';
 
 export const generateLinkCode = async (): Promise<{ code: string }> => {
-  const result = await api.post<{ code: string }>('/caregiver/link/request');
+  const result = await api.post<{ code: string }>('/api/caregiver/link/request');
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Generate link code failed');
   }
-  
-  logger.api('Generate link code failed, using mock', result.error);
-  return { code: 'MOCK123' };
+
+  return result.data;
 };
 
 export const submitLinkCode = async (code: string): Promise<{ success: boolean; patientName: string }> => {
-  const result = await api.post<{ success: boolean; patientName: string }>('/caregiver/link/accept', { code });
+  const result = await api.post<{ success: boolean; patientName: string }>('/api/caregiver/link/accept', { code });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Submit link code failed');
   }
-  
-  logger.api('Submit link code failed, using mock', result.error);
-  return { success: true, patientName: mockData.user.name };
+
+  return result.data;
 };
 
 export const getPatients = async (): Promise<{ patients: User[] }> => {
-  const result = await api.get<{ patients: User[] }>('/caregiver/patients');
+  const result = await api.get<{ patients: User[] }>('/api/caregiver/patients');
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Get patients failed');
   }
-  
-  logger.api('Get patients failed, using mock', result.error);
-  return { patients: [mockData.user] };
+
+  return result.data;
 };
 
 

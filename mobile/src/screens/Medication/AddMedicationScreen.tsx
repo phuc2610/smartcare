@@ -9,6 +9,7 @@ import { FrequencyType } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { requestCameraPermission, requestStoragePermission } from '../../utils/permissions';
 import { TimePicker } from '../../components/TimePicker';
+import { DatePicker } from '../../components/DatePicker';
 import { AppHeader } from '../../components/AppHeader';
 
 export const AddMedicationScreen = ({ navigation }: any) => {
@@ -16,6 +17,10 @@ export const AddMedicationScreen = ({ navigation }: any) => {
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [time, setTime] = useState('08:00');
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [isScanning, setIsScanning] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
 
@@ -80,7 +85,7 @@ export const AddMedicationScreen = ({ navigation }: any) => {
         unit: 'mg',
         frequency: FrequencyType.DAILY,
         times: [time],
-        startDate: new Date().toISOString(),
+        startDate: new Date(startDate).toISOString(),
       });
       
       Alert.alert('Thành công', 'Đã thêm thuốc mới', [
@@ -145,6 +150,12 @@ export const AddMedicationScreen = ({ navigation }: any) => {
           label="Giờ uống thuốc *"
           value={time}
           onChange={setTime}
+        />
+
+        <DatePicker
+          label="Ngày bắt đầu"
+          value={startDate}
+          onChange={setStartDate}
         />
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>

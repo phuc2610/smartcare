@@ -1,17 +1,15 @@
 import { api } from '../utils/api-wrapper';
 import { User } from '../types';
-import { mockData } from '../mocks';
 import { logger } from '../utils/logger';
 
 export const getMe = async (): Promise<{ user: User }> => {
-  const result = await api.get<{ user: User }>('/users/me');
+  const result = await api.get<{ user: User }>('/api/users/me');
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Get user profile failed');
   }
-  
-  logger.api('Get user profile failed, using mock', result.error);
-  return { user: mockData.user };
+
+  return result.data;
 };
 
 export const updateProfile = async (data: {
@@ -19,15 +17,13 @@ export const updateProfile = async (data: {
   weight?: number;
   medicalCondition?: string;
 }): Promise<{ user: User }> => {
-  const result = await api.patch<{ user: User }>('/users/me', data);
+  const result = await api.patch<{ user: User }>('/api/users/me', data);
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Update profile failed');
   }
-  
-  logger.api('Update profile failed, using mock', result.error);
-  const updatedUser = { ...mockData.user, ...data };
-  return { user: updatedUser };
+
+  return result.data;
 };
 
 

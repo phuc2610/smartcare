@@ -2,7 +2,6 @@ import { api } from '../utils/api-wrapper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../utils/constants';
 import { User, UserRole } from '../types';
-import { mockResponses } from '../mocks';
 import { logger } from '../utils/logger';
 
 export interface RegisterData {
@@ -23,32 +22,47 @@ export interface AuthResponse {
 }
 
 export const register = async (data: RegisterData): Promise<{ message: string; phone: string }> => {
-  const result = await api.post<{ message: string; phone: string }>('/auth/register', data);
+  logger.auth('REGISTER: Starting', { phone: data.phone, name: data.name, role: data.role });
   
-  if (result.ok) {
+  try {
+    const result = await api.post<{ message: string; phone: string }>('/api/auth/register', data);
+  
+    logger.auth('REGISTER: API response', { ok: result.ok, status: result.status, hasData: !!result.data });
+    
+    if (!result.ok) {
+      logger.error('REGISTER: Failed', { error: result.error, status: result.status, data: result.data });
+      throw new Error(result.error || 'Register failed');
+    }
+
+    logger.auth('REGISTER: Success', { message: result.data?.message, phone: result.data?.phone });
     return result.data;
+  } catch (error: any) {
+    logger.error('REGISTER: Exception', { 
+      message: error?.message, 
+      stack: error?.stack,
+      response: error?.response?.data 
+    });
+    throw error;
   }
-  
-  // Fallback to mock on error
-  logger.auth('Register failed, using mock', result.error);
-  return mockResponses.auth.register;
 };
 
 export const requestOTP = async (phone: string): Promise<{ message: string; phone: string }> => {
-  const result = await api.post<{ message: string; phone: string }>('/auth/otp/request', { phone });
+  const result = await api.post<{ message: string; phone: string }>('/api/auth/otp/request', { phone });
   
-  if (result.ok) {
-    return result.data;
+  if (!result.ok) {
+    throw new Error(result.error || 'Request OTP failed');
   }
   
-  logger.auth('Request OTP failed, using mock', result.error);
-  return { message: 'OTP đã được gửi (mock)', phone };
+  return result.data;
 };
 
 export const verifyOTP = async (phone: string, otp: string): Promise<AuthResponse> => {
-  const result = await api.post<AuthResponse>('/auth/otp/verify', { phone, otp });
+  const result = await api.post<AuthResponse>('/api/auth/otp/verify', { phone, otp });
   
-  if (result.ok) {
+  if (!result.ok) {
+    throw new Error(result.error || 'Verify OTP failed');
+  }
+
     const { user, token } = result.data;
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
@@ -57,44 +71,52 @@ export const verifyOTP = async (phone: string, otp: string): Promise<AuthRespons
       logger.error('Failed to save auth data', error);
     }
     return { user, token };
-  }
-  
-  // Fallback to mock
-  logger.auth('Verify OTP failed, using mock', result.error);
-  const mockResponse = mockResponses.auth.verifyOTP;
-  try {
-    await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, mockResponse.token);
-    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mockResponse.user));
-  } catch (error) {
-    logger.error('Failed to save mock auth data', error);
-  }
-  return mockResponse;
 };
 
 export const login = async (data: LoginData): Promise<AuthResponse> => {
-  const result = await api.post<AuthResponse>('/auth/login', data);
+  logger.auth('LOGIN: Starting', { phone: data.phone });
   
-  if (result.ok) {
+  try {
+    const result = await api.post<AuthResponse>('/api/auth/login', data);
+    
+    logger.auth('LOGIN: API response', { 
+      ok: result.ok, 
+      status: result.status, 
+      hasUser: !!result.data?.user,
+      hasToken: !!result.data?.token 
+    });
+  
+    if (!result.ok) {
+      logger.error('LOGIN: Failed', { 
+        error: result.error, 
+        status: result.status, 
+        data: result.data 
+      });
+      throw new Error(result.error || 'Login failed');
+    }
+
     const { user, token } = result.data;
+    logger.auth('LOGIN: Saving to storage', { userId: user?._id, hasToken: !!token });
+    
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      logger.auth('LOGIN: Storage saved successfully');
     } catch (error) {
-      logger.error('Failed to save auth data', error);
-    }
-    return { user, token };
+      logger.error('LOGIN: Failed to save auth data', error);
+      throw error;
   }
   
-  // Fallback to mock
-  logger.auth('Login failed, using mock', result.error);
-  const mockResponse = mockResponses.auth.login;
-  try {
-    await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, mockResponse.token);
-    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mockResponse.user));
-  } catch (error) {
-    logger.error('Failed to save mock auth data', error);
+    logger.auth('LOGIN: Success', { userId: user?._id, name: user?.name });
+    return { user, token };
+  } catch (error: any) {
+    logger.error('LOGIN: Exception', { 
+      message: error?.message, 
+      stack: error?.stack,
+      response: error?.response?.data 
+    });
+    throw error;
   }
-  return mockResponse;
 };
 
 export const logout = async (): Promise<void> => {
@@ -127,6 +149,33 @@ export const getStoredToken = async (): Promise<string | null> => {
     logger.error('Failed to get token from storage', error);
     return null;
   }
+};
+
+export const forgotPassword = async (phone: string): Promise<{ message: string; phone: string }> => {
+  const result = await api.post<{ message: string; phone: string }>('/api/auth/forgot-password', { phone });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Forgot password failed');
+  }
+  
+  return result.data;
+};
+
+export const resetPassword = async (phone: string, otp: string, newPassword: string): Promise<AuthResponse> => {
+  const result = await api.post<AuthResponse>('/api/auth/reset-password', { phone, otp, newPassword });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Reset password failed');
+  }
+
+  const { user, token } = result.data;
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
+    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  } catch (error) {
+    logger.error('Failed to save auth data', error);
+  }
+  return { user, token };
 };
 
 

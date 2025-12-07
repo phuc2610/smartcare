@@ -72,6 +72,9 @@ export interface HealthLog {
   userId: string;
   date: string;
   type: HealthLogType;
+  scheduledDate?: string; // Format: "YYYY-MM-DD"
+  scheduledTime?: string; // Format: "HH:mm"
+  isCompleted?: boolean; // Đã hoàn thành hay chưa
   details: HealthLogDetails;
   createdAt: string;
 }
@@ -104,11 +107,36 @@ export interface ReportSummary {
     totalCaloriesOut: number;
     avgSeverity?: number;
   };
+  meals?: Array<{
+    foodName: string;
+    calories: number;
+    date: string;
+  }>;
+  exerciseStats?: {
+    exercises: Array<{
+      exerciseType: string;
+      durationMinutes: number;
+      caloriesBurned: number;
+      date: string;
+    }>;
+    totalCaloriesBurned: number;
+    totalDurationMinutes: number;
+  };
   wellnessStats: {
     totalMinutes: number;
     sessionsCount: number;
   };
+  symptomsByDate?: Array<{
+    date: string;
+    symptoms: Array<{
+      symptomName: string;
+      severity: number;
+      note: string;
+      date: string;
+    }>;
+  }>;
   reminders: Reminder[];
+  aiNotes?: string;
 }
 
 export interface Recommendation {

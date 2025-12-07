@@ -4,7 +4,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
 import { COLORS } from '../../utils/constants';
-import { AppHeader } from '../../components/AppHeader';
 
 export const LinkAccountScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -45,7 +44,6 @@ export const LinkAccountScreen = ({ navigation }: any) => {
   if (user?.role === UserRole.PATIENT) {
     return (
       <View style={styles.container}>
-        <AppHeader title="Mã liên kết" />
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
           <Text style={styles.title}>Liên kết người thân</Text>
@@ -81,7 +79,6 @@ export const LinkAccountScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Kết nối người bệnh" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
       <View style={styles.card}>
         <Text style={styles.title}>Kết nối người bệnh</Text>

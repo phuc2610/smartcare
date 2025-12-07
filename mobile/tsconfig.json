@@ -17,7 +17,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["react-native", "jest", "node"]
+    "types": ["react-native", "jest", "node"],
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "include": ["src/**/*", "App.tsx", "index.js"],
   "exclude": ["node_modules", "babel.config.js", "metro.config.js", "android", "ios"]
