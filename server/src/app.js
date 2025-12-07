@@ -15,6 +15,7 @@ const aiRoutes = require('./routes/ai.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const caregiverRoutes = require('./routes/caregiver.routes');
 const wellnessRoutes = require('./routes/wellness.routes');
+const settingsRoutes = require('./routes/settings.routes');
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/caregiver', caregiverRoutes);
 app.use('/api/wellness', wellnessRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Error handler
 app.use(errorHandler);

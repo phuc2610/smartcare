@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
-import { getComprehensiveReport } from '../../services/report.service';
+import { getComprehensiveReport, exportReportPDF } from '../../services/report.service';
 import { analyzeReport } from '../../services/ai.service';
 import { ReportSummary } from '../../types';
 import { COLORS } from '../../utils/constants';
@@ -21,6 +21,7 @@ export const ReportScreen = ({ route }: any) => {
   const [expandedMeals, setExpandedMeals] = useState(false);
   const [aiNotes, setAiNotes] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
 
   useEffect(() => {
@@ -105,9 +106,45 @@ export const ReportScreen = ({ route }: any) => {
     }
   };
 
+  const handleExportPDF = async () => {
+    setExportingPDF(true);
+    try {
+      const pdfUrl = await exportReportPDF(selectedRange, targetUserId);
+      
+      // Open URL in browser - PDF will be downloaded
+      const canOpen = await Linking.canOpenURL(pdfUrl);
+      if (canOpen) {
+        await Linking.openURL(pdfUrl);
+        Alert.alert('Thành công', 'Đang tải báo cáo PDF...\nVui lòng kiểm tra thư mục Tải xuống');
+      } else {
+        Alert.alert('Lỗi', 'Không thể mở trình duyệt');
+      }
+    } catch (error: any) {
+      console.error('[Export PDF] Error:', error);
+      Alert.alert('Lỗi', error?.message || 'Không thể xuất báo cáo PDF');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <AppHeader title="Báo cáo tổng quan" />
+      <AppHeader 
+        title="Báo cáo tổng quan"
+        rightAction={
+          <TouchableOpacity
+            onPress={handleExportPDF}
+            disabled={exportingPDF}
+            style={styles.exportButton}
+          >
+            {exportingPDF ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Icon name="picture-as-pdf" size={24} color={COLORS.primary} />
+            )}
+          </TouchableOpacity>
+        }
+      />
       
       {/* Range Tabs */}
       <View style={styles.rangeTabs}>
@@ -493,6 +530,9 @@ const styles = StyleSheet.create({
   aiNotesBold: {
     fontWeight: 'bold',
     color: COLORS.text,
+  },
+  exportButton: {
+    padding: 8,
   },
 });
 

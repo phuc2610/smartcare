@@ -2,15 +2,18 @@ import React, { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { COLORS } from '../utils/constants';
+import { ANIMATION_CONFIG } from '../utils/animations';
 
 interface AppHeaderProps {
   title: string;
   showBack?: boolean;
   onBack?: () => void;
+  rightAction?: React.ReactNode;
 }
 
-const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack }) => {
+const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack, rightAction }) => {
   const navigation = useNavigation<any>();
 
   const handleNavigate = useCallback((screenName: string) => {
@@ -47,32 +50,23 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack 
         <Text style={styles.title}>{title}</Text>
         
         <View style={styles.rightActions}>
-          {/* Wellness Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleNavigate('Wellness')}
-            activeOpacity={0.7}
-          >
-            <Icon name="spa" size={24} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          
-          {/* Chat AI Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleNavigate('Chat')}
-            activeOpacity={0.7}
-          >
-            <Icon name="chat-bubble-outline" size={24} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          
-          {/* Link Icon */}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => handleNavigate('Link')}
-            activeOpacity={0.7}
-          >
-            <Icon name="link" size={24} color={COLORS.textSecondary} />
-          </TouchableOpacity>
+          {rightAction || (
+            <>
+              {/* Wellness Icon */}
+              <AnimatedIconButton
+                icon="spa"
+                onPress={() => handleNavigate('Wellness')}
+                color={COLORS.textSecondary}
+              />
+              
+              {/* Chat AI Icon */}
+              <AnimatedIconButton
+                icon="chat-bubble-outline"
+                onPress={() => handleNavigate('Chat')}
+                color={COLORS.textSecondary}
+              />
+            </>
+          )}
         </View>
       </View>
     </View>
@@ -80,6 +74,41 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack 
 };
 
 export const AppHeader = React.memo(AppHeaderComponent);
+
+// Animated Icon Button Component
+const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string; onPress: () => void; color: string }) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.85, ANIMATION_CONFIG.spring);
+    opacity.value = withTiming(0.6, { duration: 100 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, ANIMATION_CONFIG.smoothSpring);
+    opacity.value = withTiming(1, { duration: 100 });
+  };
+
+  const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+  return (
+    <AnimatedTouchable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.iconButton, animatedStyle]}
+      activeOpacity={1}
+    >
+      <Icon name={icon} size={24} color={color} />
+    </AnimatedTouchable>
+  );
+});
 
 const styles = StyleSheet.create({
   container: {

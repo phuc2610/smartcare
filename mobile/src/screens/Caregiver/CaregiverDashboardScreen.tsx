@@ -58,7 +58,7 @@ export const CaregiverDashboardScreen = ({ navigation }: any) => {
         />
         <TouchableOpacity
           style={styles.linkButton}
-          onPress={() => navigation.navigate('Link')}
+          onPress={() => navigation.navigate('Profile')}
         >
           <Text style={styles.linkButtonText}>Liên kết ngay</Text>
         </TouchableOpacity>

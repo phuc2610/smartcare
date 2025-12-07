@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile as updateProfileAPI } from '../../services/user.service';
 import { identifyDisease } from '../../services/ai.service';
+import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Avatar } from '../../components/Avatar';
@@ -16,6 +17,12 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  
+  // Link account states
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [inputCode, setInputCode] = useState('');
+  const [linkSuccessMsg, setLinkSuccessMsg] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -77,6 +84,38 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     } finally {
       setAnalyzing(false);
       setLoading(false);
+    }
+  };
+
+  const handleGenerateCode = async () => {
+    if (!user) return;
+    setLinkLoading(true);
+    try {
+      const data = await generateLinkCode();
+      setGeneratedCode(data.code);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể tạo mã');
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const handleSubmitCode = async () => {
+    if (!user || !inputCode) return;
+    setLinkLoading(true);
+    try {
+      const res = await submitLinkCode(inputCode);
+      setLinkSuccessMsg(`Đã liên kết thành công với bệnh nhân: ${res.patientName}`);
+      setInputCode('');
+      // Refresh user data
+      setTimeout(() => {
+        setLinkSuccessMsg('');
+        // Navigation will be handled by context update
+      }, 3000);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể liên kết');
+    } finally {
+      setLinkLoading(false);
     }
   };
 
@@ -155,8 +194,79 @@ export const ProfileScreen = ({ navigation, route }: any) => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-        <Text style={styles.logoutButtonText}>Đăng xuất</Text>
+      {/* Link Account Section */}
+      <View style={styles.linkSection}>
+        {user?.role === UserRole.PATIENT ? (
+          <View style={styles.linkCard}>
+            <Text style={styles.linkTitle}>🔗 Liên kết người thân</Text>
+            <Text style={styles.linkSubtitle}>
+              Chia sẻ mã bên dưới cho người thân để họ có thể theo dõi sức khỏe của bạn.
+            </Text>
+
+            {!generatedCode ? (
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={handleGenerateCode}
+                disabled={linkLoading}
+              >
+                <Text style={styles.linkButtonText}>
+                  {linkLoading ? 'Đang tạo...' : 'Tạo mã liên kết'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.codeContainer}>
+                <Text style={styles.codeLabel}>MÃ CỦA BẠN</Text>
+                <Text style={styles.code}>{generatedCode}</Text>
+                <Text style={styles.codeHelp}>Mã có hiệu lực trong 5 phút</Text>
+                <TouchableOpacity onPress={handleGenerateCode}>
+                  <Text style={styles.newCodeLink}>Tạo mã mới</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.linkCard}>
+            <Text style={styles.linkTitle}>🔗 Kết nối người bệnh</Text>
+            <Text style={styles.linkSubtitle}>
+              Nhập mã 6 chữ số từ ứng dụng của người bệnh để bắt đầu theo dõi.
+            </Text>
+
+            {linkSuccessMsg ? (
+              <View style={styles.success}>
+                <Text style={styles.successText}>{linkSuccessMsg}</Text>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.linkInput}
+                  placeholder="Nhập mã 6 số..."
+                  value={inputCode}
+                  onChangeText={(text) => setInputCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  textAlign="center"
+                />
+
+                <TouchableOpacity
+                  style={[styles.linkButton, inputCode.length !== 6 && styles.linkButtonDisabled]}
+                  onPress={handleSubmitCode}
+                  disabled={linkLoading || inputCode.length !== 6}
+                >
+                  <Text style={styles.linkButtonText}>
+                    {linkLoading ? 'Đang kết nối...' : 'Kết nối ngay'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => navigation?.navigate('Settings')}
+      >
+        <Text style={styles.settingsButtonText}>⚙️ Cài đặt</Text>
       </TouchableOpacity>
       </ScrollView>
     </View>
@@ -258,17 +368,108 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  logoutButton: {
-    backgroundColor: COLORS.error + '20',
+  settingsButton: {
+    backgroundColor: COLORS.primary + '20',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     margin: 16,
+    marginTop: 24,
   },
-  logoutButtonText: {
-    color: COLORS.error,
+  settingsButtonText: {
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  linkSection: {
+    padding: 16,
+    marginTop: 8,
+  },
+  linkCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  linkTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  linkSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  linkButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+  },
+  linkButtonDisabled: {
+    backgroundColor: '#e5e7eb',
+  },
+  linkButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  codeContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  codeLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
+  },
+  code: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    letterSpacing: 8,
+    marginBottom: 8,
+  },
+  codeHelp: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 16,
+  },
+  newCodeLink: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  linkInput: {
+    width: '100%',
+    fontSize: 24,
+    fontWeight: 'bold',
+    letterSpacing: 8,
+    padding: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#e5e7eb',
+    marginBottom: 24,
+    textAlign: 'center',
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+  },
+  success: {
+    backgroundColor: COLORS.success + '20',
+    padding: 16,
+    borderRadius: 12,
+    width: '100%',
+  },
+  successText: {
+    color: COLORS.success,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

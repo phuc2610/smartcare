@@ -58,16 +58,39 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          animation: 'fade',
+          animationDuration: 300,
+        }}
+      >
         {user ? (
-          <Stack.Screen name="Main" component={TabsNavigator} />
+          <Stack.Screen 
+            name="Main" 
+            component={TabsNavigator}
+            options={{
+              animation: 'fade',
+            }}
+          />
         ) : (
           <>
-            <Stack.Screen name="Auth" component={AuthScreenComponent} />
+            <Stack.Screen 
+              name="Auth" 
+              component={AuthScreenComponent}
+              options={{
+                animation: 'fade',
+              }}
+            />
             <Stack.Screen 
               name="ForgotPassword" 
               component={ForgotPasswordScreenComponent}
-              options={{ headerShown: true, title: 'Quên mật khẩu' }}
+              options={{ 
+                headerShown: true, 
+                title: 'Quên mật khẩu',
+                animation: 'slide_from_right',
+                animationDuration: 300,
+              }}
             />
           </>
         )}

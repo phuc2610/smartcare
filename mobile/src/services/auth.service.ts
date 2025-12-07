@@ -178,6 +178,19 @@ export const resetPassword = async (phone: string, otp: string, newPassword: str
   return { user, token };
 };
 
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
+  const result = await api.post<{ message: string }>('/api/auth/change-password', {
+    currentPassword,
+    newPassword,
+  });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Change password failed');
+  }
+  
+  return result.data;
+};
+
 
 
 

@@ -299,6 +299,51 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const changePasswordSchema = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(6),
+  }),
+});
+
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại.' });
+    }
+
+    // Verify current password
+    const isPasswordValid = await comparePassword(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Mật khẩu hiện tại không đúng.' });
+    }
+
+    // Check if new password is same as current
+    const isSamePassword = await comparePassword(newPassword, user.passwordHash);
+    if (isSamePassword) {
+      return res.status(400).json({ error: 'Mật khẩu mới phải khác mật khẩu hiện tại.' });
+    }
+
+    // Update password
+    const passwordHash = await hashPassword(newPassword);
+    user.passwordHash = passwordHash;
+    await user.save();
+
+    console.log(`[CHANGE PASSWORD] Successfully changed password for user: ${userId}`);
+
+    res.json({
+      message: 'Đổi mật khẩu thành công',
+    });
+  } catch (error) {
+    console.error('[CHANGE PASSWORD] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -306,11 +351,13 @@ module.exports = {
   verifyOTP,
   forgotPassword,
   resetPassword,
+  changePassword,
   registerSchema,
   loginSchema,
   otpVerifySchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 };
 
 

@@ -18,6 +18,40 @@ import { requestOTP } from '../../services/auth.service';
 
 type Screen = 'LOGIN' | 'REGISTER' | 'REGISTER_OTP';
 
+// Move PasswordInput outside to prevent re-creation on every render
+const PasswordInput = React.memo(({ 
+  value, 
+  onChangeText, 
+  placeholder, 
+  showPassword, 
+  onToggleVisibility 
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  showPassword: boolean;
+  onToggleVisibility: () => void;
+}) => (
+  <View style={styles.passwordContainer}>
+    <TextInput
+      style={styles.passwordInput}
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChangeText}
+      secureTextEntry={!showPassword}
+      autoCapitalize="none"
+      autoCorrect={false}
+    />
+    <TouchableOpacity onPress={onToggleVisibility} style={styles.eyeIcon}>
+      <Icon 
+        name={showPassword ? 'visibility' : 'visibility-off'} 
+        size={24} 
+        color={COLORS.textSecondary} 
+      />
+    </TouchableOpacity>
+  </View>
+));
+
 export const AuthScreen = ({ navigation }: any) => {
   const { signIn, signUp, verify } = useAuth();
   const [screen, setScreen] = useState<Screen>('LOGIN');
@@ -177,37 +211,6 @@ export const AuthScreen = ({ navigation }: any) => {
     }
   };
 
-  const PasswordInput = ({ 
-    value, 
-    onChangeText, 
-    placeholder, 
-    showPassword, 
-    onToggleVisibility 
-  }: {
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    showPassword: boolean;
-    onToggleVisibility: () => void;
-  }) => (
-    <View style={styles.passwordContainer}>
-      <TextInput
-        style={styles.passwordInput}
-        placeholder={placeholder}
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={!showPassword}
-        autoCapitalize="none"
-      />
-      <TouchableOpacity onPress={onToggleVisibility} style={styles.eyeIcon}>
-        <Icon 
-          name={showPassword ? 'visibility' : 'visibility-off'} 
-          size={24} 
-          color={COLORS.textSecondary} 
-        />
-      </TouchableOpacity>
-    </View>
-  );
 
   const OTPInput = () => (
     <View style={styles.otpContainer}>

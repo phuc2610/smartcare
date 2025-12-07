@@ -4,6 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { ANIMATION_CONFIG } from '../utils/animations';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { COLORS } from '../utils/constants';
@@ -11,15 +13,64 @@ import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AddMedicationScreen } from '../screens/Medication/AddMedicationScreen';
 import { HealthTrackingScreen } from '../screens/Health/HealthTrackingScreen';
 import { ReportScreen } from '../screens/Report/ReportScreen';
-import { LinkAccountScreen } from '../screens/Caregiver/LinkAccountScreen';
 import { CaregiverDashboardScreen } from '../screens/Caregiver/CaregiverDashboardScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import { ChatAIScreen } from '../screens/AI/ChatAIScreen';
 import { WellnessScreen } from '../screens/Wellness/WellnessScreen';
+import { SettingsScreen } from '../screens/Settings/SettingsScreen';
+import { ChangePasswordScreen } from '../screens/Settings/ChangePasswordScreen';
 import { AppHeader } from '../components/AppHeader';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+// Animated Tab Icon Component
+const AnimatedTabIcon = React.memo(({ name, size, color, focused }: { name: string; size: number; color: string; focused: boolean }) => {
+  const scale = useSharedValue(focused ? 1.1 : 1);
+  
+  React.useEffect(() => {
+    scale.value = withSpring(focused ? 1.1 : 1, ANIMATION_CONFIG.smoothSpring);
+  }, [focused]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  
+  return (
+    <Animated.View style={animatedStyle}>
+      <Icon name={name} size={size} color={color} />
+    </Animated.View>
+  );
+});
+
+// Animated Add Button
+const AnimatedAddButton = React.memo(({ focused }: { focused: boolean }) => {
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  
+  React.useEffect(() => {
+    if (focused) {
+      scale.value = withSpring(1.1, ANIMATION_CONFIG.spring);
+      rotation.value = withSpring(90, ANIMATION_CONFIG.smoothSpring);
+    } else {
+      scale.value = withSpring(1, ANIMATION_CONFIG.smoothSpring);
+      rotation.value = withSpring(0, ANIMATION_CONFIG.smoothSpring);
+    }
+  }, [focused]);
+  
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+  }));
+  
+  return (
+    <Animated.View style={[styles.addButton, animatedStyle]}>
+      <Icon name="add" size={32} color="#fff" />
+    </Animated.View>
+  );
+});
 
 const DashboardStack = React.memo(() => {
   return (
@@ -57,8 +108,8 @@ const MainTabs = () => {
         component={isCaregiver ? CaregiverDashboardScreen : DashboardStack}
         options={{
           tabBarLabel: 'Trang chủ',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="list" size={size || 24} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="list" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
@@ -69,8 +120,8 @@ const MainTabs = () => {
             component={HealthTrackingScreen}
             options={{
               tabBarLabel: 'Theo dõi',
-              tabBarIcon: ({ color, size }) => (
-                <Icon name="favorite" size={size || 24} color={color} />
+              tabBarIcon: ({ color, size, focused }) => (
+                <AnimatedTabIcon name="favorite" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -79,10 +130,8 @@ const MainTabs = () => {
             component={AddMedicationScreen}
             options={{
               tabBarLabel: '',
-              tabBarIcon: () => (
-                <View style={styles.addButton}>
-                  <Icon name="add" size={32} color="#fff" />
-                </View>
+              tabBarIcon: ({ focused }: { focused: boolean }) => (
+                <AnimatedAddButton focused={focused} />
               ),
               tabBarButton: (props) => (
                 <TouchableOpacity
@@ -98,8 +147,8 @@ const MainTabs = () => {
             component={ReportScreen}
             options={{
               tabBarLabel: 'Báo cáo',
-              tabBarIcon: ({ color, size }) => (
-                <Icon name="bar-chart" size={size || 24} color={color} />
+              tabBarIcon: ({ color, size, focused }) => (
+                <AnimatedTabIcon name="bar-chart" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -110,8 +159,8 @@ const MainTabs = () => {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Hồ sơ',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="account-circle" size={size || 24} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="account-circle" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
@@ -123,9 +172,10 @@ export const TabsNavigator = () => {
   return (
     <Stack.Navigator
       screenOptions={{
+        animation: 'slide_from_right',
+        animationDuration: 300,
         header: ({ route, navigation: nav }) => {
           const titles: Record<string, string> = {
-            Link: 'Liên kết',
             Chat: 'Trợ lý AI',
             Wellness: 'Góc thư giãn',
           };
@@ -145,13 +195,6 @@ export const TabsNavigator = () => {
     >
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen 
-        name="Link" 
-        component={LinkAccountScreen} 
-        options={{ 
-          headerShown: true,
-        }} 
-      />
-      <Stack.Screen 
         name="Chat" 
         component={ChatAIScreen} 
         options={{ 
@@ -163,6 +206,20 @@ export const TabsNavigator = () => {
         component={WellnessScreen} 
         options={{ 
           headerShown: true,
+        }} 
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ChangePassword" 
+        component={ChangePasswordScreen} 
+        options={{ 
+          headerShown: false,
         }} 
       />
     </Stack.Navigator>

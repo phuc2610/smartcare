@@ -14,6 +14,14 @@ const userSchema = new mongoose.Schema({
   weight: { type: Number, default: null },
   otpCode: { type: String, default: null },
   otpExpiresAt: { type: Date, default: null },
+  notificationSettings: {
+    medicationReminderBefore: { type: Number, default: 15 },
+    mealReminderBefore: { type: Number, default: 15 },
+    exerciseReminderBefore: { type: Number, default: 15 },
+    medicationEnabled: { type: Boolean, default: true },
+    mealEnabled: { type: Boolean, default: true },
+    exerciseEnabled: { type: Boolean, default: true },
+  },
 }, {
   timestamps: true,
 });

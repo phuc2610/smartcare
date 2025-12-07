@@ -17,6 +17,27 @@ export const getComprehensiveReport = async (
   return result.data;
 };
 
+import { API_BASE_URL } from '../config/env';
+import { getStoredToken } from './auth.service';
+
+export const exportReportPDF = async (
+  range: 'today' | 'week' | 'month' | '7d' | '30d' = 'today',
+  userId?: string
+): Promise<string> => {
+  const params: any = { range };
+  if (userId) params.userId = userId;
+  
+  const token = await getStoredToken();
+  if (token) {
+    params.token = token;
+  }
+  
+  const queryString = new URLSearchParams(params).toString();
+  const url = `${API_BASE_URL}/api/reports/export-pdf?${queryString}`;
+  
+  return url;
+};
+
 
 
 

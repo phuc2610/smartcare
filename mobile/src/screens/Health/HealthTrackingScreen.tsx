@@ -16,15 +16,20 @@ export const HealthTrackingScreen = () => {
   const [activeTab, setActiveTab] = useState<Tab>('meal');
   const [isEstimating, setIsEstimating] = useState(false);
 
-  // Common schedule fields
-  const [scheduledDate, setScheduledDate] = useState(() => {
+  // Date and time for meal and exercise
+  const [mealDate, setMealDate] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  const [scheduledTime, setScheduledTime] = useState('08:00');
-  const [enableSchedule, setEnableSchedule] = useState(false);
+  const [mealTime, setMealTime] = useState('08:00');
   
-  // For symptom: only date, no schedule
+  const [exerciseDate, setExerciseDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
+  const [exerciseTime, setExerciseTime] = useState('08:00');
+
+  // For symptom: only date
   const [symptomDate, setSymptomDate] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -158,24 +163,26 @@ export const HealthTrackingScreen = () => {
       let scheduledTimeToUse: string | undefined;
       
       if (activeTab === 'symptom') {
-        // For symptom: use symptomDate as the date field, no schedule
+        // For symptom: use symptomDate as the date field
         dateToUse = symptomDate;
-      } else {
-        // For meal and exercise: use schedule if enabled
-        if (enableSchedule) {
-          scheduledDateToUse = scheduledDate;
-          scheduledTimeToUse = scheduledTime;
-        }
+      } else if (activeTab === 'meal') {
+        // For meal: use mealDate and mealTime
+        scheduledDateToUse = mealDate;
+        scheduledTimeToUse = mealTime;
+      } else if (activeTab === 'exercise') {
+        // For exercise: use exerciseDate and exerciseTime
+        scheduledDateToUse = exerciseDate;
+        scheduledTimeToUse = exerciseTime;
       }
       
       await createHealthLog(
         activeTab, 
         details,
-        dateToUse, // date field
-        scheduledDateToUse, // scheduledDate
-        scheduledTimeToUse // scheduledTime
+        dateToUse, // date field (only for symptom)
+        scheduledDateToUse, // scheduledDate (for meal and exercise)
+        scheduledTimeToUse // scheduledTime (for meal and exercise)
       );
-      Alert.alert('Thành công', enableSchedule ? 'Đã đặt lịch nhắc nhở' : 'Đã ghi nhận');
+      Alert.alert('Thành công', 'Đã ghi nhận');
       // Reset form
       setFoodName('');
       setCalories('');
@@ -185,7 +192,6 @@ export const HealthTrackingScreen = () => {
       setSymptomName('');
       setSeverity(5);
       setNote('');
-      setEnableSchedule(false);
     } catch (error: any) {
       Alert.alert('Lỗi', error.response?.data?.error || 'Không thể lưu');
     }
@@ -217,37 +223,18 @@ export const HealthTrackingScreen = () => {
       </View>
 
       <View style={styles.form}>
-        {/* Schedule Section - Only show for meal and exercise, not symptom */}
-        {activeTab !== 'symptom' && (
-          <View style={styles.scheduleSection}>
-            <TouchableOpacity
-              style={styles.scheduleToggle}
-              onPress={() => setEnableSchedule(!enableSchedule)}
-            >
-              <View style={[styles.checkbox, enableSchedule && styles.checkboxChecked]}>
-                {enableSchedule && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.scheduleLabel}>Đặt lịch nhắc nhở</Text>
-            </TouchableOpacity>
-            {enableSchedule && (
-              <View style={styles.scheduleFields}>
-                <DatePicker
-                  label="Ngày"
-                  value={scheduledDate}
-                  onChange={setScheduledDate}
-                />
-                <TimePicker
-                  label="Giờ"
-                  value={scheduledTime}
-                  onChange={setScheduledTime}
-                />
-              </View>
-            )}
-          </View>
-        )}
-
         {activeTab === 'meal' && (
           <>
+            <DatePicker
+              label="Ngày"
+              value={mealDate}
+              onChange={setMealDate}
+            />
+            <TimePicker
+              label="Giờ"
+              value={mealTime}
+              onChange={setMealTime}
+            />
             <Text style={styles.label}>Tên món ăn</Text>
             <View style={styles.row}>
               <TextInput
@@ -279,6 +266,16 @@ export const HealthTrackingScreen = () => {
 
         {activeTab === 'exercise' && (
           <>
+            <DatePicker
+              label="Ngày"
+              value={exerciseDate}
+              onChange={setExerciseDate}
+            />
+            <TimePicker
+              label="Giờ"
+              value={exerciseTime}
+              onChange={setExerciseTime}
+            />
             <Text style={styles.label}>Loại hình</Text>
             <TextInput
               style={styles.input}
@@ -601,45 +598,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  scheduleSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  scheduleToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.primary,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scheduleLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  scheduleFields: {
-    marginTop: 8,
   },
 });
 
