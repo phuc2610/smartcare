@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from 'react-native';
 import { launchImageLibrary, launchCamera, ImagePickerResponse } from 'react-native-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { createMedication } from '../../services/medication.service';
@@ -11,6 +11,7 @@ import { requestCameraPermission, requestStoragePermission } from '../../utils/p
 import { TimePicker } from '../../components/TimePicker';
 import { DatePicker } from '../../components/DatePicker';
 import { AppHeader } from '../../components/AppHeader';
+import { showInfo } from '../../utils/alert';
 
 export const AddMedicationScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -25,29 +26,10 @@ export const AddMedicationScreen = ({ navigation }: any) => {
   const [scannedImage, setScannedImage] = useState<string | null>(null);
 
   const handleImageSelect = async () => {
-    const hasCamera = await requestCameraPermission();
-    const hasStorage = await requestStoragePermission();
-    
-    if (!hasCamera && !hasStorage) {
-      Alert.alert('Lỗi', 'Cần quyền camera và storage để quét ảnh');
-      return;
-    }
-
-    Alert.alert('Chọn ảnh', 'Chọn từ thư viện hoặc chụp ảnh mới', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Thư viện',
-        onPress: () => {
-          launchImageLibrary({ mediaType: 'photo', quality: 0.8 }, handleImageResult);
-        },
-      },
-      {
-        text: 'Camera',
-        onPress: () => {
-          launchCamera({ mediaType: 'photo', quality: 0.8 }, handleImageResult);
-        },
-      },
-    ]);
+    showInfo(
+      'Tính năng đang phát triển',
+      'Chức năng quét đơn thuốc / vỏ hộp sẽ được phát triển sớm. Vui lòng nhập thông tin thuốc thủ công.'
+    );
   };
 
   const handleImageResult = async (response: ImagePickerResponse) => {
