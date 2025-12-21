@@ -25,8 +25,8 @@ export const Text: React.FC<TextProps> = ({
   style,
   ...props
 }) => {
-  const variantStyle = TYPOGRAPHY[variant];
-  const fontWeight = bold ? '700' : semibold ? '600' : variantStyle.fontWeight;
+  const variantStyle = TYPOGRAPHY[variant] || TYPOGRAPHY.body;
+  const fontWeight = bold ? '700' : semibold ? '600' : (variantStyle?.fontWeight || '400');
   
   const colorValue = COLORS[color] || COLORS.text;
 

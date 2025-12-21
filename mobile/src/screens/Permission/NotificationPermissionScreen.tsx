@@ -103,7 +103,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
             </Text>
           </View>
           
-          <Text variant="body" style={styles.note}>
+          <Text variant="body" semibold style={styles.note}>
             Ứng dụng chỉ hoạt động khi bạn cấp quyền thông báo.
           </Text>
         </View>
@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
   note: {
     textAlign: 'center',
     color: '#ef4444',
-    fontWeight: '600',
     marginTop: 8,
   },
   button: {

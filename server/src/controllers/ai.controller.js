@@ -196,18 +196,39 @@ const estimateCalories = async (req, res) => {
 
     const prompt =
       type === 'food'
-        ? `You are a nutritionist familiar with Vietnamese cuisine. Estimate calories for: "${query}". Return JSON with "calories" (integer).`
-        : `You are a fitness expert. Estimate calories burned for: "${query}". Return JSON with "calories" (integer).`;
+        ? `Bạn là chuyên gia dinh dưỡng quen thuộc với ẩm thực Việt Nam. Nhiệm vụ của bạn:
+1. CHUẨN HÓA tên món ăn "${query}" thành tiếng Việt có dấu đầy đủ và chính xác
+2. ƯỚC TÍNH lượng calo cho món ăn đó
+Trả về JSON với:
+- "foodName": tên món ăn đã được chuẩn hóa (tiếng Việt có dấu)
+- "calories": số calo (số nguyên)`
+        : `Bạn là chuyên gia thể dục thể thao quen thuộc với các hoạt động vận động. Nhiệm vụ của bạn:
+1. CHUẨN HÓA tên loại vận động từ "${query}" thành tiếng Việt có dấu đầy đủ và chính xác (chỉ lấy tên loại vận động, bỏ phần thời gian)
+2. ƯỚC TÍNH lượng calo tiêu thụ
+Trả về JSON với:
+- "exerciseType": tên loại vận động đã được chuẩn hóa (tiếng Việt có dấu)
+- "calories": số calo tiêu thụ (số nguyên)`;
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-      max_tokens: 100,
+      max_tokens: 150,
     });
 
     const result = JSON.parse(completion.choices[0].message.content);
-    res.json({ calories: result.calories || 0 });
+    
+    if (type === 'food') {
+      res.json({ 
+        calories: result.calories || 0,
+        foodName: result.foodName || query // Fallback to original query if AI doesn't return foodName
+      });
+    } else {
+      res.json({ 
+        calories: result.calories || 0,
+        exerciseType: result.exerciseType || query // Fallback to original query if AI doesn't return exerciseType
+      });
+    }
   } catch (error) {
     console.error('Calories Estimate Error:', error);
     res.status(500).json({ error: 'Failed to estimate calories' });

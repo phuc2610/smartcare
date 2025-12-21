@@ -126,6 +126,10 @@ export const HealthTrackingScreen = () => {
         }
         const result = await estimateCalories(foodName, 'food');
         setCalories(result.calories.toString());
+        // Cập nhật tên món ăn với phiên bản đã được chuẩn hóa (tiếng Việt có dấu)
+        if (result.foodName) {
+          setFoodName(result.foodName);
+        }
       } else if (activeTab === 'exercise') {
         if (!exerciseType || !duration) {
           Alert.alert('Lỗi', 'Vui lòng nhập loại vận động và thời gian');
@@ -134,6 +138,10 @@ export const HealthTrackingScreen = () => {
         const query = `${exerciseType} trong ${duration} phút`;
         const result = await estimateCalories(query, 'exercise');
         setCaloriesBurned(result.calories.toString());
+        // Cập nhật loại vận động với phiên bản đã được chuẩn hóa (tiếng Việt có dấu)
+        if (result.exerciseType) {
+          setExerciseType(result.exerciseType);
+        }
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể ước lượng lúc này');

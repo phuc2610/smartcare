@@ -39,8 +39,8 @@ export const parseMedicationFromText = async (
 export const estimateCalories = async (
   query: string,
   type: 'food' | 'exercise'
-): Promise<{ calories: number }> => {
-  const result = await api.post<{ calories: number }>('/api/ai/meal/estimate', { query, type });
+): Promise<{ calories: number; foodName?: string; exerciseType?: string }> => {
+  const result = await api.post<{ calories: number; foodName?: string; exerciseType?: string }>('/api/ai/meal/estimate', { query, type });
   
   if (!result.ok) {
     throw new Error(result.error || 'Estimate calories failed');
