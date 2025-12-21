@@ -1,10 +1,16 @@
+/**
+ * HEALTH CONTROLLER - Quản lý nhật ký sức khỏe
+ * Chức năng: Tạo log bữa ăn/vận động/triệu chứng, thống kê calo, lấy logs hôm nay, cập nhật/xóa log
+ */
+
 const HealthLog = require('../models/HealthLog');
 const { z } = require('zod');
 
+// Schema validation cho tạo health log: type (meal/exercise/symptom), date, scheduledDate, scheduledTime, details
 const createHealthLogSchema = z.object({
   body: z.object({
     type: z.enum(['meal', 'exercise', 'symptom']),
-    // Accept plain date string; backend will coerce to Date
+    // Chấp nhận date string, backend sẽ convert sang Date
     date: z.string().optional(),
     scheduledDate: z.string().optional(), // Format: "YYYY-MM-DD"
     scheduledTime: z.string().optional(), // Format: "HH:mm"
@@ -21,14 +27,19 @@ const createHealthLogSchema = z.object({
   }),
 });
 
+/**
+ * Tạo health log mới (bữa ăn/vận động/triệu chứng)
+ * Luồng: Parse date/scheduledDate -> Tạo healthLog -> Trả về
+ */
 const createHealthLog = async (req, res) => {
   try {
     const { type, date, scheduledDate, scheduledTime, details } = req.body;
 
+    // Tạo health log với userId từ JWT token
     const healthLog = await HealthLog.create({
       userId: req.user._id,
       type,
-      date: date ? new Date(date) : new Date(),
+      date: date ? new Date(date) : new Date(), // Nếu không có date thì dùng hôm nay
       scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
       scheduledTime: scheduledTime || undefined,
       details,
@@ -119,11 +130,16 @@ const getScheduledTasks = async (req, res) => {
   }
 };
 
+/**
+ * Lấy health logs hôm nay (chỉ meal và exercise, không có symptom)
+ * Luồng: Kiểm tra quyền truy cập (caregiver có thể xem của patient) -> Tính thời gian trong ngày -> Lấy logs -> Sắp xếp
+ */
 const getTodayHealthLogs = async (req, res) => {
   try {
+    // Cho phép caregiver xem logs của patient (truyền userId trong query)
     const targetUserId = req.query.userId || req.user._id.toString();
     
-    // If requesting another user's data, verify access
+    // Nếu request dữ liệu của user khác, kiểm tra quyền truy cập
     if (targetUserId !== req.user._id.toString()) {
       const User = require('../models/User');
       const targetUser = await User.findById(targetUserId);
@@ -132,24 +148,26 @@ const getTodayHealthLogs = async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
       }
       
-      // If requester is a caregiver, verify they are linked to this patient
+      // Nếu người request là caregiver, kiểm tra có liên kết với patient không
       if (req.user.role === 'CAREGIVER') {
         if (targetUser.role !== 'PATIENT' || targetUser.caregiverId?.toString() !== req.user._id.toString()) {
           return res.status(403).json({ error: 'Access denied' });
         }
       } else if (req.user.role === 'PATIENT') {
-        // Patients can only access their own data
+        // Patient chỉ có thể xem dữ liệu của chính mình
         return res.status(403).json({ error: 'Access denied' });
       }
     }
     
+    // Tính thời gian bắt đầu và kết thúc của ngày hôm nay
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get health logs for today (meal and exercise only, not symptom)
+    // Lấy health logs hôm nay (chỉ meal và exercise, không có symptom)
+    // Có thể là log đã thực hiện (date) hoặc đã lên lịch (scheduledDate)
     const healthLogs = await HealthLog.find({
       userId: targetUserId,
       type: { $in: ['meal', 'exercise'] },
@@ -157,7 +175,7 @@ const getTodayHealthLogs = async (req, res) => {
         { date: { $gte: startOfDay, $lte: endOfDay } },
         { scheduledDate: { $gte: startOfDay, $lte: endOfDay } },
       ],
-    }).sort({ scheduledTime: 1, date: 1 });
+    }).sort({ scheduledTime: 1, date: 1 }); // Sắp xếp theo scheduledTime, sau đó theo date
 
     res.json({
       healthLogs,

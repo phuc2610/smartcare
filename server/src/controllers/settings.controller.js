@@ -1,6 +1,15 @@
+/**
+ * SETTINGS CONTROLLER - Quản lý cài đặt thông báo
+ * Chức năng: Lấy và cập nhật cài đặt thông báo (thời gian nhắc trước, bật/tắt từng loại)
+ */
+
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 
+/**
+ * Lấy cài đặt thông báo của user
+ * Luồng: Tìm user -> Lấy notificationSettings hoặc dùng giá trị mặc định -> Trả về
+ */
 const getNotificationSettings = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -10,11 +19,12 @@ const getNotificationSettings = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Lấy settings từ user hoặc dùng giá trị mặc định
     const settings = user.notificationSettings || {
-      medicationReminderBefore: 15,
+      medicationReminderBefore: 15, // Nhắc trước 15 phút
       mealReminderBefore: 15,
       exerciseReminderBefore: 15,
-      medicationEnabled: true,
+      medicationEnabled: true, // Bật thông báo thuốc
       mealEnabled: true,
       exerciseEnabled: true,
     };
@@ -26,6 +36,10 @@ const getNotificationSettings = async (req, res) => {
   }
 };
 
+/**
+ * Cập nhật cài đặt thông báo
+ * Luồng: Validate các giá trị (0-60 phút) -> Xây dựng updateData -> Cập nhật vào database -> Trả về settings mới
+ */
 const updateNotificationSettings = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -38,7 +52,7 @@ const updateNotificationSettings = async (req, res) => {
       exerciseEnabled,
     } = req.body;
 
-    // Validate
+    // Validate: thời gian nhắc trước phải từ 0-60 phút
     if (medicationReminderBefore !== undefined && (medicationReminderBefore < 0 || medicationReminderBefore > 60)) {
       return res.status(400).json({ error: 'medicationReminderBefore must be between 0 and 60' });
     }
@@ -49,6 +63,7 @@ const updateNotificationSettings = async (req, res) => {
       return res.status(400).json({ error: 'exerciseReminderBefore must be between 0 and 60' });
     }
 
+    // Xây dựng object update cho nested field notificationSettings
     const updateData = {};
     if (medicationReminderBefore !== undefined) {
       updateData['notificationSettings.medicationReminderBefore'] = medicationReminderBefore;
@@ -69,16 +84,18 @@ const updateNotificationSettings = async (req, res) => {
       updateData['notificationSettings.exerciseEnabled'] = exerciseEnabled;
     }
 
+    // Cập nhật vào database (dùng $set để update nested field)
     const user = await User.findByIdAndUpdate(
       userId,
       { $set: updateData },
-      { new: true }
+      { new: true } // Trả về document sau khi update
     );
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Trả về settings (có thể là giá trị mới hoặc mặc định)
     const settings = user.notificationSettings || {
       medicationReminderBefore: 15,
       mealReminderBefore: 15,

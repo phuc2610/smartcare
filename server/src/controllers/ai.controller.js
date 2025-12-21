@@ -1,12 +1,22 @@
+/**
+ * AI CONTROLLER - Xử lý các tính năng AI (OpenAI)
+ * Chức năng: Chat với AI, phân tích đơn thuốc, ước tính calo, nhận diện bệnh, gợi ý sức khỏe, phân tích báo cáo
+ */
+
 const openai = require('../config/openai');
 const { z } = require('zod');
 
+// Schema validation cho chat: message (tối thiểu 1 ký tự)
 const chatSchema = z.object({
   body: z.object({
     message: z.string().min(1),
   }),
 });
 
+/**
+ * Chat với AI - Tư vấn sức khỏe dựa trên tình trạng bệnh lý của user
+ * Luồng: Lấy medicalCondition -> Tạo context theo bệnh -> Lấy lịch sử chat (5 tin gần nhất) -> Gọi OpenAI -> Lưu vào database -> Trả về
+ */
 const chat = async (req, res) => {
   try {
     if (!openai) {
@@ -180,6 +190,7 @@ const parseMedication = async (req, res) => {
   }
 };
 
+// Schema validation cho estimate calories: query (tên món ăn/loại vận động), type (food/exercise)
 const estimateCaloriesSchema = z.object({
   body: z.object({
     query: z.string().min(1),
@@ -187,6 +198,10 @@ const estimateCaloriesSchema = z.object({
   }),
 });
 
+/**
+ * Ước tính calo cho món ăn hoặc vận động, đồng thời chuẩn hóa tên thành tiếng Việt có dấu
+ * Luồng: Tạo prompt theo type -> Gọi OpenAI -> Parse JSON -> Trả về calories và tên đã chuẩn hóa
+ */
 const estimateCalories = async (req, res) => {
   try {
     if (!openai) {
@@ -235,12 +250,17 @@ Trả về JSON với:
   }
 };
 
+// Schema validation cho identify disease: input (mô tả tình trạng bệnh)
 const identifyDiseaseSchema = z.object({
   body: z.object({
     input: z.string().min(1),
   }),
 });
 
+/**
+ * Nhận diện tình trạng bệnh lý từ mô tả của user, chuẩn hóa thành tiếng Việt có dấu
+ * Luồng: Kiểm tra input rỗng -> Tạo prompt với quy tắc mapping -> Gọi OpenAI -> Parse JSON -> Normalize condition -> Trả về
+ */
 const identifyDisease = async (req, res) => {
   try {
     if (!openai) {

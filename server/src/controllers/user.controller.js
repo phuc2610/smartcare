@@ -1,6 +1,12 @@
+/**
+ * USER CONTROLLER - Quản lý thông tin người dùng
+ * Chức năng: Lấy thông tin user, cập nhật profile (chiều cao, cân nặng, tình trạng bệnh, avatar)
+ */
+
 const User = require('../models/User');
 const { z } = require('zod');
 
+// Schema validation cho cập nhật profile: height, weight, medicalCondition, avatar (tất cả optional)
 const updateProfileSchema = z.object({
   body: z.object({
     height: z.number().optional(),
@@ -10,16 +16,22 @@ const updateProfileSchema = z.object({
   }),
 });
 
+/**
+ * Lấy thông tin user hiện tại (từ JWT token)
+ * Luồng: Lấy user từ database -> Loại bỏ passwordHash và otpCode -> Nếu là CAREGIVER thì set medicalCondition = null -> Trả về
+ */
 const getMe = async (req, res) => {
   try {
+    // Tìm user theo ID từ JWT token, loại bỏ các field nhạy cảm
     const user = await User.findById(req.user._id).select('-passwordHash -otpCode');
     const userObj = user.toObject();
     
-    // Caregiver should not have medical condition
+    // CAREGIVER không có tình trạng bệnh lý, set về null
     if (user.role === 'CAREGIVER') {
       userObj.medicalCondition = null;
     }
     
+    // Trả về thông tin user (đảm bảo avatar không undefined)
     res.json({ 
       user: {
         ...userObj,
@@ -31,31 +43,39 @@ const getMe = async (req, res) => {
   }
 };
 
+/**
+ * Cập nhật thông tin profile của user
+ * Luồng: Tìm user -> Cập nhật các field được gửi lên -> Nếu là PATIENT mới cho phép cập nhật medicalCondition -> Lưu -> Trả về
+ */
 const updateProfile = async (req, res) => {
   try {
     const { height, weight, medicalCondition, avatar } = req.body;
 
+    // Tìm user theo ID từ JWT token
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Cập nhật các field nếu có trong request body
     if (height !== undefined) user.height = height;
     if (weight !== undefined) user.weight = weight;
     if (avatar !== undefined) user.avatar = avatar;
     
-    // Only allow medicalCondition update for PATIENT role
+    // Chỉ cho phép PATIENT cập nhật medicalCondition, CAREGIVER luôn là null
     if (medicalCondition !== undefined) {
       if (user.role === 'PATIENT') {
         user.medicalCondition = medicalCondition;
       } else {
-        // Caregiver should not have medical condition - ignore or set to null
+        // CAREGIVER không có tình trạng bệnh lý, set về null
         user.medicalCondition = null;
       }
     }
 
+    // Lưu thay đổi vào database
     await user.save();
 
+    // Trả về thông tin user đã cập nhật
     res.json({
       user: {
         _id: user._id,

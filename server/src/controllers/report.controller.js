@@ -1,3 +1,8 @@
+/**
+ * REPORT CONTROLLER - Quản lý báo cáo sức khỏe
+ * Chức năng: Tạo báo cáo tổng hợp (today/week/month/7d/30d), xuất PDF
+ */
+
 const Reminder = require('../models/Reminder');
 const HealthLog = require('../models/HealthLog');
 const WellnessLog = require('../models/WellnessLog');
@@ -5,6 +10,10 @@ const Medication = require('../models/Medication');
 const PDFDocument = require('pdfkit');
 const User = require('../models/User');
 
+/**
+ * Lấy báo cáo tổng hợp sức khỏe
+ * Luồng: Tính startDate/endDate theo range -> Lấy medications/reminders/healthLogs/wellnessLogs -> Tính toán stats -> Nhóm theo ngày -> Trả về
+ */
 const getComprehensiveReport = async (req, res) => {
   try {
     const targetUserId = req.query.userId || req.user._id.toString();
@@ -154,6 +163,11 @@ const getComprehensiveReport = async (req, res) => {
   }
 };
 
+/**
+ * Xuất báo cáo ra file PDF
+ * Luồng: Kiểm tra token (có thể từ query param) -> Lấy user info -> Lấy report data -> Tạo PDF với PDFKit -> Pipe vào response
+ * Lưu ý: Hỗ trợ token trong query param để có thể mở từ deep link
+ */
 const exportPDF = async (req, res) => {
   try {
     // For PDF export, we allow token in query param (for Linking.openURL)
