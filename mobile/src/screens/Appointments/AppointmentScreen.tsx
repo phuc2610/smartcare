@@ -521,6 +521,9 @@ const styles = StyleSheet.create({
   modal: {
     width: '90%',
     maxHeight: '80%',
+    padding: 0,
+  },
+  modalContent: {
     padding: SPACING.lg,
   },
   modalHeader: {

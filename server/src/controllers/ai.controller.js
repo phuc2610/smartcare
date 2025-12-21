@@ -227,31 +227,94 @@ const identifyDisease = async (req, res) => {
     }
     const { input } = req.body;
 
-    const prompt = `Input: '${input}'. Classify this medical condition description into ONE of these categories: ['Diabetes', 'Hypertension', 'Obesity', 'Gastritis', 'Normal', 'Other']. 
+    if (!input || !input.trim()) {
+      return res.json({ condition: 'Bình thường' });
+    }
 
-Rules:
-- If the input clearly describes diabetes, blood sugar issues, or related symptoms, return "Diabetes"
-- If the input describes high blood pressure, hypertension, or related symptoms, return "Hypertension"  
-- If the input describes obesity, overweight, or weight-related issues, return "Obesity"
-- If the input describes stomach issues, gastritis, or digestive problems, return "Gastritis"
-- If the input is empty, unclear, or indicates no medical condition, return "Normal"
-- Only return "Other" if the condition doesn't fit any of the above categories
+    const prompt = `Bạn là chuyên gia y tế và chuyên gia ngôn ngữ tiếng Việt. Nhiệm vụ của bạn là:
 
-Return JSON with "condition" property containing exactly one of the categories above.`;
+1. PHÂN TÍCH và CHUẨN HÓA input về tình trạng bệnh lý của người dùng
+2. KIỂM TRA CHÍNH TẢ tiếng Việt và thêm dấu đầy đủ nếu thiếu
+3. NHẬN DIỆN tên bệnh/tình trạng và trả về bằng TIẾNG VIỆT CÓ DẤU CHUẨN
+
+Input người dùng: "${input}"
+
+QUY TẮC:
+- Nếu input mô tả về bệnh tiểu đường, đường huyết cao, đái tháo đường → trả về: "Tiểu đường"
+- Nếu input mô tả về tăng huyết áp, cao huyết áp, huyết áp cao → trả về: "Tăng huyết áp"
+- Nếu input mô tả về béo phì, thừa cân, béo → trả về: "Béo phì"
+- Nếu input mô tả về viêm dạ dày, đau dạ dày, dạ dày → trả về: "Viêm dạ dày"
+- Nếu input mô tả về mỡ máu cao, rối loạn mỡ máu, cholesterol cao → trả về: "Rối loạn mỡ máu"
+- Nếu input mô tả về tim mạch, bệnh tim → trả về: "Bệnh tim mạch"
+- Nếu input mô tả về hen suyễn, khó thở → trả về: "Hen suyễn"
+- Nếu input mô tả về viêm khớp, đau khớp → trả về: "Viêm khớp"
+- Nếu input mô tả về bệnh khác, hãy trả về TÊN BỆNH/TÌNH TRẠNG bằng TIẾNG VIỆT CÓ DẤU CHUẨN (tối đa 50 ký tự)
+- Nếu input rỗng, không rõ ràng, hoặc không có bệnh → trả về: "Bình thường"
+
+QUAN TRỌNG:
+- LUÔN trả về bằng TIẾNG VIỆT CÓ DẤU ĐẦY ĐỦ
+- KIỂM TRA và SỬA chính tả tiếng Việt nếu sai
+- KHÔNG trả về tiếng Anh (Diabetes, Hypertension, etc.)
+- KHÔNG trả về "Other" hoặc "Khác"
+- Nếu là tên bệnh cụ thể, trả về tên bệnh tiếng Việt chuẩn
+- Nếu là mô tả tình trạng, chuẩn hóa thành câu ngắn gọn, có dấu đầy đủ
+
+Trả về JSON với format: {"condition": "Tên bệnh/tình trạng bằng tiếng Việt có dấu chuẩn"}`;
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-      max_tokens: 50,
+      max_tokens: 100,
+      temperature: 0.3, // Lower temperature for more consistent spelling correction
     });
 
     const result = JSON.parse(completion.choices[0].message.content);
-    res.json({ condition: result.condition || 'Normal' });
+    const condition = result.condition || input.trim();
+    
+    // Fallback: if AI returns English or "Other", try to normalize
+    const normalizedCondition = normalizeCondition(condition);
+    
+    res.json({ condition: normalizedCondition });
   } catch (error) {
     console.error('Disease Identify Error:', error);
-    res.status(500).json({ error: 'Failed to identify disease' });
+    // Fallback: return normalized input
+    const normalizedInput = normalizeCondition(input);
+    res.json({ condition: normalizedInput });
   }
+};
+
+// Helper function to normalize condition (fallback)
+const normalizeCondition = (condition) => {
+  if (!condition || typeof condition !== 'string') {
+    return 'Bình thường';
+  }
+
+  const normalized = condition.trim();
+  
+  // Map common English terms to Vietnamese
+  const englishToVietnamese = {
+    'diabetes': 'Tiểu đường',
+    'hypertension': 'Tăng huyết áp',
+    'high blood pressure': 'Tăng huyết áp',
+    'obesity': 'Béo phì',
+    'gastritis': 'Viêm dạ dày',
+    'normal': 'Bình thường',
+    'other': normalized, // Keep original if it's "other"
+  };
+
+  const lowerNormalized = normalized.toLowerCase();
+  if (englishToVietnamese[lowerNormalized]) {
+    return englishToVietnamese[lowerNormalized];
+  }
+
+  // If it's "Other" or empty, return "Bình thường"
+  if (lowerNormalized === 'other' || lowerNormalized === 'khác' || normalized === '') {
+    return 'Bình thường';
+  }
+
+  // Return normalized input (should already be Vietnamese from AI)
+  return normalized;
 };
 
 const getHealthRecommendationsSchema = z.object({

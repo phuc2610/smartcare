@@ -139,6 +139,28 @@ const deleteMedication = async (req, res) => {
   }
 };
 
+const deleteReminder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const reminder = await Reminder.findById(id);
+    if (!reminder) {
+      return res.status(404).json({ error: 'Reminder not found' });
+    }
+    
+    // Verify the reminder belongs to the user's medication
+    const medication = await Medication.findById(reminder.medicationId);
+    if (!medication || medication.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    await Reminder.findByIdAndDelete(id);
+    res.json({ message: 'Reminder deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Helper: Generate reminders
 const generateRemindersForMedication = async (medication) => {
   const today = new Date();
@@ -209,6 +231,7 @@ module.exports = {
   updateReminder,
   getMedications,
   deleteMedication,
+  deleteReminder,
   getMissedMedications,
   createMedicationSchema,
   updateReminderSchema,

@@ -8,7 +8,7 @@ import { Text as RNText, TextProps as RNTextProps, StyleSheet, TextStyle } from 
 import { TYPOGRAPHY, COLORS } from '../theme';
 
 export type TextVariant = 'display' | 'title' | 'section' | 'body' | 'bodySmall' | 'caption' | 'button';
-export type TextColor = 'text' | 'textSecondary' | 'primary' | 'secondary' | 'success' | 'error' | 'warning';
+export type TextColor = 'text' | 'textSecondary' | 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'surface';
 
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;

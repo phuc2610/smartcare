@@ -5,7 +5,6 @@ import { createHealthLog } from '../../services/health.service';
 import { estimateCalories } from '../../services/ai.service';
 import { HealthLogType } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { AppHeader } from '../../components/AppHeader';
 import { DatePicker } from '../../components/DatePicker';
 import { TimePicker } from '../../components/TimePicker';
 import { createAppointment } from '../../services/appointment.service';
@@ -269,7 +268,6 @@ export const HealthTrackingScreen = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Theo dõi sức khỏe" />
       <ScrollView style={styles.scrollView}>
       <View style={styles.tabs}>
         <TouchableOpacity

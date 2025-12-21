@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform } from 'react-native';
-import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType, PhotoQuality } from 'react-native-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile as updateProfileAPI } from '../../services/user.service';
 import { uploadImage } from '../../services/upload.service';
@@ -29,16 +29,26 @@ export const ProfileScreen = ({ navigation, route }: any) => {
 
   useEffect(() => {
     if (user) {
+      // Load height from database
       setHeight(user.height?.toString() || '');
+      
+      // Load weight from database
       setWeight(user.weight?.toString() || '');
-      // Keep the original medicalCondition description if it exists, otherwise use empty string
-      // If medicalCondition is a standard category (Diabetes, Hypertension, etc.), we'll show it
-      // If it's 'Normal' or empty, show empty string for user to input
-      if (user.medicalCondition && user.medicalCondition !== 'Normal' && user.medicalCondition !== 'Other') {
-        // If it's a standard category, we might want to show it or let user edit
-        // For now, show empty to let user input their own description
-        setConditionInput('');
+      
+      // Load medicalCondition from database (only for PATIENT)
+      // If medicalCondition exists and is not 'Normal' or 'Bình thường', display it
+      if (user.role === UserRole.PATIENT) {
+        if (user.medicalCondition && 
+            user.medicalCondition !== 'Normal' && 
+            user.medicalCondition !== 'Bình thường' &&
+            user.medicalCondition !== 'Other' &&
+            user.medicalCondition !== 'Khác') {
+          setConditionInput(user.medicalCondition);
+        } else {
+          setConditionInput('');
+        }
       } else {
+        // Caregiver should not have medical condition
         setConditionInput('');
       }
     }
@@ -79,7 +89,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const handleImagePicker = async (source: 'camera' | 'library') => {
     const options = {
       mediaType: 'photo' as MediaType,
-      quality: 0.8,
+      quality: 0.8 as PhotoQuality,
       maxWidth: 1024,
       maxHeight: 1024,
     };
@@ -123,37 +133,52 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     setAnalyzing(true);
 
     try {
-      let finalCondition = user.medicalCondition || 'Normal'; // Keep existing condition by default
-      
-      // Only identify disease if user has entered new input
-      if (conditionInput.trim()) {
-        const result = await identifyDisease(conditionInput);
-        finalCondition = result.condition || finalCondition; // Use identified condition or keep existing
-      }
-      // If no input and no existing condition, keep as Normal
-      if (!conditionInput.trim() && !user.medicalCondition) {
-        finalCondition = 'Normal';
-      }
-
-      const updatedUser = await updateProfileAPI({
+      const updateData: any = {
         height: Number(height) || undefined,
         weight: Number(weight) || undefined,
-        medicalCondition: finalCondition,
-      });
+      };
+
+      // Only process medical condition for PATIENT
+      if (user.role === UserRole.PATIENT) {
+        let finalCondition = user.medicalCondition || 'Normal'; // Keep existing condition by default
+        
+        // Only identify disease if user has entered new input
+        if (conditionInput.trim()) {
+          const result = await identifyDisease(conditionInput);
+          finalCondition = result.condition || finalCondition; // Use identified condition or keep existing
+        }
+        // If no input and no existing condition, keep as Normal
+        if (!conditionInput.trim() && !user.medicalCondition) {
+          finalCondition = 'Normal';
+        }
+
+        updateData.medicalCondition = finalCondition;
+      }
+      // Caregiver should not have medicalCondition - don't include it in update
+
+      const updatedUser = await updateProfileAPI(updateData);
 
       updateProfile(updatedUser.user);
-      Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${finalCondition}`);
+      if (user.role === UserRole.PATIENT && updateData.medicalCondition) {
+        Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${updateData.medicalCondition}`);
+      } else {
+        Alert.alert('Thành công', 'Đã lưu hồ sơ!');
+      }
     } catch (error: any) {
       console.error('[Profile] Save error:', error);
       // If AI fails, still save other fields but keep existing medicalCondition
       try {
-        const updatedUser = await updateProfileAPI({
+        const updateData: any = {
           height: Number(height) || undefined,
           weight: Number(weight) || undefined,
-          // Don't update medicalCondition if AI failed
-        });
+        };
+        // Only include medicalCondition for PATIENT if it exists
+        if (user.role === UserRole.PATIENT && user.medicalCondition) {
+          updateData.medicalCondition = user.medicalCondition;
+        }
+        const updatedUser = await updateProfileAPI(updateData);
         updateProfile(updatedUser.user);
-        Alert.alert('Thành công', 'Đã lưu chiều cao và cân nặng');
+        Alert.alert('Thành công', 'Đã lưu thông tin');
       } catch (saveError: any) {
         Alert.alert('Lỗi', saveError.response?.data?.error || 'Không thể lưu');
       }
@@ -170,7 +195,16 @@ export const ProfileScreen = ({ navigation, route }: any) => {
       const data = await generateLinkCode();
       setGeneratedCode(data.code);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể tạo mã');
+      const status = error?.response?.status;
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        'Không thể tạo mã';
+      const friendly =
+        status === 429
+          ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.'
+          : message;
+      Alert.alert('Lỗi', friendly);
     } finally {
       setLinkLoading(false);
     }
@@ -227,7 +261,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
             text={user?.role === UserRole.PATIENT ? 'Người bệnh' : 'Người thân'} 
             variant="primary"
           />
-          {user?.medicalCondition && user.medicalCondition !== 'Normal' && (
+          {user?.role === UserRole.PATIENT && user?.medicalCondition && user.medicalCondition !== 'Normal' && (
             <Badge text={user.medicalCondition} variant="warning" />
           )}
         </View>
@@ -270,18 +304,22 @@ export const ProfileScreen = ({ navigation, route }: any) => {
           keyboardType="numeric"
         />
 
-        <Text style={styles.label}>
-          Tình trạng bệnh lý {analyzing && <Text style={styles.analyzing}>AI đang phân tích...</Text>}
-        </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="VD: Tôi bị tiểu đường và mỡ máu..."
-          value={conditionInput}
-          onChangeText={setConditionInput}
-        />
-        <Text style={styles.helpText}>
-          * Nhập mô tả bệnh, AI sẽ tự động nhận diện nhóm bệnh
-        </Text>
+        {user?.role === UserRole.PATIENT && (
+          <>
+            <Text style={styles.label}>
+              Tình trạng bệnh lý {analyzing && <Text style={styles.analyzing}>AI đang phân tích...</Text>}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="VD: Tôi bị tiểu đường và mỡ máu..."
+              value={conditionInput}
+              onChangeText={setConditionInput}
+            />
+            <Text style={styles.helpText}>
+              * Nhập mô tả bệnh, AI sẽ tự động nhận diện nhóm bệnh
+            </Text>
+          </>
+        )}
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={loading}>
           <Text style={styles.saveButtonText}>
@@ -311,11 +349,18 @@ export const ProfileScreen = ({ navigation, route }: any) => {
               </TouchableOpacity>
             ) : (
               <View style={styles.codeContainer}>
-                <Text style={styles.codeLabel}>MÃ CỦA BẠN</Text>
+                <Text style={styles.codeLabel}>MÃ CỦA BẠN (Mã cố định)</Text>
                 <Text style={styles.code}>{generatedCode}</Text>
-                <Text style={styles.codeHelp}>Mã có hiệu lực trong 5 phút</Text>
-                <TouchableOpacity onPress={handleGenerateCode}>
-                  <Text style={styles.newCodeLink}>Tạo mã mới</Text>
+                <Text style={styles.codeHelp}>
+                  Chia sẻ mã này cho người thân. Mã này không thay đổi.
+                </Text>
+                <TouchableOpacity
+                  style={styles.requestsButton}
+                  onPress={() => navigation.navigate('CaregiverRequests')}
+                >
+                  <Text style={styles.requestsButtonText}>
+                    📬 Xem yêu cầu liên kết
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -574,6 +619,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   newCodeLink: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  requestsButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  requestsButtonText: {
     color: COLORS.primary,
     fontSize: 14,
     fontWeight: '600',

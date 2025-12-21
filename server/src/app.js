@@ -18,6 +18,7 @@ const wellnessRoutes = require('./routes/wellness.routes');
 const settingsRoutes = require('./routes/settings.routes');
 const customReminderRoutes = require('./routes/customReminders.routes');
 const appointmentRoutes = require('./routes/appointments.routes');
+const chatRoutes = require('./routes/chat.routes');
 
 const app = express();
 
@@ -33,12 +34,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-});
-app.use('/api/', limiter);
+// Rate limiting (tunable via env, can disable in dev)
+const RATE_LIMIT_DISABLED = process.env.RATE_LIMIT_DISABLED === 'true';
+const RATE_LIMIT_WINDOW_MINUTES = Number(process.env.RATE_LIMIT_WINDOW_MINUTES || 15);
+const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 100);
+
+if (!RATE_LIMIT_DISABLED) {
+  const limiter = rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+    max: RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api/', limiter);
+} else {
+  console.log('[RATE LIMIT] Disabled via env');
+}
 
 // Health check
 app.get('/health', (req, res) => {
@@ -58,6 +69,7 @@ app.use('/api/wellness', wellnessRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/custom-reminders', customReminderRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Error handler
 app.use(errorHandler);

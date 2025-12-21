@@ -53,6 +53,7 @@ export interface Reminder {
   takenAt?: string;
   isSynced: boolean;
   lastUpdated: string;
+  notificationIds?: string[]; // Array of notification IDs for multiple reminders
 }
 
 export type HealthLogType = 'meal' | 'exercise' | 'symptom';
@@ -76,6 +77,7 @@ export interface HealthLog {
   scheduledDate?: string; // Format: "YYYY-MM-DD"
   scheduledTime?: string; // Format: "HH:mm"
   isCompleted?: boolean; // Đã hoàn thành hay chưa
+  notificationIds?: string[]; // Array of notification IDs for multiple reminders
   details: HealthLogDetails;
   createdAt: string;
 }
@@ -170,6 +172,102 @@ export interface Place {
 export interface LocationCoords {
   latitude: number;
   longitude: number;
+}
+
+// ============================================
+// CaregiverPlus Types
+// ============================================
+
+export interface PatientSummary {
+  _id: string;
+  name: string;
+  phone?: string;
+  avatar?: string;
+  age?: number;
+  medicalCondition?: string;
+  lastUpdate?: string;
+  adherenceRate?: number;
+  needsAttention?: boolean;
+  recentAlerts?: number;
+}
+
+export type PatientFilter = 'all' | 'needsAttention' | 'recentUpdate';
+
+export interface Alert {
+  _id: string;
+  patientId: string;
+  patientName: string;
+  type: 'medication' | 'symptom' | 'appointment' | 'sos' | 'fall';
+  severity: 'warning' | 'error' | 'info';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  actionUrl?: string;
+}
+
+export interface MedicationTimelineItem {
+  _id: string;
+  medicationName: string;
+  dosage: string;
+  unit: string;
+  scheduledTime: string;
+  status: ReminderStatus;
+  period: 'morning' | 'noon' | 'evening' | 'night';
+}
+
+export interface MedicationWeekHistory {
+  date: string;
+  total: number;
+  taken: number;
+  skipped: number;
+  adherenceRate: number;
+}
+
+export interface DailyHealthSummary {
+  date: string;
+  calories: number;
+  exerciseMinutes: number;
+  symptomScore: number;
+  mood?: 'good' | 'neutral' | 'bad';
+}
+
+export interface Appointment {
+  _id: string;
+  patientId: string;
+  title: string;
+  doctor?: string;
+  location?: string;
+  date: string;
+  time: string;
+  notes?: string;
+  status: 'upcoming' | 'completed' | 'cancelled';
+  reminderMinutes?: number;
+}
+
+export interface CareNote {
+  _id: string;
+  patientId: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface LocationStatus {
+  patientId: string;
+  lastKnownLocation?: LocationCoords;
+  lastUpdateTime?: string;
+  safetyStatus: 'safe' | 'warning' | 'unknown';
+  geofenceActive?: boolean;
+}
+
+export interface EmergencyContact {
+  _id: string;
+  name: string;
+  phone: string;
+  relationship: string;
+  isPrimary: boolean;
 }
 
 

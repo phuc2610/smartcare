@@ -1,0 +1,21 @@
+NODE_ENV=development
+PORT=4000
+
+# MongoDB Atlas - Thay bằng connection string thật của bạn
+MONGODB_URI=
+
+# JWT Secret - Thay bằng chuỗi ngẫu nhiên bất kỳ
+JWT_SECRET=
+JWT_EXPIRES_IN=
+
+# Cloudinary - Lấy từ https://cloudinary.com/console
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_FOLDER=
+
+# OpenAI - Lấy từ https://platform.openai.com/api-keys
+OPENAI_API_KEY=
+OPENAI_MODEL=
+
+RATE_LIMIT_DISABLED=true

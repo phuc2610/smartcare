@@ -10,6 +10,7 @@ const reminderSchema = new mongoose.Schema({
   takenAt: { type: Date, default: null },
   isSynced: { type: Boolean, default: true },
   lastUpdated: { type: Date, default: Date.now },
+  notificationIds: { type: [String], default: [] }, // Array of notification IDs for multiple reminders
 }, {
   timestamps: true,
 });

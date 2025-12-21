@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { getTodayReminders, updateReminderStatus, updateReminder } from '../../services/medication.service';
+import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
+import { scheduleReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
 import { getAppointments, Appointment } from '../../services/appointment.service';
 import { Reminder, ReminderStatus, HealthLog } from '../../types';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -12,7 +14,6 @@ import { Text } from '../../ui/Text';
 import { Card } from '../../ui/Card';
 import { Chip } from '../../ui/Chip';
 import { Screen } from '../../ui/Screen';
-import { SOSButton } from '../../components/SOSButton';
 import { RecommendationList } from '../../components/RecommendationList';
 import { Loading } from '../../ui/Loading';
 import { EmptyState } from '../../ui/EmptyState';
@@ -21,13 +22,11 @@ import { EditTaskModal } from '../../components/EditTaskModal';
 interface DashboardScreenProps {
   targetUserId?: string;
   readOnly?: boolean;
-  hideSOS?: boolean;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   targetUserId,
   readOnly = false,
-  hideSOS = false,
 }) => {
   const { user } = useAuth();
   const navigation = useNavigation<any>();
@@ -39,6 +38,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [editingTask, setEditingTask] = useState<Reminder | HealthLog | null>(null);
   const [editingType, setEditingType] = useState<'medication' | 'health'>('medication');
   const [filter, setFilter] = useState<'all' | 'medication' | 'meal' | 'exercise' | 'appointment'>('all');
+  const [missedReminderIds, setMissedReminderIds] = useState<Set<string>>(new Set());
+  const [missedHealthLogIds, setMissedHealthLogIds] = useState<Set<string>>(new Set());
 
   const effectiveUserId = targetUserId || user?._id;
 
@@ -48,14 +49,65 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       
-      const [remindersData, healthLogsData, appointmentsData] = await Promise.all([
+      const [remindersData, healthLogsData, appointmentsData, missedMedicationsData] = await Promise.all([
         getTodayReminders(effectiveUserId),
         getTodayHealthLogs(effectiveUserId),
         getAppointments({ upcoming: true }),
+        getMissedMedications(effectiveUserId).catch(() => ({ missedReminders: [] })),
       ]);
+      
       setReminders(remindersData.reminders);
       setHealthLogs(healthLogsData.healthLogs);
+      
+      // Schedule notifications for pending reminders
+      for (const reminder of remindersData.reminders) {
+        if (reminder.status === 'PENDING') {
+          try {
+            const notificationIds = await scheduleReminderNotifications(reminder);
+            // Note: In a real app, you might want to save notificationIds to backend
+          } catch (err) {
+            console.error('Failed to schedule reminder notifications:', err);
+          }
+        }
+      }
+      
+      // Schedule notifications for pending health logs
+      for (const healthLog of healthLogsData.healthLogs) {
+        if (!healthLog.isCompleted && healthLog.scheduledDate && healthLog.scheduledTime) {
+          try {
+            const notificationIds = await scheduleHealthLogNotifications(healthLog);
+            // Note: In a real app, you might want to save notificationIds to backend
+          } catch (err) {
+            console.error('Failed to schedule health log notifications:', err);
+          }
+        }
+      }
+      
+      // Identify missed reminders
+      const missedReminderSet = new Set<string>();
+      missedMedicationsData.missedReminders.forEach((reminder: Reminder) => {
+        const scheduledTime = new Date(reminder.scheduledTime);
+        if (scheduledTime <= oneHourAgo && reminder.status === ReminderStatus.PENDING) {
+          missedReminderSet.add(reminder._id);
+        }
+      });
+      setMissedReminderIds(missedReminderSet);
+      
+      // Identify missed health logs
+      const missedHealthLogSet = new Set<string>();
+      healthLogsData.healthLogs.forEach((log: HealthLog) => {
+        if (log.scheduledDate && log.scheduledTime && !log.isCompleted) {
+          const scheduledDateTime = new Date(`${log.scheduledDate}T${log.scheduledTime}`);
+          if (scheduledDateTime <= oneHourAgo) {
+            missedHealthLogSet.add(log._id);
+          }
+        }
+      });
+      setMissedHealthLogIds(missedHealthLogSet);
+      
       // Filter appointments for today
       const todayAppointments = appointmentsData.appointments.filter(apt => {
         const aptDate = new Date(apt.appointmentDate);
@@ -83,6 +135,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const handleCheckReminder = async (id: string) => {
     if (readOnly) return;
     try {
+      const reminder = reminders.find(r => r._id === id);
+      // Cancel notifications if reminder has notificationIds
+      if (reminder?.notificationIds && reminder.notificationIds.length > 0) {
+        await cancelNotifications(reminder.notificationIds);
+      }
       await updateReminderStatus(id, ReminderStatus.TAKEN);
       fetchData();
     } catch (error) {
@@ -113,14 +170,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const handleDeleteReminder = async (id: string) => {
     if (readOnly) return;
-    const { showConfirm, showInfo, showError } = require('../../utils/alert');
+    const { showConfirm, showError } = require('../../utils/alert');
     showConfirm(
       'Xác nhận',
       'Bạn có chắc muốn xóa mục này?',
       async () => {
         try {
-          // TODO: Implement delete reminder
-          showInfo('Thông báo', 'Chức năng xóa sẽ được thêm sau');
+          await deleteReminder(id);
+          fetchData();
         } catch (error) {
           console.error('Failed to delete reminder:', error);
           showError('Lỗi', 'Không thể xóa');
@@ -134,7 +191,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     try {
       const log = healthLogs.find(h => h._id === id);
       if (!log) return;
-      await updateHealthLog(id, { isCompleted: !log.isCompleted });
+      const willBeCompleted = !log.isCompleted;
+      // Cancel notifications if health log will be completed
+      if (willBeCompleted && log.notificationIds && log.notificationIds.length > 0) {
+        await cancelNotifications(log.notificationIds);
+      }
+      await updateHealthLog(id, { isCompleted: willBeCompleted });
       fetchData();
     } catch (error) {
       console.error('Failed to update health log:', error);
@@ -242,6 +304,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     );
   };
 
+  const takenCount = reminders.filter(r => r.status === ReminderStatus.TAKEN).length;
+  const adherenceRate = reminders.length > 0 ? Math.round((takenCount / reminders.length) * 100) : null;
+  const pendingTasksCount =
+    pendingReminders.length +
+    pendingHealthLogs.length +
+    appointments.length;
+
   if (loading) {
     return <Loading message="Đang tải..." />;
   }
@@ -250,64 +319,90 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     <Screen scrollable scrollViewProps={{ refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} /> }}>
       {/* Personalized Header */}
       {!readOnly && (
-        <View style={styles.header}>
-          <View>
-            <Text variant="display" color="text" style={styles.greeting}>
-              Chào {user?.name?.split(' ')[0] || 'bạn'}, 👋
-            </Text>
-            <View style={styles.statusChip}>
-              <TouchableOpacity
-                onPress={() => setFilter('all')}
-                activeOpacity={0.7}
-              >
-                <Chip
-                  label="Tất cả"
-                  variant={filter === 'all' ? 'primary' : 'default'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFilter('medication')}
-                activeOpacity={0.7}
-              >
-                <Chip
-                  label={`${medicationCount} thuốc`}
-                  variant={filter === 'medication' ? 'primary' : 'default'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFilter('meal')}
-                activeOpacity={0.7}
-              >
-                <Chip
-                  label={`${mealCount} bữa ăn`}
-                  variant={filter === 'meal' ? 'primary' : 'default'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFilter('exercise')}
-                activeOpacity={0.7}
-              >
-                <Chip
-                  label={`${exerciseCount} vận động`}
-                  variant={filter === 'exercise' ? 'primary' : 'default'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setFilter('appointment')}
-                activeOpacity={0.7}
-              >
-                <Chip
-                  label={`${appointmentCount} lịch hẹn`}
-                  variant={filter === 'appointment' ? 'primary' : 'default'}
-                />
-              </TouchableOpacity>
+        <>
+          <View style={styles.hero}>
+            <View style={styles.heroTop}>
+              <Avatar name={user?.name || 'U'} size={56} avatarUrl={user?.avatar} />
+              <View style={styles.heroInfo}>
+                <Text variant="body" color="surface" style={styles.heroLabel}>
+                  Hôm nay
+                </Text>
+                <Text variant="display" color="surface" style={styles.heroName}>
+                  {user?.name || 'Bệnh nhân'}
+                </Text>
+                {user?.medicalCondition && user.medicalCondition !== 'Normal' && (
+                  <View style={styles.conditionBadge}>
+                    <Text style={styles.conditionText}>{user.medicalCondition}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.statBox}>
+                <Text variant="title" color="surface" semibold>
+                  {adherenceRate !== null ? `${adherenceRate}%` : '--'}
+                </Text>
+                <Text variant="caption" color="surface" style={styles.statLabel}>
+                  Tuân thủ thuốc
+                </Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text variant="title" color="surface" semibold>
+                  {pendingTasksCount}
+                </Text>
+                <Text variant="caption" color="surface" style={styles.statLabel}>
+                  Việc hôm nay
+                </Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text variant="title" color="surface" semibold>
+                  {appointmentCount}
+                </Text>
+                <Text variant="caption" color="surface" style={styles.statLabel}>
+                  Lịch hẹn
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+
+          <View style={styles.statusChip}>
+            <TouchableOpacity onPress={() => setFilter('all')} activeOpacity={0.7}>
+              <Chip
+                label="Tất cả"
+                variant={filter === 'all' ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilter('medication')} activeOpacity={0.7}>
+              <Chip
+                label={`${medicationCount} thuốc`}
+                variant={filter === 'medication' ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilter('meal')} activeOpacity={0.7}>
+              <Chip
+                label={`${mealCount} bữa ăn`}
+                variant={filter === 'meal' ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilter('exercise')} activeOpacity={0.7}>
+              <Chip
+                label={`${exerciseCount} vận động`}
+                variant={filter === 'exercise' ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFilter('appointment')} activeOpacity={0.7}>
+              <Chip
+                label={`${appointmentCount} lịch hẹn`}
+                variant={filter === 'appointment' ? 'primary' : 'default'}
+              />
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
       {/* Health Tips */}
-      {!hideSOS && <RecommendationList />}
+      <RecommendationList />
 
       {/* Today Plan Checklist */}
       {!readOnly && (
@@ -330,6 +425,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                       onPress={() => handleEditReminder(item._id)}
                       onDelete={() => handleDeleteReminder(item._id)}
                       readOnly={readOnly}
+                      isMissed={missedReminderIds.has(item._id)}
                     />
                   ))}
                   {filteredReminders.completed.map(item => (
@@ -369,8 +465,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                         onPress={() => handleEditHealthLog(item._id)}
                         onDelete={() => handleDeleteHealthLog(item._id)}
                         readOnly={readOnly}
+                        isMissed={missedHealthLogIds.has(item._id)}
                       />
-              ))}
+                    ))}
                   {filteredHealthLogs.completed
                     .filter(h => h.type === 'meal')
                     .map(item => (
@@ -410,6 +507,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                         onPress={() => handleEditHealthLog(item._id)}
                         onDelete={() => handleDeleteHealthLog(item._id)}
                         readOnly={readOnly}
+                        isMissed={missedHealthLogIds.has(item._id)}
                       />
                     ))}
                   {filteredHealthLogs.completed
@@ -505,9 +603,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         </Card>
       )}
 
-      {/* SOS Button */}
-      {!hideSOS && <SOSButton />}
-
       {/* Edit Task Modal */}
       <EditTaskModal
         visible={editingTask !== null}
@@ -529,6 +624,7 @@ interface TaskItemProps {
   onPress?: () => void;
   onDelete?: () => void;
   readOnly?: boolean;
+  isMissed?: boolean;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
@@ -539,6 +635,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onPress,
   onDelete,
   readOnly = false,
+  isMissed = false,
 }) => {
   const getIcon = () => {
     if (type === 'medication') return '💊';
@@ -592,8 +689,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return '';
   };
 
+  const isOverdue = isMissed && !completed;
+
   return (
-    <View style={[styles.taskItem, completed && styles.taskItemCompleted]}>
+    <View style={[
+      styles.taskItem,
+      completed && styles.taskItemCompleted,
+      isOverdue && styles.taskItemMissed,
+    ]}>
       {/* Checkbox */}
       {!readOnly && (
         <TouchableOpacity
@@ -604,7 +707,11 @@ const TaskItem: React.FC<TaskItemProps> = ({
           {completed ? (
             <Icon name="check-circle" size={24} color={COLORS.success} />
           ) : (
-            <Icon name="radio-button-unchecked" size={24} color={COLORS.textSecondary} />
+            <Icon 
+              name="radio-button-unchecked" 
+              size={24} 
+              color={isOverdue ? COLORS.error : COLORS.textSecondary} 
+            />
           )}
         </TouchableOpacity>
       )}
@@ -631,14 +738,23 @@ const TaskItem: React.FC<TaskItemProps> = ({
         activeOpacity={0.7}
         disabled={!onPress}
       >
-        <Text
-          variant="body"
-          color={completed ? 'textSecondary' : 'text'}
-          style={[styles.taskTitle, completed && styles.taskTitleCompleted]}
+        <View style={styles.taskTitleRow}>
+          <Text
+            variant="body"
+            color={isOverdue ? 'error' : completed ? 'textSecondary' : 'text'}
+            style={[styles.taskTitle, completed && styles.taskTitleCompleted]}
+          >
+            {getTitle()}
+          </Text>
+          {isOverdue && (
+            <Chip label="Trễ hẹn" variant="error" style={styles.missedBadge} />
+          )}
+        </View>
+        <Text 
+          variant="caption" 
+          color={isOverdue ? 'error' : 'textSecondary'} 
+          style={styles.taskSubtitle}
         >
-          {getTitle()}
-        </Text>
-        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
           {getSubtitle()}
         </Text>
       </TouchableOpacity>
@@ -654,18 +770,65 @@ const TaskItem: React.FC<TaskItemProps> = ({
 };
 
 const styles = StyleSheet.create({
-  header: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.md,
+  hero: {
+    backgroundColor: COLORS.primary,
+    marginHorizontal: 0,
+    marginTop: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    padding: SPACING.lg,
+    ...SHADOWS.md,
   },
-  greeting: {
-    marginBottom: SPACING.md,
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  heroInfo: {
+    flex: 1,
+  },
+  heroLabel: {
+    opacity: 0.85,
+  },
+  heroName: {
+    marginTop: 2,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SPACING.lg,
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    padding: SPACING.md,
+    borderRadius: 14,
+  },
+  statLabel: {
+    marginTop: 4,
+  },
+  conditionBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  conditionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   statusChip: {
     flexDirection: 'row',
     gap: SPACING.sm,
     flexWrap: 'wrap',
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
   },
   planCard: {
     marginHorizontal: SPACING.lg,
@@ -715,6 +878,20 @@ const styles = StyleSheet.create({
   },
   taskSubtitle: {
     // Typography handled by Text component
+  },
+  taskTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs / 2,
+  },
+  missedBadge: {
+    marginLeft: 0,
+  },
+  taskItemMissed: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.error,
+    backgroundColor: COLORS.error + '08',
   },
   taskActions: {
     flexDirection: 'row',

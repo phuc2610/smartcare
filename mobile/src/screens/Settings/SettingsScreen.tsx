@@ -17,6 +17,7 @@ import { Card } from '../../ui/Card';
 import { Screen } from '../../ui/Screen';
 import { Button } from '../../ui/Button';
 import { AppHeader } from '../../components/AppHeader';
+import { Logo } from '../../components/Logo';
 import { getNotificationSettings, updateNotificationSettings } from '../../services/settings.service';
 
 interface NotificationSettings {
@@ -288,44 +289,25 @@ export const SettingsScreen = () => {
           </Card>
         </View>
 
-        {/* Nhắc nhở tùy chỉnh */}
-        <View style={styles.section}>
-          <Text variant="section" color="text" style={styles.sectionTitle}>
-            📅 Nhắc nhở
-          </Text>
-          <Card style={styles.card}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigation?.navigate('CustomReminder')}
-              activeOpacity={0.7}
-            >
-              <View style={styles.iconContainer}>
-                <Icon name="notifications" size={20} color={COLORS.primary} />
-              </View>
-              <Text variant="body" color="text" style={styles.menuText}>
-                Nhắc nhở tùy chỉnh
-              </Text>
-              <Icon name="chevron-right" size={24} color={COLORS.textSecondary} />
-            </TouchableOpacity>
-          </Card>
-        </View>
-
         {/* Khác */}
         <View style={styles.section}>
           <Text variant="section" color="text" style={styles.sectionTitle}>
             ⚙️ Khác
           </Text>
           <Card style={styles.card}>
-            <View style={styles.menuItem}>
-              <View style={styles.iconContainer}>
-                <Icon name="info" size={20} color={COLORS.primary} />
+            <View style={styles.aboutContainer}>
+              <Logo size="medium" containerStyle={styles.aboutLogo} />
+              <View style={styles.aboutTextContainer}>
+                <Text variant="body" color="text" semibold style={styles.aboutTitle}>
+                  SmartCare
+                </Text>
+                <Text variant="caption" color="textSecondary" style={styles.aboutSubtext}>
+                  Version 1.0.0
+                </Text>
+                <Text variant="caption" color="textSecondary" style={styles.aboutDescription}>
+                  Ứng dụng quản lý sức khỏe thông minh
+                </Text>
               </View>
-              <Text variant="body" color="text" style={styles.menuText}>
-                Về ứng dụng
-              </Text>
-              <Text variant="caption" color="textSecondary" style={styles.menuSubtext}>
-                Version 1.0.0
-              </Text>
             </View>
           </Card>
         </View>
@@ -449,5 +431,25 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: COLORS.error,
+  },
+  aboutContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  aboutLogo: {
+    marginRight: SPACING.md,
+  },
+  aboutTextContainer: {
+    flex: 1,
+  },
+  aboutTitle: {
+    marginBottom: SPACING.xs / 2,
+  },
+  aboutSubtext: {
+    marginBottom: SPACING.xs / 2,
+  },
+  aboutDescription: {
+    marginTop: SPACING.xs,
   },
 });

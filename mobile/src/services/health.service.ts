@@ -70,7 +70,10 @@ export const getTodayHealthLogs = async (
   const result = await api.get<{ healthLogs: HealthLog[] }>('/api/health/today', { params });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Get today health logs failed');
+    const error: any = new Error(result.error || 'Get today health logs failed');
+    error.status = result.status;
+    error.data = result.data;
+    throw error;
   }
 
   return result.data;

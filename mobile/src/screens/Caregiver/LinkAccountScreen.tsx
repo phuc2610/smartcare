@@ -19,7 +19,16 @@ export const LinkAccountScreen = ({ navigation }: any) => {
       const data = await generateLinkCode();
       setGeneratedCode(data.code);
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể tạo mã');
+      const status = error?.response?.status;
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        'Không thể tạo mã';
+      const friendly =
+        status === 429
+          ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.'
+          : message;
+      Alert.alert('Lỗi', friendly);
     } finally {
       setLoading(false);
     }
@@ -30,12 +39,10 @@ export const LinkAccountScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const res = await submitLinkCode(inputCode);
-      setSuccessMsg(`Đã liên kết thành công với bệnh nhân: ${res.patientName}`);
-      setTimeout(() => {
-        navigation.navigate('Home');
-      }, 2000);
+      setSuccessMsg(res.message || `Đã gửi yêu cầu liên kết với bệnh nhân: ${res.patientName || 'người bệnh'}`);
+      // Don't navigate immediately - wait for patient approval
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể liên kết');
+      Alert.alert('Lỗi', error.message || 'Không thể gửi yêu cầu liên kết');
     } finally {
       setLoading(false);
     }
@@ -63,12 +70,11 @@ export const LinkAccountScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           ) : (
             <View style={styles.codeContainer}>
-              <Text style={styles.codeLabel}>MÃ CỦA BẠN</Text>
+              <Text style={styles.codeLabel}>MÃ CỦA BẠN (Mã cố định)</Text>
               <Text style={styles.code}>{generatedCode}</Text>
-              <Text style={styles.codeHelp}>Mã có hiệu lực trong 5 phút</Text>
-              <TouchableOpacity onPress={handleGenerateCode}>
-                <Text style={styles.newCodeLink}>Tạo mã mới</Text>
-              </TouchableOpacity>
+              <Text style={styles.codeHelp}>
+                Chia sẻ mã này cho người thân. Mã này không thay đổi.
+              </Text>
             </View>
           )}
         </View>
@@ -89,6 +95,9 @@ export const LinkAccountScreen = ({ navigation }: any) => {
         {successMsg ? (
           <View style={styles.success}>
             <Text style={styles.successText}>{successMsg}</Text>
+            <Text style={styles.successSubtext}>
+              Vui lòng chờ bệnh nhân xác nhận yêu cầu liên kết.
+            </Text>
           </View>
         ) : (
           <>
@@ -210,6 +219,12 @@ const styles = StyleSheet.create({
     color: COLORS.success,
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  successSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
     textAlign: 'center',
   },
 });

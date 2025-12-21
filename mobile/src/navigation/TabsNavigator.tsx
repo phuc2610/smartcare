@@ -23,6 +23,24 @@ import { ChangePasswordScreen } from '../screens/Settings/ChangePasswordScreen';
 import { CustomReminderScreen } from '../screens/Reminders/CustomReminderScreen';
 import { AppointmentScreen } from '../screens/Appointments/AppointmentScreen';
 import { AppHeader } from '../components/AppHeader';
+import { PatientListScreen } from '../screens/CaregiverPlus/PatientListScreen';
+import { PatientDetailScreen } from '../screens/CaregiverPlus/PatientDetailScreen';
+import { PatientTasksScreen } from '../screens/CaregiverPlus/PatientTasksScreen';
+import { MedicationDetailScreen } from '../screens/CaregiverPlus/MedicationDetailScreen';
+import { MealDetailScreen } from '../screens/CaregiverPlus/MealDetailScreen';
+import { AlertsCenterScreen } from '../screens/CaregiverPlus/AlertsCenterScreen';
+import { DailyHealthScreen } from '../screens/CaregiverPlus/DailyHealthScreen';
+import { ReportsAnalyticsScreen } from '../screens/CaregiverPlus/ReportsAnalyticsScreen';
+import { CaregiverAppointmentsScreen } from '../screens/CaregiverPlus/CaregiverAppointmentsScreen';
+import { SafetyLocationScreen } from '../screens/CaregiverPlus/SafetyLocationScreen';
+import { CareNotesChatScreen } from '../screens/CaregiverPlus/CareNotesChatScreen';
+import { CareOverviewStatsScreen } from '../screens/CaregiverPlus/CareOverviewStatsScreen';
+import { ActivityHistoryScreen } from '../screens/CaregiverPlus/ActivityHistoryScreen';
+import { EmergencyContactsScreen } from '../screens/CaregiverPlus/EmergencyContactsScreen';
+import { CaregiverRequestsScreen } from '../screens/CaregiverRequests/CaregiverRequestsScreen';
+import { NotificationsScreen } from '../screens/Notifications/NotificationsScreen';
+import { ConversationListScreen } from '../screens/Chat/ConversationListScreen';
+import { ChatDetailScreen } from '../screens/Chat/ChatDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -99,11 +117,12 @@ const MainTabs = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.7)',
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIconStyle: styles.tabBarIcon,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen
@@ -205,6 +224,20 @@ export const TabsNavigator = () => {
         }} 
       />
       <Stack.Screen 
+        name="ChatDetail" 
+        component={ChatDetailScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ConversationList" 
+        component={ConversationListScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
         name="Wellness" 
         component={WellnessScreen} 
         options={{ 
@@ -239,24 +272,136 @@ export const TabsNavigator = () => {
           headerShown: false,
         }} 
       />
+      {/* CaregiverPlus Screens */}
+      <Stack.Screen 
+        name="PatientList" 
+        component={PatientListScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PatientDetail" 
+        component={PatientDetailScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PatientTasks" 
+        component={PatientTasksScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="MedicationDetail" 
+        component={MedicationDetailScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="MealDetail" 
+        component={MealDetailScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="AlertsCenter" 
+        component={AlertsCenterScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="DailyHealth" 
+        component={DailyHealthScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ReportsAnalytics" 
+        component={ReportsAnalyticsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="CaregiverAppointments" 
+        component={CaregiverAppointmentsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="SafetyLocation" 
+        component={SafetyLocationScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="CareNotes" 
+        component={CareNotesChatScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="CareOverviewStats" 
+        component={CareOverviewStatsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ActivityHistory" 
+        component={ActivityHistoryScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="EmergencyContacts" 
+        component={EmergencyContactsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="CaregiverRequests" 
+        component={CaregiverRequestsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
     </Stack.Navigator>
   );
 };
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    height: 60,
+    backgroundColor: COLORS.primary,
+    borderTopWidth: 0,
+    height: 64,
     paddingBottom: SPACING.sm,
     paddingTop: SPACING.sm,
-    ...SHADOWS.tabBar,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: SPACING.xs,
+    color: '#fff',
   },
   tabBarIcon: {
     marginTop: SPACING.xs,
@@ -269,7 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -28,
-    ...SHADOWS.floating,
+    borderWidth: 4,
+    borderColor: COLORS.primaryLight,
   },
   addButtonContainer: {
     top: -10,

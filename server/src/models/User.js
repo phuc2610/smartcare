@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema({
     exerciseEnabled: { type: Boolean, default: true },
   },
   avatar: { type: String, default: null },
+  linkCode: { type: String, unique: true, sparse: true }, // Mã cố định để liên kết (chỉ cho PATIENT)
 }, {
   timestamps: true,
 });

@@ -77,7 +77,9 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           ]}
         >
           <View style={styles.handle} />
-          {children}
+          <View style={styles.content}>
+            {children}
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -97,10 +99,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING['3xl'],
-    paddingHorizontal: SPACING.lg,
     maxHeight: '90%',
+  },
+  content: {
+    flex: 1,
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   handle: {
     width: 40,
@@ -108,7 +112,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: SPACING.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
 });
 

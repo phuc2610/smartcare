@@ -58,5 +58,18 @@ export const SHADOWS = {
       elevation: 8,
     },
   }),
+  
+  // Medium elevation (4-5)
+  md: Platform.select({
+    ios: {
+      shadowColor: COLORS.text,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+    },
+    android: {
+      elevation: 5,
+    },
+  }),
 } as const;
 

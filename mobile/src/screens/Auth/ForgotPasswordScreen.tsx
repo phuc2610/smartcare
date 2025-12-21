@@ -16,6 +16,7 @@ import { forgotPassword, resetPassword } from '../../services/auth.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { useAuth } from '../../contexts/AuthContext';
+import { Logo } from '../../components/Logo';
 
 type Step = 'PHONE' | 'OTP' | 'NEW_PASSWORD';
 
@@ -134,11 +135,14 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, result.token);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(result.user));
       
-      // Update context
+      // Update context -> RootNavigator will switch to Main stack
       updateProfile(result.user);
-      
-      // Navigate to home
-      navigation?.navigate('MainTabs');
+
+      // Ensure we land on the authenticated stack
+      navigation?.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
     } catch (err: any) {
       const errorMessage = err?.message || err?.response?.data?.error || 'Đổi mật khẩu thất bại';
       setError(errorMessage);
@@ -148,28 +152,74 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
   };
 
 
+  const otpInputRef = useRef<TextInput>(null);
+
   const OTPInput = () => (
-    <View style={styles.otpContainer}>
-      <TextInput
-        style={styles.otpInput}
-        placeholder="Nhập mã OTP"
-        value={otp}
-        onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, '').slice(0, 4))}
-        keyboardType="number-pad"
-        maxLength={4}
-      />
+    <View style={styles.otpWrapper}>
+      <View style={styles.otpContainer}>
+        <TextInput
+          ref={otpInputRef}
+          style={styles.otpInput}
+          placeholder="Nhập mã OTP"
+          value={otp}
+          onChangeText={(text) => {
+            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 4);
+            setOtp(cleanedText);
+          }}
+          keyboardType="number-pad"
+          maxLength={4}
+          autoFocus={true}
+          blurOnSubmit={false}
+          selectTextOnFocus={false}
+          returnKeyType="done"
+        />
+      </View>
       <TouchableOpacity
         onPress={handleRequestOTP}
         disabled={otpCountdown > 0 || otpLoading}
         style={styles.otpButton}
+        activeOpacity={0.7}
       >
         {otpLoading ? (
           <ActivityIndicator size="small" color={COLORS.primary} />
         ) : otpCountdown > 0 ? (
           <Text style={styles.otpCountdown}>{formatCountdown(otpCountdown)}</Text>
         ) : (
-          <Icon name="mail" size={24} color={COLORS.primary} />
+          <Text style={styles.otpResendText}>Gửi lại</Text>
         )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const PasswordInput = ({
+    value,
+    onChangeText,
+    placeholder,
+    showPasswordValue,
+    onToggleVisibility,
+  }: {
+    value: string;
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    showPasswordValue: boolean;
+    onToggleVisibility: () => void;
+  }) => (
+    <View style={styles.passwordContainer}>
+      <TextInput
+        style={styles.passwordInput}
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={!showPasswordValue}
+        autoCapitalize="none"
+        returnKeyType="next"
+      />
+      <TouchableOpacity onPress={onToggleVisibility} style={styles.eyeIcon}>
+        <Icon
+          name={showPasswordValue ? 'visibility' : 'visibility-off'}
+          size={24}
+          color={COLORS.textSecondary}
+        />
       </TouchableOpacity>
     </View>
   );
@@ -177,12 +227,19 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      enabled={step !== 'OTP'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
+      >
         <View style={styles.form}>
           {step === 'PHONE' && (
             <>
+              <Logo size="large" containerStyle={styles.logoContainer} />
               <Text style={styles.title}>Quên mật khẩu</Text>
               <Text style={styles.subtitle}>
                 Nhập số điện thoại để nhận mã OTP
@@ -219,6 +276,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
 
           {step === 'OTP' && (
             <>
+              <Logo size="medium" containerStyle={styles.logoContainer} />
               <Text style={styles.title}>Xác thực OTP</Text>
               <Text style={styles.subtitle}>
                 Mã OTP đã được gửi đến số điện thoại {phone}
@@ -251,6 +309,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
 
           {step === 'NEW_PASSWORD' && (
             <>
+              <Logo size="medium" containerStyle={styles.logoContainer} />
               <Text style={styles.title}>Đặt mật khẩu mới</Text>
               <Text style={styles.subtitle}>
                 Vui lòng nhập mật khẩu mới cho tài khoản
@@ -260,7 +319,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholder="Mật khẩu mới"
-                showPassword={showPassword}
+                showPasswordValue={showPassword}
                 onToggleVisibility={() => setShowPassword(!showPassword)}
               />
 
@@ -268,7 +327,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Xác nhận mật khẩu mới"
-                showPassword={showConfirmPassword}
+                showPasswordValue={showConfirmPassword}
                 onToggleVisibility={() => setShowConfirmPassword(!showConfirmPassword)}
               />
 
@@ -362,25 +421,41 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 16,
   },
-  otpContainer: {
+  otpWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  otpContainer: {
+    flex: 1,
     backgroundColor: '#f9fafb',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 12,
-    marginBottom: 16,
   },
   otpInput: {
-    flex: 1,
+    width: '100%',
     padding: 16,
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 4,
   },
   otpButton: {
     padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 80,
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+  },
+  otpResendText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   otpCountdown: {
     fontSize: 14,
@@ -413,6 +488,10 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     marginTop: 12,
+  },
+  logoContainer: {
+    marginBottom: 24,
+    marginTop: 16,
   },
 });
 

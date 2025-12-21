@@ -97,10 +97,21 @@ export const getMissedMedications = async (userId?: string): Promise<{ missedRem
   const result = await api.get<{ missedReminders: Reminder[] }>('/api/medications/missed', { params });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Get missed medications failed');
+    const error: any = new Error(result.error || 'Get missed medications failed');
+    error.status = result.status;
+    error.data = result.data;
+    throw error;
   }
 
   return result.data;
+};
+
+export const deleteReminder = async (id: string): Promise<void> => {
+  const result = await api.delete(`/api/medications/reminders/${id}`);
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Delete reminder failed');
+  }
 };
 
 

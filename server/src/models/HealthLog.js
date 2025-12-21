@@ -7,6 +7,7 @@ const healthLogSchema = new mongoose.Schema({
   scheduledDate: { type: Date }, // Ngày dự kiến thực hiện
   scheduledTime: { type: String }, // Giờ dự kiến (format: "HH:mm")
   isCompleted: { type: Boolean, default: false }, // Đã hoàn thành hay chưa
+  notificationIds: { type: [String], default: [] }, // Array of notification IDs for multiple reminders
   details: {
     foodName: String,
     calories: Number,

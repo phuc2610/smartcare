@@ -64,12 +64,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING['3xl'],
+    minHeight: 200,
   },
   iconContainer: {
     marginBottom: SPACING.lg,
+    paddingVertical: SPACING.md,
+    overflow: 'visible',
   },
   iconEmoji: {
-    fontSize: 64,
+    fontSize: 48,
+    lineHeight: 56,
   },
   title: {
     marginBottom: SPACING.sm,

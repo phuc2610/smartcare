@@ -10,6 +10,7 @@ const createAppointmentSchema = z.object({
     appointmentTime: z.string().optional(),
     notes: z.string().optional(),
     reminderBefore: z.number().optional(),
+    userId: z.string().optional(), // For caregivers to create appointment for patients
   }),
 });
 
@@ -22,11 +23,37 @@ const createAppointment = async (req, res) => {
       appointmentDate, 
       appointmentTime,
       notes,
-      reminderBefore = 24 
+      reminderBefore = 24,
+      userId // For caregivers to create appointment for patients
     } = req.body;
 
+    // Determine target userId
+    let targetUserId = req.user._id;
+    
+    // If userId is provided and user is a caregiver, allow creating for patient
+    if (userId && req.user.role === 'CAREGIVER') {
+      // Verify caregiver has access to this patient
+      const User = require('../models/User');
+      const patient = await User.findById(userId);
+      if (!patient) {
+        return res.status(404).json({ error: 'Patient not found' });
+      }
+      // Check if patient role is correct
+      if (patient.role !== 'PATIENT') {
+        return res.status(400).json({ error: 'User is not a patient' });
+      }
+      // Check if caregiver is linked to this patient
+      if (patient.caregiverId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: 'Access denied. You are not linked to this patient.' });
+      }
+      targetUserId = userId;
+    } else if (userId && req.user.role !== 'CAREGIVER') {
+      // Only caregivers can create appointments for others
+      return res.status(403).json({ error: 'Only caregivers can create appointments for patients' });
+    }
+
     const appointment = new Appointment({
-      userId: req.user._id,
+      userId: targetUserId,
       doctorName,
       doctorSpecialty: doctorSpecialty || '',
       hospitalName: hospitalName || '',

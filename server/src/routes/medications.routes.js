@@ -7,6 +7,7 @@ const {
   updateReminder,
   getMedications,
   deleteMedication,
+  deleteReminder,
   getMissedMedications,
   createMedicationSchema,
   updateReminderSchema,
@@ -20,6 +21,7 @@ router.get('/missed', authenticate, getMissedMedications);
 router.get('/', authenticate, getMedications);
 router.patch('/:id/take', authenticate, updateReminderStatus);
 router.patch('/reminders/:id', authenticate, validate(updateReminderSchema), updateReminder);
+router.delete('/reminders/:id', authenticate, deleteReminder);
 router.delete('/:id', authenticate, deleteMedication);
 
 module.exports = router;

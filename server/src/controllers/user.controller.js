@@ -13,9 +13,16 @@ const updateProfileSchema = z.object({
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-passwordHash -otpCode');
+    const userObj = user.toObject();
+    
+    // Caregiver should not have medical condition
+    if (user.role === 'CAREGIVER') {
+      userObj.medicalCondition = null;
+    }
+    
     res.json({ 
       user: {
-        ...user.toObject(),
+        ...userObj,
         avatar: user.avatar || null,
       }
     });
@@ -35,8 +42,17 @@ const updateProfile = async (req, res) => {
 
     if (height !== undefined) user.height = height;
     if (weight !== undefined) user.weight = weight;
-    if (medicalCondition !== undefined) user.medicalCondition = medicalCondition;
     if (avatar !== undefined) user.avatar = avatar;
+    
+    // Only allow medicalCondition update for PATIENT role
+    if (medicalCondition !== undefined) {
+      if (user.role === 'PATIENT') {
+        user.medicalCondition = medicalCondition;
+      } else {
+        // Caregiver should not have medical condition - ignore or set to null
+        user.medicalCondition = null;
+      }
+    }
 
     await user.save();
 
@@ -46,7 +62,7 @@ const updateProfile = async (req, res) => {
         name: user.name,
         phone: user.phone,
         role: user.role,
-        medicalCondition: user.medicalCondition,
+        medicalCondition: user.role === 'PATIENT' ? user.medicalCondition : null,
         height: user.height,
         weight: user.weight,
         avatar: user.avatar,

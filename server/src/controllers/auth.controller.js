@@ -47,16 +47,22 @@ const register = async (req, res) => {
     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
     // Create user but not verified yet
-    const user = await User.create({
+    const userData = {
       name,
       phone,
       passwordHash,
       role,
       isVerified: false, // Chưa verify, cần OTP
-      medicalCondition: 'Diabetes', // Default for demo
       otpCode,
       otpExpiresAt,
-    });
+    };
+
+    // Only set medicalCondition for PATIENT role, default to null
+    if (role === 'PATIENT') {
+      userData.medicalCondition = null;
+    }
+
+    const user = await User.create(userData);
 
     // Log OTP to console for demo (không gửi SMS)
     console.log('========================================');

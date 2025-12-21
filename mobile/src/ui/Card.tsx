@@ -3,7 +3,7 @@
  * Surface container with elevation and animations
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, forwardRef } from 'react';
 import { View, ViewStyle, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -24,7 +24,7 @@ export interface CardProps {
   onPress?: () => void;
 }
 
-export const Card: React.FC<CardProps> = ({
+const CardComponent = forwardRef<View, CardProps>(({
   children,
   style,
   variant = 'default',
@@ -32,7 +32,7 @@ export const Card: React.FC<CardProps> = ({
   delay = 0,
   index = 0,
   onPress,
-}) => {
+}, ref) => {
   const opacity = useSharedValue(animated ? 0 : 1);
   const translateY = useSharedValue(animated ? 20 : 0);
   const scale = useSharedValue(animated ? 0.95 : 1);
@@ -60,6 +60,7 @@ export const Card: React.FC<CardProps> = ({
 
   const content = (
     <Animated.View
+      ref={ref}
       style={[
         styles.card,
         shadowStyle,
@@ -72,17 +73,20 @@ export const Card: React.FC<CardProps> = ({
   );
 
   if (onPress) {
-    const { TouchableOpacity: RNTouchableOpacity } = require('react-native');
-    const TouchableCard = Animated.createAnimatedComponent(RNTouchableOpacity);
+    const { TouchableOpacity } = require('react-native');
     return (
-      <TouchableCard onPress={onPress} activeOpacity={0.9}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
         {content}
-      </TouchableCard>
+      </TouchableOpacity>
     );
   }
 
   return content;
-};
+});
+
+CardComponent.displayName = 'Card';
+
+export const Card = CardComponent;
 
 const styles = StyleSheet.create({
   card: {

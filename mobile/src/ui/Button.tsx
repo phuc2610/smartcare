@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { TouchableOpacity, ViewStyle, TextStyle, StyleSheet, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, ViewStyle, TextStyle, StyleSheet, ActivityIndicator, StyleProp } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,8 +25,8 @@ export interface ButtonProps {
   size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }

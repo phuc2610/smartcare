@@ -7,13 +7,15 @@ interface AvatarProps {
   size?: number;
   backgroundColor?: string;
   avatarUrl?: string;
+  style?: any;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ 
   name = 'U', 
   size = 48,
   backgroundColor = COLORS.primaryLight,
-  avatarUrl
+  avatarUrl,
+  style
 }) => {
   const initials = name
     .split(' ')
@@ -33,7 +35,8 @@ export const Avatar: React.FC<AvatarProps> = ({
             width: size,
             height: size,
             borderRadius: size / 2,
-          }
+          },
+          style
         ]}
       />
     );
@@ -48,7 +51,8 @@ export const Avatar: React.FC<AvatarProps> = ({
           height: size, 
           borderRadius: size / 2,
           backgroundColor 
-        }
+        },
+        style
       ]}
     >
       <Text style={[styles.text, { fontSize: size * 0.4 }]}>{initials}</Text>

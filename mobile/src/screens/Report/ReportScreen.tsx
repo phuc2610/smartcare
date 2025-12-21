@@ -8,7 +8,6 @@ import { ReportSummary } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { StatCard } from '../../components/StatCard';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import { AppHeader } from '../../components/AppHeader';
 
 type ReportRange = 'today' | 'week' | 'month';
 
@@ -17,6 +16,7 @@ export const ReportScreen = ({ route }: any) => {
   const targetUserId = route?.params?.userId || user?._id;
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<ReportRange>('today');
   const [expandedMeals, setExpandedMeals] = useState(false);
   const [aiNotes, setAiNotes] = useState<string | null>(null);
@@ -30,6 +30,7 @@ export const ReportScreen = ({ route }: any) => {
 
   const fetchReport = async () => {
     setLoading(true);
+    setError(null);
     setExpandedMeals(false);
     setAiNotes(null);
     try {
@@ -45,7 +46,11 @@ export const ReportScreen = ({ route }: any) => {
       }
     } catch (error) {
       console.error('[Report] Error:', error);
-      Alert.alert('Lỗi', 'Không thể tải báo cáo');
+      const message =
+        (error as any)?.message ||
+        (error as any)?.response?.data?.error ||
+        'Không thể tải báo cáo';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -89,8 +94,34 @@ export const ReportScreen = ({ route }: any) => {
     }
   };
 
-  if (loading || !report) {
+  if (loading) {
     return <LoadingSpinner message="Đang tải báo cáo..." />;
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchReport}>
+            <Text style={styles.retryText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (!report) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Không có dữ liệu báo cáo.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchReport}>
+            <Text style={styles.retryText}>Tải lại</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   const getRangeLabel = (range: ReportRange) => {
@@ -129,22 +160,7 @@ export const ReportScreen = ({ route }: any) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader 
-        title="Báo cáo tổng quan"
-        rightAction={
-          <TouchableOpacity
-            onPress={handleExportPDF}
-            disabled={exportingPDF}
-            style={styles.exportButton}
-          >
-            {exportingPDF ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : (
-              <Icon name="picture-as-pdf" size={24} color={COLORS.primary} />
-            )}
-          </TouchableOpacity>
-        }
-      />
+    
       
       {/* Range Tabs */}
       <View style={styles.rangeTabs}>
@@ -530,6 +546,30 @@ const styles = StyleSheet.create({
   aiNotesBold: {
     fontWeight: 'bold',
     color: COLORS.text,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  errorText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   exportButton: {
     padding: 8,

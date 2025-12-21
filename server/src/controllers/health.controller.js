@@ -4,17 +4,18 @@ const { z } = require('zod');
 const createHealthLogSchema = z.object({
   body: z.object({
     type: z.enum(['meal', 'exercise', 'symptom']),
-    date: z.string().datetime().optional(),
+    // Accept plain date string; backend will coerce to Date
+    date: z.string().optional(),
     scheduledDate: z.string().optional(), // Format: "YYYY-MM-DD"
     scheduledTime: z.string().optional(), // Format: "HH:mm"
     details: z.object({
       foodName: z.string().optional(),
-      calories: z.number().optional(),
+      calories: z.coerce.number().optional(),
       exerciseType: z.string().optional(),
-      durationMinutes: z.number().optional(),
-      caloriesBurned: z.number().optional(),
+      durationMinutes: z.coerce.number().optional(),
+      caloriesBurned: z.coerce.number().optional(),
       symptomName: z.string().optional(),
-      severity: z.number().optional(),
+      severity: z.coerce.number().optional(),
       note: z.string().optional(),
     }),
   }),
@@ -121,6 +122,27 @@ const getScheduledTasks = async (req, res) => {
 const getTodayHealthLogs = async (req, res) => {
   try {
     const targetUserId = req.query.userId || req.user._id.toString();
+    
+    // If requesting another user's data, verify access
+    if (targetUserId !== req.user._id.toString()) {
+      const User = require('../models/User');
+      const targetUser = await User.findById(targetUserId);
+      
+      if (!targetUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // If requester is a caregiver, verify they are linked to this patient
+      if (req.user.role === 'CAREGIVER') {
+        if (targetUser.role !== 'PATIENT' || targetUser.caregiverId?.toString() !== req.user._id.toString()) {
+          return res.status(403).json({ error: 'Access denied' });
+        }
+      } else if (req.user.role === 'PATIENT') {
+        // Patients can only access their own data
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+    
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
@@ -148,17 +170,17 @@ const getTodayHealthLogs = async (req, res) => {
 const updateHealthLogSchema = z.object({
   body: z.object({
     type: z.enum(['meal', 'exercise', 'symptom']).optional(),
-    date: z.string().datetime().optional(),
+    date: z.string().optional(),
     scheduledDate: z.string().optional(),
     scheduledTime: z.string().optional(),
     details: z.object({
       foodName: z.string().optional(),
-      calories: z.number().optional(),
+      calories: z.coerce.number().optional(),
       exerciseType: z.string().optional(),
-      durationMinutes: z.number().optional(),
-      caloriesBurned: z.number().optional(),
+      durationMinutes: z.coerce.number().optional(),
+      caloriesBurned: z.coerce.number().optional(),
       symptomName: z.string().optional(),
-      severity: z.number().optional(),
+      severity: z.coerce.number().optional(),
       note: z.string().optional(),
     }).optional(),
     isCompleted: z.boolean().optional(),

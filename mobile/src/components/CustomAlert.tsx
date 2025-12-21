@@ -115,7 +115,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
             },
           ]}
         >
-          <Card style={[styles.alertCard, SHADOWS.floating]}>
+          <Card variant="elevated" style={styles.alertCard}>
             {/* Icon */}
             <View style={[styles.iconContainer, { backgroundColor: config.backgroundColor }]}>
               <Icon name={config.icon} size={32} color={config.iconColor} />

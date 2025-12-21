@@ -15,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { requestOTP } from '../../services/auth.service';
+import { Logo } from '../../components/Logo';
 
 type Screen = 'LOGIN' | 'REGISTER' | 'REGISTER_OTP';
 
@@ -212,27 +213,40 @@ export const AuthScreen = ({ navigation }: any) => {
   };
 
 
+  const otpInputRef = useRef<TextInput>(null);
+
   const OTPInput = () => (
-    <View style={styles.otpContainer}>
-      <TextInput
-        style={styles.otpInput}
-        placeholder="Nhập mã OTP"
-        value={otp}
-        onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, '').slice(0, 4))}
-        keyboardType="number-pad"
-        maxLength={4}
-      />
+    <View style={styles.otpWrapper}>
+      <View style={styles.otpContainer}>
+        <TextInput
+          ref={otpInputRef}
+          style={styles.otpInput}
+          placeholder="Nhập mã OTP"
+          value={otp}
+          onChangeText={(text) => {
+            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 4);
+            setOtp(cleanedText);
+          }}
+          keyboardType="number-pad"
+          maxLength={4}
+          autoFocus={true}
+          blurOnSubmit={false}
+          selectTextOnFocus={false}
+          returnKeyType="done"
+        />
+      </View>
       <TouchableOpacity
         onPress={handleRequestOTP}
         disabled={otpCountdown > 0 || otpLoading}
         style={styles.otpButton}
+        activeOpacity={0.7}
       >
         {otpLoading ? (
           <ActivityIndicator size="small" color={COLORS.primary} />
         ) : otpCountdown > 0 ? (
           <Text style={styles.otpCountdown}>{formatCountdown(otpCountdown)}</Text>
         ) : (
-          <Icon name="mail" size={24} color={COLORS.primary} />
+          <Text style={styles.otpResendText}>Gửi lại</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -241,11 +255,18 @@ export const AuthScreen = ({ navigation }: any) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      enabled={screen !== 'REGISTER_OTP'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
+      >
         {screen === 'LOGIN' && (
           <View style={styles.form}>
+            <Logo size="large" containerStyle={styles.logoContainer} />
             <Text style={styles.title}>Đăng nhập</Text>
             <Text style={styles.subtitle}>Chào mừng quay trở lại SmartCare</Text>
 
@@ -302,6 +323,7 @@ export const AuthScreen = ({ navigation }: any) => {
 
         {screen === 'REGISTER' && (
           <View style={styles.form}>
+            <Logo size="large" containerStyle={styles.logoContainer} />
             <Text style={styles.title}>Đăng ký</Text>
             <Text style={styles.subtitle}>Tạo tài khoản để quản lý sức khỏe</Text>
 
@@ -391,6 +413,7 @@ export const AuthScreen = ({ navigation }: any) => {
 
         {screen === 'REGISTER_OTP' && (
           <View style={styles.form}>
+            <Logo size="medium" containerStyle={styles.logoContainer} />
             <Text style={styles.title}>Xác thực tài khoản</Text>
             <Text style={styles.subtitle}>
               Mã OTP đã được gửi đến số điện thoại {phone}
@@ -490,25 +513,36 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 16,
   },
-  otpContainer: {
+  otpWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  otpContainer: {
+    flex: 1,
     backgroundColor: '#f9fafb',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 12,
-    marginBottom: 16,
   },
   otpInput: {
-    flex: 1,
+    width: '100%',
     padding: 16,
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 4,
   },
   otpButton: {
     padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 80,
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
   },
   otpCountdown: {
     fontSize: 14,
@@ -583,5 +617,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 14,
     marginBottom: 16,
+  },
+  logoContainer: {
+    marginBottom: 24,
+    marginTop: 16,
   },
 });

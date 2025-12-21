@@ -6,16 +6,23 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } fr
 import { COLORS, SPACING, SHADOWS } from '../theme';
 import { Text } from '../ui/Text';
 import { MOTION } from '../theme/motion';
+import { NotificationBadge } from './NotificationBadge';
+import { ChatBadge } from './ChatBadge';
+import { Logo } from './Logo';
+import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../types';
 
 interface AppHeaderProps {
   title: string;
   showBack?: boolean;
   onBack?: () => void;
   rightAction?: React.ReactNode;
+  hideDefaultIcons?: boolean;
 }
 
-const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack, rightAction }) => {
+const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack, rightAction, hideDefaultIcons = false }) => {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
 
   const handleNavigate = useCallback((screenName: string) => {
     try {
@@ -42,30 +49,56 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
       <View style={styles.content}>
         {showBack && onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color={COLORS.text} />
+            <Icon name="arrow-back" size={24} color={COLORS.surface} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.placeholder} />
+          <Logo size="small" containerStyle={styles.logoPlaceholder} />
         )}
         
-        <Text variant="section" color="text" style={styles.title}>{title}</Text>
+        <Text variant="section" color="surface" style={styles.title}>{title}</Text>
         
         <View style={styles.rightActions}>
-          {rightAction || (
+          {rightAction ? (
+            rightAction
+          ) : hideDefaultIcons ? (
+            null
+          ) : (
             <>
+              {/* Notifications Icon (only for patients) */}
+              {user?.role === UserRole.PATIENT && (
+                <View style={styles.badgeContainer}>
+                  <AnimatedIconButton
+                    icon="notifications"
+                    onPress={() => handleNavigate('Notifications')}
+                    color={COLORS.surface}
+                  />
+                  <NotificationBadge />
+                </View>
+              )}
+              
               {/* Wellness Icon */}
               <AnimatedIconButton
                 icon="spa"
                 onPress={() => handleNavigate('Wellness')}
-                color={COLORS.textSecondary}
+                color={COLORS.surface}
               />
               
               {/* Chat AI Icon */}
               <AnimatedIconButton
                 icon="chat-bubble-outline"
                 onPress={() => handleNavigate('Chat')}
-                color={COLORS.textSecondary}
+                color={COLORS.surface}
               />
+              
+              {/* Messages Icon */}
+              <View style={styles.badgeContainer}>
+                <AnimatedIconButton
+                  icon="message"
+                  onPress={() => handleNavigate('ConversationList')}
+                  color={COLORS.surface}
+                />
+                <ChatBadge />
+              </View>
             </>
           )}
         </View>
@@ -76,7 +109,7 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
 
 export const AppHeader = React.memo(AppHeaderComponent);
 
-// Animated Icon Button Component
+
 const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string; onPress: () => void; color: string }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
@@ -113,15 +146,17 @@ const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    ...SHADOWS.header,
+    backgroundColor: COLORS.primary,
+    borderBottomWidth: 0,
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
     minHeight: 56,
   },
@@ -131,6 +166,10 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     width: 32,
+  },
+  logoPlaceholder: {
+    width: 32,
+    height: 32,
   },
   title: {
     flex: 1,
@@ -143,6 +182,9 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: SPACING.xs,
     marginLeft: SPACING.xs,
+  },
+  badgeContainer: {
+    position: 'relative',
   },
 });
 
