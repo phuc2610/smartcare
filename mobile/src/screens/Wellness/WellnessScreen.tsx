@@ -5,11 +5,16 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { logWellnessSession } from '../../services/wellness.service';
 import { COLORS } from '../../utils/constants';
 
+const RainSound = require('../../assets/Rain.mp3');
+const SeaSound = require('../../assets/see.mp3');
+const ChillSound = require('../../assets/Chill.mp3');
+const ForestSound = require('../../assets/Forest.mp3');
+
 const SOUND_LIBRARY = [
-  { id: 'rain', title: 'Mưa Rơi', uri: 'https://assets.mixkit.co/active_storage/sfx/1253/1253-preview.mp3' },
-  { id: 'ocean', title: 'Sóng Biển', uri: 'https://assets.mixkit.co/active_storage/sfx/1196/1196-preview.mp3' },
-  { id: 'piano', title: 'Thiền Piano', uri: 'https://assets.mixkit.co/active_storage/sfx/565/565-preview.mp3' },
-  { id: 'nature', title: 'Rừng Cây', uri: 'https://assets.mixkit.co/active_storage/sfx/1210/1210-preview.mp3' },
+  { id: 'rain', title: 'Mưa Rơi', uri: RainSound },
+  { id: 'ocean', title: 'Sóng Biển', uri: SeaSound },
+  { id: 'piano', title: 'Thiền Piano', uri: ChillSound },
+  { id: 'nature', title: 'Rừng Cây', uri: ForestSound },
 ];
 
 export const WellnessScreen = () => {

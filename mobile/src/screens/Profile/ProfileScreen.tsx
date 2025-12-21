@@ -10,6 +10,7 @@ import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
+import { showInfo } from '../../utils/alert';
 
 export const ProfileScreen = ({ navigation, route }: any) => {
   const { user, updateProfile, signOut } = useAuth();
@@ -269,12 +270,26 @@ export const ProfileScreen = ({ navigation, route }: any) => {
 
       {/* Fall Detection Settings (Only for Patient) */}
       {user?.role === UserRole.PATIENT && (
-        <View style={styles.fallDetectionCard}>
+        <TouchableOpacity
+          style={styles.fallDetectionCard}
+          onPress={() => {
+            showInfo(
+              'Tính năng đang phát triển',
+              'Chức năng cảnh báo té ngã sẽ được phát triển sớm. Vui lòng chờ cập nhật.'
+            );
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.fallDetectionHeader}>
             <Text style={styles.fallDetectionTitle}>⚠️ Cảnh báo té ngã</Text>
             <Switch
               value={isMonitoring}
-              onValueChange={setIsMonitoring}
+              onValueChange={(value) => {
+                showInfo(
+                  'Tính năng đang phát triển',
+                  'Chức năng cảnh báo té ngã sẽ được phát triển sớm. Vui lòng chờ cập nhật.'
+                );
+              }}
               trackColor={{ false: '#e5e7eb', true: COLORS.error }}
               thumbColor={isMonitoring ? '#fff' : '#f4f3f4'}
             />
@@ -282,7 +297,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
           <Text style={styles.fallDetectionText}>
             {isMonitoring ? 'Đang theo dõi cảm biến chuyển động.' : 'Đã tắt giám sát.'}
           </Text>
-        </View>
+        </TouchableOpacity>
       )}
 
       <View style={styles.form}>
