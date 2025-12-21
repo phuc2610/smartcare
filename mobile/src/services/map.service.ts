@@ -31,7 +31,7 @@ export const searchNearbyPlaces = async (
         longitude: parseFloat(item.lon),
         distanceKm: Number(distanceKm.toFixed(1)),
       };
-    }).sort((a, b) => a.distanceKm - b.distanceKm);
+    }).sort((a: Place, b: Place) => a.distanceKm - b.distanceKm);
   } catch (error) {
     console.error('Map search error:', error);
     return [];

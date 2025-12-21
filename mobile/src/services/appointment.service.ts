@@ -24,6 +24,7 @@ export const createAppointment = async (data: {
   appointmentTime?: string;
   notes?: string;
   reminderBefore?: number;
+  userId?: string;
 }): Promise<{ appointment: Appointment }> => {
   const result = await api.post<{ appointment: Appointment }>('/api/appointments', data);
   

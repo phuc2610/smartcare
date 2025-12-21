@@ -234,15 +234,28 @@ export interface DailyHealthSummary {
 
 export interface Appointment {
   _id: string;
-  patientId: string;
-  title: string;
+  patientId?: string;
+  userId?: string;
+  title?: string;
+  // Legacy fields (for backward compatibility)
   doctor?: string;
   location?: string;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
+  // New fields
+  doctorName?: string;
+  doctorSpecialty?: string;
+  hospitalName?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
   notes?: string;
-  status: 'upcoming' | 'completed' | 'cancelled';
+  status?: 'upcoming' | 'completed' | 'cancelled';
   reminderMinutes?: number;
+  reminderBefore?: number;
+  isCompleted?: boolean;
+  notificationId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CareNote {

@@ -80,7 +80,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
         <Logo size="large" showText={false} />
         
         <View style={styles.textContainer}>
-          <Text variant="h2" style={styles.title}>
+          <Text variant="title" style={styles.title}>
             Cần quyền thông báo
           </Text>
           
@@ -109,7 +109,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
         </View>
         
         <Button
-          label="Cho phép thông báo"
+          title="Cho phép thông báo"
           onPress={handleRequestPermission}
           loading={isRequesting}
           style={styles.button}

@@ -11,7 +11,7 @@ import { requestCameraPermission, requestStoragePermission } from '../../utils/p
 import { TimePicker } from '../../components/TimePicker';
 import { DatePicker } from '../../components/DatePicker';
 import { AppHeader } from '../../components/AppHeader';
-import { showInfo } from '../../utils/alert';
+import { showInfo, showError } from '../../utils/alert';
 
 export const AddMedicationScreen = ({ navigation }: any) => {
   const { user } = useAuth();
@@ -46,7 +46,7 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       if (result.medication.name) setName(result.medication.name);
       if (result.medication.dosage) setDosage(result.medication.dosage);
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể phân tích ảnh. Vui lòng nhập thủ công.');
+      showError('Lỗi', 'Không thể phân tích ảnh. Vui lòng nhập thủ công.');
     } finally {
       setIsScanning(false);
     }
@@ -54,7 +54,7 @@ export const AddMedicationScreen = ({ navigation }: any) => {
 
   const handleSave = async () => {
     if (!name.trim() || !time) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      showError('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
       return;
     }
 

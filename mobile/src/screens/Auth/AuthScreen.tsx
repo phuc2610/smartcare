@@ -549,6 +549,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.primary,
   },
+  otpResendText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
   roleSelector: {
     flexDirection: 'row',
     gap: 8,

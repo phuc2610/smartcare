@@ -147,11 +147,14 @@ export const CaregiverAppointmentsScreen: React.FC = () => {
                       </Text>
                     )}
                     <Text variant="caption" color="textSecondary">
-                      {new Date(appointment.appointmentDate || appointment.date).toLocaleDateString('vi-VN', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })} {appointment.appointmentTime || appointment.time ? `• ${appointment.appointmentTime || appointment.time}` : ''}
+                      {appointment.appointmentDate || appointment.date 
+                        ? new Date(appointment.appointmentDate || appointment.date!).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                        : 'Chưa có ngày'
+                      } {appointment.appointmentTime || appointment.time ? `• ${appointment.appointmentTime || appointment.time}` : ''}
                     </Text>
                   </View>
                 </View>
