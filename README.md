@@ -243,8 +243,8 @@ Hệ thống SmartCare phục vụ hai nhóm người dùng chính:
 ### 2.4 Operating Environment
 
 **2.4.1 Môi trường người dùng:**
-- Hệ điều hành: Android và/hoặc iOS (TBD - cần xác định cụ thể)
-- Phiên bản hệ điều hành tối thiểu: [TBD]
+- Hệ điều hành: Android
+- Phiên bản hệ điều hành tối thiểu: 6.0
 - Kết nối mạng: Wi-Fi hoặc dữ liệu di động
 - Quyền truy cập: Camera (nếu có chức năng chụp ảnh), Thông báo, Vị trí (nếu có chức năng theo dõi vị trí)
 
@@ -967,9 +967,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng mới đăng ký tài khoản bằng cách nhập thông tin cá nhân và nhận mã OTP để kích hoạt |
-| Mục tiêu | Tạo tài khoản mới trong hệ thống để bắt đầu sử dụng các chức năng quản lý sức khỏe |
-| Ghi chú | Yêu cầu số điện thoại chưa được đăng ký, mật khẩu tối thiểu 6 ký tự |
+| Tóm tắt | Người dùng mới đăng ký tài khoản bằng cách nhập thông tin cá nhân và nhận mã OTP để kích hoạt. Use Case này cho phép người dùng tạo tài khoản mới trong hệ thống để bắt đầu sử dụng các chức năng quản lý sức khỏe. |
+| Tiền điều kiện | Người dùng chưa có tài khoản trong hệ thống. Số điện thoại chưa được đăng ký. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Đăng ký"<br>2. Nhập thông tin: tên, số điện thoại, mật khẩu (tối thiểu 6 ký tự), vai trò (Patient hoặc Caregiver)<br>3. Hệ thống kiểm tra số điện thoại chưa được đăng ký<br>4. Hệ thống tạo tài khoản (chưa kích hoạt) và gửi mã OTP<br>5. Người dùng nhận mã OTP và chuyển sang màn hình nhập OTP |
+| Luồng thay thế | 3a. Số điện thoại đã được đăng ký: Hệ thống thông báo lỗi và yêu cầu đăng nhập hoặc quên mật khẩu |
+| Luồng ngoại lệ | 4a. Không thể gửi OTP: Hệ thống thông báo lỗi và yêu cầu thử lại<br>4b. Lỗi hệ thống khi tạo tài khoản: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Tài khoản được tạo nhưng chưa kích hoạt. Mã OTP đã được gửi. Người dùng chuyển sang màn hình nhập OTP. |
 
 ##### UC-002: Xác thực tài khoản bằng OTP
 
@@ -977,9 +980,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng nhập mã OTP 4 chữ số để kích hoạt tài khoản sau khi đăng ký |
-| Mục tiêu | Xác minh quyền sở hữu số điện thoại và kích hoạt tài khoản |
-| Ghi chú | Mã OTP có thời hạn 5 phút, có thể yêu cầu gửi lại |
+| Tóm tắt | Người dùng nhập mã OTP 4 chữ số để kích hoạt tài khoản sau khi đăng ký. Use Case này xác minh quyền sở hữu số điện thoại và cho phép người dùng sử dụng đầy đủ các chức năng của hệ thống. |
+| Tiền điều kiện | Người dùng đã hoàn thành UC-001 (Đăng ký tài khoản). Mã OTP đã được gửi và còn hiệu lực (chưa quá 5 phút). |
+| Luồng sự kiện chính | 1. Người dùng nhập mã OTP 4 chữ số<br>2. Hệ thống kiểm tra mã OTP đúng và còn hiệu lực<br>3. Hệ thống kích hoạt tài khoản (isVerified = true)<br>4. Hệ thống tự động đăng nhập người dùng<br>5. Người dùng được chuyển vào màn hình chính của ứng dụng |
+| Luồng thay thế | 2a. Mã OTP sai: Hệ thống thông báo "Mã xác thực không đúng" và yêu cầu nhập lại<br>2b. Mã OTP hết hạn: Hệ thống thông báo "Mã OTP đã hết hạn" và cho phép yêu cầu gửi lại mã mới |
+| Luồng ngoại lệ | 3a. Lỗi hệ thống khi kích hoạt: Hệ thống thông báo lỗi và yêu cầu thử lại hoặc liên hệ hỗ trợ |
+| Hậu điều kiện | Tài khoản đã được kích hoạt. Người dùng đã đăng nhập tự động. Có thể sử dụng đầy đủ các chức năng của hệ thống. |
 
 ##### UC-003: Đăng nhập
 
@@ -987,9 +993,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng đã có tài khoản đăng nhập bằng số điện thoại và mật khẩu |
-| Mục tiêu | Xác thực danh tính và truy cập vào hệ thống |
-| Ghi chú | Tài khoản phải đã được kích hoạt, nếu chưa sẽ yêu cầu nhập OTP |
+| Tóm tắt | Người dùng đã có tài khoản đăng nhập bằng số điện thoại và mật khẩu để truy cập vào hệ thống và sử dụng các chức năng quản lý sức khỏe. |
+| Tiền điều kiện | Người dùng đã có tài khoản trong hệ thống. Tài khoản đã được kích hoạt (isVerified = true). |
+| Luồng sự kiện chính | 1. Người dùng nhập số điện thoại và mật khẩu<br>2. Hệ thống kiểm tra thông tin đăng nhập<br>3. Hệ thống xác thực thành công<br>4. Hệ thống tạo phiên đăng nhập và lưu token<br>5. Người dùng được chuyển vào màn hình chính của ứng dụng |
+| Luồng thay thế | 2a. Tài khoản chưa kích hoạt: Hệ thống thông báo và chuyển sang màn hình nhập OTP để kích hoạt<br>2b. Số điện thoại hoặc mật khẩu sai: Hệ thống thông báo "Sai số điện thoại hoặc mật khẩu" và yêu cầu nhập lại |
+| Luồng ngoại lệ | 3a. Lỗi hệ thống khi xác thực: Hệ thống thông báo lỗi và yêu cầu thử lại<br>3b. Tài khoản bị khóa: Hệ thống thông báo và yêu cầu liên hệ hỗ trợ |
+| Hậu điều kiện | Người dùng đã đăng nhập thành công. Phiên đăng nhập được tạo. Có thể truy cập tất cả chức năng của hệ thống. |
 
 ##### UC-004: Đăng xuất
 
@@ -997,9 +1006,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng kết thúc phiên đăng nhập và quay về màn hình đăng nhập |
-| Mục tiêu | Bảo mật tài khoản khi không sử dụng ứng dụng |
-| Ghi chú | Dữ liệu local có thể được giữ lại để đăng nhập nhanh lần sau |
+| Tóm tắt | Người dùng kết thúc phiên đăng nhập và quay về màn hình đăng nhập để bảo mật tài khoản khi không sử dụng ứng dụng. |
+| Tiền điều kiện | Người dùng đã đăng nhập. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Đăng xuất" từ menu<br>2. Hệ thống xác nhận với người dùng<br>3. Người dùng xác nhận đăng xuất<br>4. Hệ thống xóa token đăng nhập<br>5. Hệ thống chuyển về màn hình đăng nhập |
+| Luồng thay thế | 2a. Không có xác nhận: Hệ thống đăng xuất ngay lập tức |
+| Luồng ngoại lệ | 4a. Lỗi khi xóa token: Hệ thống vẫn chuyển về màn hình đăng nhập nhưng ghi log lỗi |
+| Hậu điều kiện | Người dùng đã đăng xuất. Token đã được xóa. Màn hình hiển thị màn hình đăng nhập. Dữ liệu local có thể được giữ lại. |
 
 ##### UC-005: Quên mật khẩu
 
@@ -1007,9 +1019,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng quên mật khẩu, yêu cầu đặt lại mật khẩu mới thông qua mã OTP |
-| Mục tiêu | Khôi phục quyền truy cập tài khoản khi quên mật khẩu |
-| Ghi chú | Cần xác thực bằng OTP trước khi cho phép đặt mật khẩu mới |
+| Tóm tắt | Người dùng quên mật khẩu, yêu cầu đặt lại mật khẩu mới thông qua mã OTP. Use Case này giúp khôi phục quyền truy cập tài khoản khi quên mật khẩu. |
+| Tiền điều kiện | Người dùng có tài khoản trong hệ thống. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Quên mật khẩu"<br>2. Nhập số điện thoại<br>3. Hệ thống kiểm tra số điện thoại đã được đăng ký<br>4. Hệ thống tạo và gửi mã OTP<br>5. Người dùng nhập mã OTP<br>6. Hệ thống xác thực mã OTP<br>7. Người dùng nhập mật khẩu mới (tối thiểu 6 ký tự)<br>8. Hệ thống cập nhật mật khẩu<br>9. Hệ thống tự động đăng nhập người dùng |
+| Luồng thay thế | 3a. Số điện thoại chưa được đăng ký: Hệ thống thông báo "Số điện thoại chưa được đăng ký"<br>5a. Mã OTP hết hạn: Hệ thống cho phép yêu cầu gửi lại mã mới |
+| Luồng ngoại lệ | 4a. Không thể gửi OTP: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Mã OTP sai: Hệ thống thông báo "Mã xác thực không đúng" và yêu cầu nhập lại<br>8a. Lỗi khi cập nhật mật khẩu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Mật khẩu mới đã được cập nhật. Người dùng đã được đăng nhập tự động. Có thể sử dụng ứng dụng với mật khẩu mới. |
 
 ##### UC-006: Đổi mật khẩu
 
@@ -1017,9 +1032,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng đã đăng nhập thay đổi mật khẩu hiện tại bằng mật khẩu mới |
-| Mục tiêu | Cập nhật mật khẩu để tăng cường bảo mật tài khoản |
-| Ghi chú | Yêu cầu nhập mật khẩu hiện tại để xác thực |
+| Tóm tắt | Người dùng đã đăng nhập thay đổi mật khẩu hiện tại bằng mật khẩu mới. Use Case này giúp cập nhật mật khẩu để tăng cường bảo mật tài khoản. |
+| Tiền điều kiện | Người dùng đã đăng nhập. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Đổi mật khẩu" từ cài đặt<br>2. Nhập mật khẩu hiện tại<br>3. Hệ thống kiểm tra mật khẩu hiện tại đúng<br>4. Nhập mật khẩu mới (tối thiểu 6 ký tự)<br>5. Xác nhận mật khẩu mới<br>6. Hệ thống kiểm tra mật khẩu mới khác mật khẩu cũ<br>7. Hệ thống cập nhật mật khẩu mới<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Mật khẩu hiện tại sai: Hệ thống thông báo "Mật khẩu hiện tại không đúng" và yêu cầu nhập lại<br>6a. Mật khẩu mới trùng mật khẩu cũ: Hệ thống thông báo "Mật khẩu mới phải khác mật khẩu hiện tại" |
+| Luồng ngoại lệ | 7a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Mật khẩu mới đã được cập nhật. Người dùng vẫn đang đăng nhập. Cần sử dụng mật khẩu mới cho lần đăng nhập tiếp theo. |
 
 ##### UC-007: Quản lý thông tin cá nhân
 
@@ -1027,9 +1045,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient, Caregiver |
 | Actor phụ | - |
-| Mô tả | Người dùng xem và cập nhật thông tin cá nhân như tên, email, chiều cao, cân nặng, tình trạng bệnh lý |
-| Mục tiêu | Duy trì thông tin cá nhân chính xác và cập nhật trong hệ thống |
-| Ghi chú | Một số thông tin như số điện thoại có thể không được thay đổi |
+| Tóm tắt | Người dùng xem và cập nhật thông tin cá nhân như tên, email, chiều cao, cân nặng, tình trạng bệnh lý. Use Case này giúp duy trì thông tin cá nhân chính xác và cập nhật trong hệ thống. |
+| Tiền điều kiện | Người dùng đã đăng nhập. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Hồ sơ" hoặc "Cài đặt"<br>2. Hệ thống hiển thị thông tin cá nhân hiện tại<br>3. Người dùng chọn "Chỉnh sửa"<br>4. Người dùng cập nhật thông tin: tên, email, chiều cao, cân nặng, tình trạng bệnh lý, avatar<br>5. Hệ thống kiểm tra thông tin hợp lệ<br>6. Hệ thống cập nhật thông tin<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 4a. Chỉ xem thông tin: Bỏ qua bước 3-7, chỉ hiển thị thông tin<br>4b. Chỉ cập nhật avatar: Người dùng chọn ảnh từ thư viện hoặc chụp ảnh, hệ thống upload và cập nhật |
+| Luồng ngoại lệ | 5a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>6a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại<br>4b.1. Lỗi khi upload ảnh: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin cá nhân đã được cập nhật. Thông tin mới được hiển thị trên màn hình hồ sơ. Nếu cập nhật tình trạng bệnh lý, các gợi ý AI sẽ được cập nhật theo. |
 
 #### B.2.2 Quản lý thuốc
 
@@ -1039,9 +1060,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng thêm thông tin thuốc mới vào danh sách, bao gồm tên, liều lượng, lịch uống |
-| Mục tiêu | Thiết lập lịch uống thuốc để nhận nhắc nhở tự động |
-| Ghi chú | Hệ thống tự động tạo reminder cho ngày hôm nay nếu phù hợp với tần suất |
+| Tóm tắt | Người dùng thêm thông tin thuốc mới vào danh sách, bao gồm tên, liều lượng, lịch uống. Hệ thống tự động tạo các reminder và lên lịch thông báo nhắc nhở. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Thêm thuốc"<br>2. Nhập thông tin: tên thuốc, liều lượng, đơn vị (mặc định: mg), ghi chú, tần suất (hàng ngày/cách ngày), các giờ uống (định dạng HH:mm), ngày bắt đầu<br>3. Hệ thống kiểm tra thông tin hợp lệ<br>4. Hệ thống tạo thuốc mới<br>5. Hệ thống tự động tạo reminder cho ngày hôm nay (nếu phù hợp với tần suất)<br>6. Hệ thống lên lịch thông báo nhắc nhở cho các reminder<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>5a. Thuốc uống cách ngày và số ngày từ ngày bắt đầu là số lẻ: Hệ thống không tạo reminder cho hôm nay |
+| Luồng ngoại lệ | 4a. Lỗi hệ thống khi tạo thuốc: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi lên lịch thông báo: Hệ thống vẫn tạo thuốc nhưng thông báo lỗi về thông báo |
+| Hậu điều kiện | Thuốc mới đã được thêm vào danh sách. Các reminder cho ngày hôm nay đã được tạo (nếu phù hợp). Thông báo nhắc nhở đã được lên lịch. |
 
 ##### UC-009: Sửa thông tin thuốc
 
@@ -1049,9 +1073,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng cập nhật thông tin thuốc đã có như tên, liều lượng, lịch uống |
-| Mục tiêu | Điều chỉnh thông tin thuốc khi có thay đổi từ bác sĩ |
-| Ghi chú | Việc sửa có thể ảnh hưởng đến các reminder đã được tạo |
+| Tóm tắt | Người dùng cập nhật thông tin thuốc đã có như tên, liều lượng, lịch uống. Use Case này giúp điều chỉnh thông tin thuốc khi có thay đổi từ bác sĩ. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một thuốc đã được thêm vào hệ thống. |
+| Luồng sự kiện chính | 1. Người dùng chọn thuốc cần sửa từ danh sách<br>2. Người dùng chọn "Sửa"<br>3. Hệ thống hiển thị form với thông tin hiện tại<br>4. Người dùng cập nhật thông tin: tên, liều lượng, đơn vị, ghi chú, tần suất, giờ uống, ngày bắt đầu<br>5. Hệ thống kiểm tra thông tin hợp lệ<br>6. Hệ thống cập nhật thông tin thuốc<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 6a. Nếu thay đổi tần suất hoặc giờ uống: Hệ thống có thể cần tạo lại các reminder trong tương lai |
+| Luồng ngoại lệ | 5a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>6a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin thuốc đã được cập nhật. Các reminder trong tương lai có thể được cập nhật theo thông tin mới. Thông tin mới được hiển thị trong danh sách thuốc. |
 
 ##### UC-010: Xóa thuốc
 
@@ -1059,9 +1086,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xóa thuốc khỏi danh sách khi không còn sử dụng |
-| Mục tiêu | Loại bỏ thuốc không còn cần thiết và dừng các nhắc nhở liên quan |
-| Ghi chú | Xóa thuốc sẽ xóa tất cả reminder liên quan |
+| Tóm tắt | Người dùng xóa thuốc khỏi danh sách khi không còn sử dụng. Hệ thống sẽ xóa tất cả reminder liên quan và hủy các thông báo nhắc nhở. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một thuốc đã được thêm vào hệ thống. |
+| Luồng sự kiện chính | 1. Người dùng chọn thuốc cần xóa từ danh sách<br>2. Người dùng chọn "Xóa"<br>3. Hệ thống xác nhận với người dùng<br>4. Người dùng xác nhận xóa<br>5. Hệ thống xóa thuốc<br>6. Hệ thống xóa tất cả reminder liên quan<br>7. Hệ thống hủy tất cả thông báo nhắc nhở liên quan<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Không có xác nhận: Hệ thống xóa ngay lập tức |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi xóa thuốc: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi xóa reminder: Hệ thống vẫn xóa thuốc nhưng ghi log lỗi về reminder<br>7a. Lỗi khi hủy thông báo: Hệ thống vẫn xóa thuốc và reminder nhưng ghi log lỗi |
+| Hậu điều kiện | Thuốc đã được xóa khỏi danh sách. Tất cả reminder liên quan đã được xóa. Tất cả thông báo nhắc nhở liên quan đã được hủy. Thuốc không còn hiển thị trong danh sách. |
 
 ##### UC-011: Xem lịch uống thuốc hôm nay
 
@@ -1069,9 +1099,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nếu đã liên kết) |
-| Mô tả | Người dùng xem danh sách tất cả các lần uống thuốc trong ngày, sắp xếp theo giờ |
-| Mục tiêu | Nắm được lịch uống thuốc trong ngày để không bỏ sót |
-| Ghi chú | Hiển thị trên Dashboard, có thể đánh dấu các reminder đã quên |
+| Tóm tắt | Người dùng xem danh sách tất cả các lần uống thuốc trong ngày, sắp xếp theo giờ. Use Case này giúp người dùng nắm được lịch uống thuốc trong ngày để không bỏ sót. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một thuốc đã được thêm vào hệ thống. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình Dashboard<br>2. Hệ thống lấy danh sách tất cả reminders trong ngày hôm nay<br>3. Hệ thống sắp xếp reminders theo giờ tăng dần<br>4. Hệ thống đánh dấu các reminder đã quá giờ hơn 1 giờ và vẫn ở trạng thái "Chờ"<br>5. Hệ thống hiển thị danh sách reminders trên Dashboard |
+| Luồng thay thế | 2a. Không có reminder nào trong ngày: Hệ thống hiển thị thông báo "Không có lịch uống thuốc hôm nay" |
+| Luồng ngoại lệ | 2b. Lỗi hệ thống khi lấy dữ liệu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Danh sách reminders trong ngày đã được hiển thị. Người dùng có thể đánh dấu đã uống hoặc bỏ qua từ danh sách này. |
 
 ##### UC-012: Đánh dấu đã uống thuốc
 
@@ -1079,9 +1112,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xác nhận đã uống thuốc đúng giờ hoặc muộn hơn so với lịch |
-| Mục tiêu | Ghi nhận việc tuân thủ uống thuốc và cập nhật trạng thái reminder |
-| Ghi chú | Hệ thống lưu thời gian uống thuốc và hủy các thông báo nhắc nhở còn lại |
+| Tóm tắt | Người dùng xác nhận đã uống thuốc đúng giờ hoặc muộn hơn so với lịch. Hệ thống ghi nhận việc tuân thủ và cập nhật trạng thái reminder. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có reminder ở trạng thái "Chờ" (PENDING). |
+| Luồng sự kiện chính | 1. Người dùng chọn reminder cần đánh dấu<br>2. Người dùng chọn "Đã uống"<br>3. Hệ thống cập nhật trạng thái reminder thành "Đã uống" (TAKEN)<br>4. Hệ thống lưu thời gian uống thuốc (takenAt = thời gian hiện tại)<br>5. Hệ thống hủy các thông báo nhắc nhở còn lại của reminder này<br>6. Hệ thống cập nhật tỷ lệ tuân thủ |
+| Luồng thay thế | 2a. Người dùng chọn từ danh sách reminder trên Dashboard: Hệ thống hiển thị popup xác nhận trước khi cập nhật |
+| Luồng ngoại lệ | 3a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại<br>5a. Lỗi khi hủy thông báo: Hệ thống vẫn cập nhật trạng thái nhưng ghi log lỗi |
+| Hậu điều kiện | Reminder đã được cập nhật trạng thái "Đã uống". Thời gian uống thuốc đã được lưu. Các thông báo nhắc nhở còn lại đã được hủy. Tỷ lệ tuân thủ đã được cập nhật. |
 
 ##### UC-013: Đánh dấu bỏ qua thuốc
 
@@ -1089,9 +1125,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xác nhận bỏ qua không uống thuốc tại thời điểm đã lên lịch |
-| Mục tiêu | Ghi nhận việc không tuân thủ để theo dõi và phân tích |
-| Ghi chú | Hệ thống cập nhật trạng thái và hủy các thông báo nhắc nhở còn lại |
+| Tóm tắt | Người dùng xác nhận bỏ qua không uống thuốc tại thời điểm đã lên lịch. Hệ thống ghi nhận việc không tuân thủ để theo dõi và phân tích. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có reminder ở trạng thái "Chờ" (PENDING). |
+| Luồng sự kiện chính | 1. Người dùng chọn reminder cần đánh dấu<br>2. Người dùng chọn "Bỏ qua"<br>3. Hệ thống xác nhận với người dùng<br>4. Người dùng xác nhận<br>5. Hệ thống cập nhật trạng thái reminder thành "Bỏ qua" (SKIPPED)<br>6. Hệ thống hủy các thông báo nhắc nhở còn lại của reminder này<br>7. Hệ thống cập nhật tỷ lệ tuân thủ |
+| Luồng thay thế | 3a. Không có xác nhận: Hệ thống cập nhật trạng thái ngay lập tức |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi hủy thông báo: Hệ thống vẫn cập nhật trạng thái nhưng ghi log lỗi |
+| Hậu điều kiện | Reminder đã được cập nhật trạng thái "Bỏ qua". Các thông báo nhắc nhở còn lại đã được hủy. Tỷ lệ tuân thủ đã được cập nhật. |
 
 ##### UC-014: Xem danh sách thuốc đã quên
 
@@ -1099,9 +1138,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nếu đã liên kết) |
-| Mô tả | Người dùng xem danh sách các lần uống thuốc đã quá giờ hơn 1 giờ nhưng vẫn chưa uống |
-| Mục tiêu | Nhận biết các lần uống thuốc đã bị quên để có biện pháp xử lý |
-| Ghi chú | Hiển thị tối đa 50 mục, sắp xếp theo giờ giảm dần |
+| Tóm tắt | Người dùng xem danh sách các lần uống thuốc đã quá giờ hơn 1 giờ nhưng vẫn chưa uống. Use Case này giúp nhận biết các lần uống thuốc đã bị quên để có biện pháp xử lý. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một reminder đã quá giờ hơn 1 giờ và vẫn ở trạng thái "Chờ". |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Thuốc đã quên" hoặc xem từ Dashboard<br>2. Hệ thống tìm tất cả reminders có scheduledTime <= (thời gian hiện tại - 1 giờ) và status = "PENDING"<br>3. Hệ thống sắp xếp theo giờ giảm dần<br>4. Hệ thống giới hạn tối đa 50 mục<br>5. Hệ thống hiển thị danh sách reminders đã quên |
+| Luồng thay thế | 2a. Không có reminder nào đã quên: Hệ thống hiển thị thông báo "Không có thuốc đã quên" |
+| Luồng ngoại lệ | 2b. Lỗi hệ thống khi tìm kiếm: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Danh sách thuốc đã quên đã được hiển thị. Người dùng có thể đánh dấu đã uống hoặc bỏ qua từ danh sách này. |
 
 #### B.2.3 Theo dõi sức khỏe
 
@@ -1111,9 +1153,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng ghi lại thông tin bữa ăn bao gồm tên món, lượng calo, và có thể lên lịch nhắc nhở |
-| Mục tiêu | Theo dõi chế độ ăn uống và lượng calo nạp vào hàng ngày |
-| Ghi chú | Có thể sử dụng AI để ước tính calo tự động |
+| Tóm tắt | Người dùng ghi lại thông tin bữa ăn bao gồm tên món, lượng calo, và có thể lên lịch nhắc nhở. Hệ thống lưu vào nhật ký sức khỏe để theo dõi chế độ ăn uống. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Ghi nhận bữa ăn"<br>2. Nhập tên món ăn<br>3. Nhập lượng calo (hoặc sử dụng AI để ước tính)<br>4. Chọn ngày (mặc định: hôm nay)<br>5. (Tùy chọn) Lên lịch nhắc nhở: chọn ngày và giờ<br>6. Hệ thống lưu thông tin bữa ăn<br>7. Nếu có lên lịch, hệ thống tạo thông báo nhắc nhở<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Sử dụng AI ước tính calo: Người dùng nhập tên món, hệ thống gọi AI để ước tính calo và chuẩn hóa tên món<br>5a. Không lên lịch nhắc nhở: Bỏ qua bước 5, chuyển sang bước 6 |
+| Luồng ngoại lệ | 3b. AI không thể ước tính: Hệ thống yêu cầu người dùng nhập calo thủ công<br>6a. Lỗi hệ thống khi lưu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin bữa ăn đã được lưu vào nhật ký sức khỏe. Nếu có lên lịch, thông báo nhắc nhở đã được tạo. Tổng calo nạp vào đã được cập nhật. |
 
 ##### UC-016: Ghi nhận vận động
 
@@ -1121,9 +1166,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng ghi lại hoạt động vận động bao gồm loại, thời gian, lượng calo tiêu thụ, và có thể lên lịch nhắc nhở |
-| Mục tiêu | Theo dõi mức độ vận động và lượng calo tiêu thụ hàng ngày |
-| Ghi chú | Có thể sử dụng AI để ước tính calo tự động |
+| Tóm tắt | Người dùng ghi lại hoạt động vận động bao gồm loại, thời gian, lượng calo tiêu thụ, và có thể lên lịch nhắc nhở. Hệ thống lưu vào nhật ký sức khỏe để theo dõi mức độ vận động. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Ghi nhận vận động"<br>2. Nhập loại vận động<br>3. Nhập thời gian (phút) và lượng calo tiêu thụ (hoặc sử dụng AI để ước tính)<br>4. Chọn ngày (mặc định: hôm nay)<br>5. (Tùy chọn) Lên lịch nhắc nhở: chọn ngày và giờ<br>6. Hệ thống lưu thông tin vận động<br>7. Nếu có lên lịch, hệ thống tạo thông báo nhắc nhở<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Sử dụng AI ước tính calo: Người dùng nhập loại vận động, hệ thống gọi AI để ước tính calo và chuẩn hóa tên<br>5a. Không lên lịch nhắc nhở: Bỏ qua bước 5, chuyển sang bước 6 |
+| Luồng ngoại lệ | 3b. AI không thể ước tính: Hệ thống yêu cầu người dùng nhập calo thủ công<br>6a. Lỗi hệ thống khi lưu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin vận động đã được lưu vào nhật ký sức khỏe. Nếu có lên lịch, thông báo nhắc nhở đã được tạo. Tổng calo tiêu thụ đã được cập nhật. |
 
 ##### UC-017: Ghi nhận triệu chứng
 
@@ -1131,9 +1179,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nhận cảnh báo) |
-| Mô tả | Người dùng ghi lại các triệu chứng sức khỏe với tên, mức độ nghiêm trọng (1-10), và ghi chú |
-| Mục tiêu | Theo dõi tình trạng sức khỏe và phát hiện các vấn đề cần chú ý |
-| Ghi chú | Nếu mức độ >= 7, hệ thống tự động tạo cảnh báo cho caregiver |
+| Tóm tắt | Người dùng ghi lại các triệu chứng sức khỏe với tên, mức độ nghiêm trọng (1-10), và ghi chú. Nếu mức độ nghiêm trọng, hệ thống tự động tạo cảnh báo cho caregiver. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Ghi nhận triệu chứng"<br>2. Nhập tên triệu chứng<br>3. Chọn mức độ nghiêm trọng (1-10)<br>4. Nhập ghi chú (tùy chọn)<br>5. Chọn ngày (mặc định: hôm nay)<br>6. Hệ thống lưu thông tin triệu chứng<br>7. Nếu mức độ >= 7, hệ thống tạo cảnh báo cho caregiver (nếu đã liên kết)<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 7a. Mức độ < 7: Bỏ qua bước tạo cảnh báo<br>7b. Patient chưa liên kết với caregiver: Bỏ qua bước tạo cảnh báo |
+| Luồng ngoại lệ | 6a. Lỗi hệ thống khi lưu: Hệ thống thông báo lỗi và yêu cầu thử lại<br>7c. Lỗi khi tạo cảnh báo: Hệ thống vẫn lưu triệu chứng nhưng ghi log lỗi |
+| Hậu điều kiện | Thông tin triệu chứng đã được lưu vào nhật ký sức khỏe. Nếu mức độ >= 7 và có caregiver, cảnh báo đã được tạo và gửi cho caregiver. |
 
 ##### UC-018: Xem nhật ký sức khỏe
 
@@ -1141,9 +1192,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nếu đã liên kết) |
-| Mô tả | Người dùng xem danh sách các bữa ăn, vận động, và triệu chứng đã ghi nhận theo thời gian |
-| Mục tiêu | Xem lại lịch sử hoạt động sức khỏe để phân tích xu hướng |
-| Ghi chú | Có thể lọc theo loại (bữa ăn, vận động, triệu chứng) và khoảng thời gian |
+| Tóm tắt | Người dùng xem danh sách các bữa ăn, vận động, và triệu chứng đã ghi nhận theo thời gian. Use Case này giúp xem lại lịch sử hoạt động sức khỏe để phân tích xu hướng. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một bản ghi nhật ký sức khỏe. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Nhật ký sức khỏe" hoặc "Theo dõi"<br>2. Hệ thống lấy danh sách tất cả nhật ký sức khỏe<br>3. Hệ thống sắp xếp theo ngày giảm dần (mới nhất trước)<br>4. Hệ thống hiển thị danh sách với phân loại: bữa ăn, vận động, triệu chứng<br>5. Người dùng có thể lọc theo loại hoặc khoảng thời gian |
+| Luồng thay thế | 2a. Không có nhật ký nào: Hệ thống hiển thị thông báo "Chưa có nhật ký sức khỏe"<br>5a. Lọc theo loại "bữa ăn": Chỉ hiển thị các bữa ăn<br>5b. Lọc theo khoảng thời gian: Chỉ hiển thị nhật ký trong khoảng thời gian được chọn |
+| Luồng ngoại lệ | 2b. Lỗi hệ thống khi lấy dữ liệu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Danh sách nhật ký sức khỏe đã được hiển thị. Người dùng có thể xem chi tiết, sửa, hoặc xóa từng bản ghi. |
 
 ##### UC-019: Sửa thông tin nhật ký
 
@@ -1151,9 +1205,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng chỉnh sửa thông tin bữa ăn, vận động, hoặc triệu chứng đã ghi nhận |
-| Mục tiêu | Sửa lỗi hoặc bổ sung thông tin cho các bản ghi đã tạo |
-| Ghi chú | Có thể sửa tất cả các trường thông tin |
+| Tóm tắt | Người dùng chỉnh sửa thông tin bữa ăn, vận động, hoặc triệu chứng đã ghi nhận. Use Case này giúp sửa lỗi hoặc bổ sung thông tin cho các bản ghi đã tạo. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một bản ghi nhật ký sức khỏe. |
+| Luồng sự kiện chính | 1. Người dùng chọn bản ghi cần sửa từ nhật ký sức khỏe<br>2. Người dùng chọn "Sửa"<br>3. Hệ thống hiển thị form với thông tin hiện tại<br>4. Người dùng cập nhật thông tin (tùy theo loại: bữa ăn, vận động, hoặc triệu chứng)<br>5. Hệ thống kiểm tra thông tin hợp lệ<br>6. Hệ thống cập nhật bản ghi nhật ký<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 4a. Chỉ sửa một trường: Người dùng chỉ cập nhật một trường, các trường khác giữ nguyên |
+| Luồng ngoại lệ | 5a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>6a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin nhật ký đã được cập nhật. Thông tin mới được hiển thị trong danh sách nhật ký. Các thống kê và báo cáo đã được cập nhật theo thông tin mới. |
 
 ##### UC-020: Xóa nhật ký
 
@@ -1161,9 +1218,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xóa bản ghi bữa ăn, vận động, hoặc triệu chứng khỏi nhật ký |
-| Mục tiêu | Loại bỏ các bản ghi không chính xác hoặc không cần thiết |
-| Ghi chú | Xóa sẽ ảnh hưởng đến thống kê và báo cáo |
+| Tóm tắt | Người dùng xóa bản ghi bữa ăn, vận động, hoặc triệu chứng khỏi nhật ký. Use Case này giúp loại bỏ các bản ghi không chính xác hoặc không cần thiết. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một bản ghi nhật ký sức khỏe. |
+| Luồng sự kiện chính | 1. Người dùng chọn bản ghi cần xóa từ nhật ký sức khỏe<br>2. Người dùng chọn "Xóa"<br>3. Hệ thống xác nhận với người dùng<br>4. Người dùng xác nhận xóa<br>5. Hệ thống xóa bản ghi nhật ký<br>6. Hệ thống cập nhật lại thống kê<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Không có xác nhận: Hệ thống xóa ngay lập tức |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi xóa: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi cập nhật thống kê: Hệ thống vẫn xóa bản ghi nhưng ghi log lỗi |
+| Hậu điều kiện | Bản ghi nhật ký đã được xóa khỏi danh sách. Các thống kê và báo cáo đã được cập nhật (loại bỏ dữ liệu của bản ghi đã xóa). Bản ghi không còn hiển thị trong nhật ký. |
 
 #### B.2.4 Quản lý lịch hẹn
 
@@ -1173,9 +1233,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (có thể tạo cho patient) |
-| Mô tả | Người dùng tạo lịch hẹn khám bác sĩ với thông tin bác sĩ, bệnh viện, ngày giờ, và thiết lập thời gian nhắc nhở |
-| Mục tiêu | Quản lý lịch hẹn khám bác sĩ và nhận nhắc nhở trước giờ hẹn |
-| Ghi chú | Mặc định nhắc nhở trước 24 giờ, có thể tùy chỉnh |
+| Tóm tắt | Người dùng tạo lịch hẹn khám bác sĩ với thông tin bác sĩ, bệnh viện, ngày giờ, và thiết lập thời gian nhắc nhở. Hệ thống sẽ gửi thông báo nhắc nhở trước giờ hẹn. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Nếu là Caregiver, phải đã được patient chấp nhận liên kết. |
+| Luồng sự kiện chính | 1. Người dùng chọn "Tạo lịch hẹn"<br>2. Nhập thông tin: tên bác sĩ (bắt buộc), chuyên khoa, tên bệnh viện, ngày hẹn, giờ hẹn, ghi chú, thời gian nhắc nhở trước (mặc định: 24 giờ)<br>3. Hệ thống kiểm tra thông tin hợp lệ<br>4. Nếu là Caregiver, hệ thống kiểm tra quyền truy cập patient<br>5. Hệ thống tạo lịch hẹn<br>6. Hệ thống lên lịch thông báo nhắc nhở<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 4a. Caregiver không có quyền: Hệ thống thông báo "Không có quyền truy cập" và từ chối tạo lịch hẹn |
+| Luồng ngoại lệ | 3a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>5a. Lỗi hệ thống khi tạo: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi lên lịch thông báo: Hệ thống vẫn tạo lịch hẹn nhưng thông báo lỗi về thông báo |
+| Hậu điều kiện | Lịch hẹn đã được tạo. Thông báo nhắc nhở đã được lên lịch. Lịch hẹn hiển thị trong danh sách lịch hẹn sắp tới. |
 
 ##### UC-022: Xem danh sách lịch hẹn
 
@@ -1183,9 +1246,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nếu đã liên kết) |
-| Mô tả | Người dùng xem danh sách các lịch hẹn sắp tới hoặc đã hoàn thành, sắp xếp theo ngày |
-| Mục tiêu | Nắm được các lịch hẹn sắp tới để chuẩn bị |
-| Ghi chú | Có thể lọc theo trạng thái: sắp tới, đã hoàn thành |
+| Tóm tắt | Người dùng xem danh sách các lịch hẹn sắp tới hoặc đã hoàn thành, sắp xếp theo ngày. Use Case này giúp nắm được các lịch hẹn sắp tới để chuẩn bị. |
+| Tiền điều kiện | Người dùng đã đăng nhập. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Lịch hẹn"<br>2. Hệ thống lấy danh sách tất cả lịch hẹn của người dùng<br>3. Hệ thống sắp xếp theo ngày tăng dần<br>4. Hệ thống hiển thị danh sách lịch hẹn<br>5. Người dùng có thể lọc theo trạng thái: tất cả, sắp tới, đã hoàn thành |
+| Luồng thay thế | 2a. Không có lịch hẹn nào: Hệ thống hiển thị thông báo "Chưa có lịch hẹn"<br>5a. Lọc "sắp tới": Chỉ hiển thị lịch hẹn chưa hoàn thành và chưa đến ngày<br>5b. Lọc "đã hoàn thành": Chỉ hiển thị lịch hẹn đã được đánh dấu hoàn thành |
+| Luồng ngoại lệ | 2b. Lỗi hệ thống khi lấy dữ liệu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Danh sách lịch hẹn đã được hiển thị. Người dùng có thể xem chi tiết, sửa, xóa, hoặc đánh dấu hoàn thành từ danh sách này. |
 
 ##### UC-023: Sửa lịch hẹn
 
@@ -1193,9 +1259,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (có thể sửa cho patient) |
-| Mô tả | Người dùng cập nhật thông tin lịch hẹn khi có thay đổi |
-| Mục tiêu | Điều chỉnh thông tin lịch hẹn cho chính xác |
-| Ghi chú | Có thể sửa tất cả các trường thông tin |
+| Tóm tắt | Người dùng cập nhật thông tin lịch hẹn khi có thay đổi. Use Case này giúp điều chỉnh thông tin lịch hẹn cho chính xác. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một lịch hẹn đã được tạo. |
+| Luồng sự kiện chính | 1. Người dùng chọn lịch hẹn cần sửa từ danh sách<br>2. Người dùng chọn "Sửa"<br>3. Hệ thống hiển thị form với thông tin hiện tại<br>4. Người dùng cập nhật thông tin: bác sĩ, chuyên khoa, bệnh viện, ngày, giờ, ghi chú, thời gian nhắc nhở<br>5. Hệ thống kiểm tra thông tin hợp lệ<br>6. Hệ thống cập nhật lịch hẹn<br>7. Nếu thay đổi ngày/giờ hoặc thời gian nhắc nhở, hệ thống cập nhật lại thông báo<br>8. Hiển thị thông báo thành công |
+| Luồng thay thế | 4a. Chỉ sửa một trường: Người dùng chỉ cập nhật một trường, các trường khác giữ nguyên<br>7a. Không thay đổi ngày/giờ: Bỏ qua bước cập nhật thông báo |
+| Luồng ngoại lệ | 5a. Thông tin không hợp lệ: Hệ thống thông báo lỗi và yêu cầu sửa<br>6a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại<br>7b. Lỗi khi cập nhật thông báo: Hệ thống vẫn cập nhật lịch hẹn nhưng ghi log lỗi |
+| Hậu điều kiện | Thông tin lịch hẹn đã được cập nhật. Nếu có thay đổi về thời gian, thông báo nhắc nhở đã được cập nhật. Thông tin mới được hiển thị trong danh sách lịch hẹn. |
 
 ##### UC-024: Xóa lịch hẹn
 
@@ -1203,9 +1272,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xóa lịch hẹn khi không còn cần thiết |
-| Mục tiêu | Loại bỏ lịch hẹn đã hủy hoặc không còn hiệu lực |
-| Ghi chú | Xóa sẽ hủy các thông báo nhắc nhở liên quan |
+| Tóm tắt | Người dùng xóa lịch hẹn khi không còn cần thiết. Hệ thống sẽ hủy các thông báo nhắc nhở liên quan. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một lịch hẹn đã được tạo. |
+| Luồng sự kiện chính | 1. Người dùng chọn lịch hẹn cần xóa từ danh sách<br>2. Người dùng chọn "Xóa"<br>3. Hệ thống xác nhận với người dùng<br>4. Người dùng xác nhận xóa<br>5. Hệ thống xóa lịch hẹn<br>6. Hệ thống hủy thông báo nhắc nhở liên quan<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Không có xác nhận: Hệ thống xóa ngay lập tức |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi xóa: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi hủy thông báo: Hệ thống vẫn xóa lịch hẹn nhưng ghi log lỗi |
+| Hậu điều kiện | Lịch hẹn đã được xóa khỏi danh sách. Thông báo nhắc nhở liên quan đã được hủy. Lịch hẹn không còn hiển thị trong danh sách. |
 
 ##### UC-025: Đánh dấu lịch hẹn hoàn thành
 
@@ -1213,9 +1285,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xác nhận đã hoàn thành lịch hẹn khám bác sĩ |
-| Mục tiêu | Cập nhật trạng thái lịch hẹn và lưu lại lịch sử |
-| Ghi chú | Lịch hẹn đã hoàn thành sẽ không hiển thị trong danh sách sắp tới |
+| Tóm tắt | Người dùng xác nhận đã hoàn thành lịch hẹn khám bác sĩ. Hệ thống cập nhật trạng thái và lưu lại lịch sử. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có ít nhất một lịch hẹn chưa hoàn thành. |
+| Luồng sự kiện chính | 1. Người dùng chọn lịch hẹn cần đánh dấu từ danh sách<br>2. Người dùng chọn "Đã hoàn thành"<br>3. Hệ thống cập nhật trạng thái lịch hẹn (isCompleted = true)<br>4. Hệ thống hủy thông báo nhắc nhở liên quan (nếu còn)<br>5. Hiển thị thông báo thành công |
+| Luồng thay thế | 2a. Lịch hẹn đã quá ngày: Hệ thống có thể tự động đánh dấu hoàn thành hoặc yêu cầu xác nhận |
+| Luồng ngoại lệ | 3a. Lỗi hệ thống khi cập nhật: Hệ thống thông báo lỗi và yêu cầu thử lại<br>4a. Lỗi khi hủy thông báo: Hệ thống vẫn cập nhật trạng thái nhưng ghi log lỗi |
+| Hậu điều kiện | Lịch hẹn đã được cập nhật trạng thái "Đã hoàn thành". Thông báo nhắc nhở đã được hủy. Lịch hẹn không còn hiển thị trong danh sách sắp tới, chỉ hiển thị khi lọc "đã hoàn thành". |
 
 #### B.2.5 Trợ lý AI
 
@@ -1225,9 +1300,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng trò chuyện với trợ lý AI về các vấn đề sức khỏe và nhận lời khuyên |
-| Mục tiêu | Nhận tư vấn sức khỏe nhanh chóng và phù hợp với tình trạng bệnh lý cá nhân |
-| Ghi chú | AI sử dụng thông tin tình trạng bệnh lý và lịch sử chat để đưa ra lời khuyên phù hợp |
+| Tóm tắt | Người dùng trò chuyện với trợ lý AI về các vấn đề sức khỏe và nhận lời khuyên. AI sử dụng thông tin tình trạng bệnh lý và lịch sử chat để đưa ra lời khuyên phù hợp. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Dịch vụ AI đang hoạt động. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình Chat AI<br>2. Người dùng nhập câu hỏi về sức khỏe<br>3. Hệ thống gửi câu hỏi kèm thông tin tình trạng bệnh lý và lịch sử chat (5 cuộc hội thoại gần nhất) đến dịch vụ AI<br>4. AI phân tích và trả lời<br>5. Hệ thống hiển thị câu trả lời của AI<br>6. Hệ thống lưu câu hỏi và câu trả lời vào lịch sử chat |
+| Luồng thay thế | 3a. Không có lịch sử chat: Hệ thống chỉ gửi câu hỏi và thông tin tình trạng bệnh lý<br>4a. AI trả lời dài: Hệ thống hiển thị câu trả lời với lời khuyên y tế (disclaimer) ở cuối |
+| Luồng ngoại lệ | 3b. Dịch vụ AI không khả dụng: Hệ thống thông báo "Dịch vụ AI tạm thời không khả dụng"<br>4b. Lỗi khi gọi AI: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi lưu lịch sử: Hệ thống vẫn hiển thị câu trả lời nhưng không lưu vào lịch sử |
+| Hậu điều kiện | Câu trả lời của AI đã được hiển thị. Cuộc hội thoại đã được lưu vào lịch sử chat. Người dùng có thể tiếp tục chat hoặc xem lại lịch sử. |
 
 ##### UC-027: Ước tính calo
 
@@ -1235,9 +1313,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng nhập tên món ăn hoặc loại vận động, AI ước tính lượng calo và chuẩn hóa tên |
-| Mục tiêu | Tự động tính toán calo để tiết kiệm thời gian nhập liệu |
-| Ghi chú | AI chuẩn hóa tên thành tiếng Việt có dấu đầy đủ |
+| Tóm tắt | Người dùng nhập tên món ăn hoặc loại vận động, AI ước tính lượng calo và chuẩn hóa tên. Use Case này giúp tự động tính toán calo để tiết kiệm thời gian nhập liệu. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Dịch vụ AI đang hoạt động. |
+| Luồng sự kiện chính | 1. Người dùng đang ở màn hình ghi nhận bữa ăn hoặc vận động<br>2. Người dùng nhập tên món ăn hoặc loại vận động<br>3. Người dùng chọn "Ước tính calo" hoặc hệ thống tự động gọi AI<br>4. Hệ thống gửi tên đến dịch vụ AI<br>5. AI phân tích và trả về: lượng calo (số nguyên) và tên đã chuẩn hóa (tiếng Việt có dấu)<br>6. Hệ thống hiển thị kết quả và tự động điền vào form<br>7. Người dùng có thể chỉnh sửa hoặc chấp nhận |
+| Luồng thay thế | 3a. Người dùng không sử dụng AI: Bỏ qua bước 3-6, người dùng nhập calo thủ công |
+| Luồng ngoại lệ | 4a. Dịch vụ AI không khả dụng: Hệ thống thông báo "Dịch vụ AI tạm thời không khả dụng" và yêu cầu nhập thủ công<br>5a. AI không thể ước tính: Hệ thống thông báo "Không thể ước tính calo" và yêu cầu nhập thủ công |
+| Hậu điều kiện | Lượng calo đã được ước tính và hiển thị. Tên đã được chuẩn hóa thành tiếng Việt có dấu. Người dùng có thể sử dụng kết quả hoặc chỉnh sửa trước khi lưu. |
 
 ##### UC-028: Phân tích đơn thuốc
 
@@ -1245,9 +1326,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng cung cấp ảnh đơn thuốc hoặc văn bản, AI trích xuất thông tin thuốc tự động |
-| Mục tiêu | Tự động hóa việc nhập thông tin thuốc từ đơn thuốc để tiết kiệm thời gian |
-| Ghi chú | Người dùng có thể chỉnh sửa thông tin trước khi lưu |
+| Tóm tắt | Người dùng cung cấp ảnh đơn thuốc hoặc văn bản hướng dẫn, AI trích xuất thông tin thuốc tự động. Use Case này giúp tự động hóa việc nhập thông tin thuốc từ đơn thuốc để tiết kiệm thời gian. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Dịch vụ AI đang hoạt động. Có ảnh đơn thuốc hoặc văn bản hướng dẫn. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Thêm thuốc"<br>2. Người dùng chọn "Quét đơn thuốc" hoặc "Phân tích từ ảnh/văn bản"<br>3a. Nếu chọn ảnh: Người dùng chụp ảnh hoặc chọn ảnh từ thư viện<br>3b. Nếu chọn văn bản: Người dùng nhập văn bản hướng dẫn<br>4. Hệ thống gửi ảnh/văn bản đến dịch vụ AI<br>5. AI phân tích và trích xuất: tên thuốc, liều lượng, đơn vị, tần suất (DAILY/EVERY_OTHER_DAY), giờ uống (mảng HH:mm), ghi chú<br>6. Hệ thống hiển thị thông tin đã trích xuất trong form<br>7. Người dùng xem và chỉnh sửa thông tin (nếu cần)<br>8. Người dùng lưu thuốc |
+| Luồng thay thế | 3a.1. Không có quyền truy cập camera: Hệ thống yêu cầu cấp quyền hoặc chỉ cho phép chọn từ thư viện<br>7a. Thông tin đã đúng: Người dùng lưu ngay không cần chỉnh sửa |
+| Luồng ngoại lệ | 4a. Dịch vụ AI không khả dụng: Hệ thống thông báo "Dịch vụ AI tạm thời không khả dụng"<br>5a. AI không thể phân tích: Hệ thống thông báo "Không thể phân tích đơn thuốc" và yêu cầu nhập thủ công<br>5b. Thông tin trích xuất không đầy đủ: Hệ thống hiển thị thông tin có được và yêu cầu người dùng bổ sung |
+| Hậu điều kiện | Thông tin thuốc đã được trích xuất và hiển thị trong form. Người dùng có thể chỉnh sửa và lưu thuốc. Nếu lưu, thuốc sẽ được thêm vào danh sách như UC-008. |
 
 ##### UC-029: Nhận diện tình trạng bệnh lý
 
@@ -1255,9 +1339,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng nhập mô tả tình trạng bệnh, AI nhận diện và chuẩn hóa thành tên bệnh tiếng Việt |
-| Mục tiêu | Cập nhật tình trạng bệnh lý một cách chính xác và thống nhất |
-| Ghi chú | AI chuẩn hóa tên bệnh thành tiếng Việt có dấu, sau đó cập nhật vào hồ sơ người dùng |
+| Tóm tắt | Người dùng nhập mô tả tình trạng bệnh, AI nhận diện và chuẩn hóa thành tên bệnh tiếng Việt. Use Case này giúp cập nhật tình trạng bệnh lý một cách chính xác và thống nhất. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Dịch vụ AI đang hoạt động. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Hồ sơ" hoặc "Cài đặt"<br>2. Người dùng chọn "Cập nhật tình trạng bệnh lý"<br>3. Người dùng nhập mô tả tình trạng bệnh (có thể là tiếng Việt không dấu, tiếng Anh, hoặc mô tả)<br>4. Người dùng chọn "Nhận diện" hoặc hệ thống tự động gọi AI<br>5. Hệ thống gửi mô tả đến dịch vụ AI<br>6. AI phân tích và trả về tên bệnh/tình trạng bằng tiếng Việt có dấu chuẩn<br>7. Hệ thống hiển thị kết quả<br>8. Người dùng xác nhận hoặc chỉnh sửa<br>9. Hệ thống cập nhật tình trạng bệnh lý vào hồ sơ |
+| Luồng thay thế | 3a. Mô tả rỗng hoặc không rõ ràng: AI trả về "Bình thường"<br>8a. Người dùng không xác nhận: Bỏ qua bước 9, không cập nhật |
+| Luồng ngoại lệ | 5a. Dịch vụ AI không khả dụng: Hệ thống thông báo và cho phép nhập thủ công<br>6a. AI không thể nhận diện: Hệ thống trả về mô tả gốc đã được chuẩn hóa cơ bản |
+| Hậu điều kiện | Tình trạng bệnh lý đã được cập nhật trong hồ sơ người dùng. Các gợi ý sức khỏe và tư vấn AI sẽ được điều chỉnh theo tình trạng bệnh lý mới. |
 
 ##### UC-030: Xem gợi ý sức khỏe
 
@@ -1265,9 +1352,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Hệ thống hiển thị các gợi ý về chế độ ăn, vận động, và lối sống dựa trên tình trạng bệnh lý |
-| Mục tiêu | Nhận lời khuyên cá nhân hóa để cải thiện sức khỏe |
-| Ghi chú | Gợi ý được tạo bởi AI dựa trên tình trạng bệnh lý của người dùng |
+| Tóm tắt | Hệ thống hiển thị các gợi ý về chế độ ăn, vận động, và lối sống dựa trên tình trạng bệnh lý. Gợi ý được tạo bởi AI để giúp người dùng nhận lời khuyên cá nhân hóa. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Dịch vụ AI đang hoạt động. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Gợi ý sức khỏe" hoặc xem từ Dashboard<br>2. Hệ thống lấy tình trạng bệnh lý của người dùng<br>3. Hệ thống gửi yêu cầu đến dịch vụ AI để tạo gợi ý<br>4. AI phân tích tình trạng bệnh lý và tạo 2-3 gợi ý (loại: DIET, EXERCISE, LIFESTYLE)<br>5. Hệ thống hiển thị danh sách gợi ý với tiêu đề, mô tả, icon, và màu sắc<br>6. Người dùng có thể xem chi tiết từng gợi ý |
+| Luồng thay thế | 2a. Không có tình trạng bệnh lý hoặc "Bình thường": AI trả về gợi ý mặc định về lối sống lành mạnh |
+| Luồng ngoại lệ | 3a. Dịch vụ AI không khả dụng: Hệ thống hiển thị gợi ý mặc định<br>4a. AI không thể tạo gợi ý: Hệ thống hiển thị gợi ý mặc định |
+| Hậu điều kiện | Danh sách gợi ý sức khỏe đã được hiển thị. Người dùng có thể xem chi tiết và áp dụng các gợi ý vào cuộc sống hàng ngày. |
 
 #### B.2.6 Chức năng Caregiver
 
@@ -1277,9 +1367,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Patient tạo mã liên kết 6 chữ số để chia sẻ với caregiver, mã này cố định và không thay đổi |
-| Mục tiêu | Cho phép caregiver gửi yêu cầu liên kết để theo dõi sức khỏe |
-| Ghi chú | Mỗi patient chỉ có một mã liên kết duy nhất, mã không thay đổi sau khi tạo |
+| Tóm tắt | Patient tạo mã liên kết 6 chữ số để chia sẻ với caregiver. Mã này cố định và không thay đổi, cho phép caregiver gửi yêu cầu liên kết để theo dõi sức khỏe. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Patient chọn "Tạo mã liên kết" hoặc "Liên kết với người thân"<br>2. Hệ thống kiểm tra patient đã có mã liên kết chưa<br>3a. Nếu chưa có: Hệ thống tạo mã liên kết 6 chữ số duy nhất<br>3b. Nếu đã có: Hệ thống hiển thị mã liên kết hiện có<br>4. Hệ thống lưu mã vào thông tin patient<br>5. Hệ thống hiển thị mã liên kết cho patient |
+| Luồng thay thế | 3c. Không thể tạo mã duy nhất sau 10 lần thử: Hệ thống thông báo lỗi và yêu cầu thử lại sau |
+| Luồng ngoại lệ | 4a. Lỗi hệ thống khi lưu mã: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Patient đã có mã liên kết 6 chữ số. Mã được hiển thị và có thể chia sẻ với caregiver. Mã này cố định, không thay đổi. |
 
 ##### UC-032: Gửi yêu cầu liên kết (Caregiver)
 
@@ -1287,9 +1380,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | Patient (nhận yêu cầu) |
-| Mô tả | Caregiver nhập mã liên kết 6 chữ số của patient để gửi yêu cầu liên kết |
-| Mục tiêu | Thiết lập mối quan hệ chăm sóc với patient để theo dõi sức khỏe |
-| Ghi chú | Yêu cầu ở trạng thái "pending" chờ patient chấp nhận |
+| Tóm tắt | Caregiver nhập mã liên kết 6 chữ số của patient để gửi yêu cầu liên kết. Use Case này thiết lập mối quan hệ chăm sóc với patient để theo dõi sức khỏe. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. |
+| Luồng sự kiện chính | 1. Caregiver chọn "Liên kết với người thân"<br>2. Nhập mã liên kết 6 chữ số của patient<br>3. Hệ thống kiểm tra mã liên kết hợp lệ (tìm thấy patient có mã này)<br>4. Hệ thống kiểm tra chưa có yêu cầu pending hoặc chưa được liên kết<br>5. Hệ thống tạo yêu cầu liên kết (status: pending)<br>6. Hệ thống thông báo thành công và thông báo chờ patient chấp nhận |
+| Luồng thay thế | 3a. Mã liên kết không hợp lệ: Hệ thống thông báo "Mã liên kết không hợp lệ"<br>4a. Đã có yêu cầu pending: Hệ thống thông báo "Bạn đã gửi yêu cầu liên kết với người bệnh này"<br>4b. Đã được liên kết: Hệ thống thông báo "Bạn đã được liên kết với người bệnh này rồi" |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi tạo yêu cầu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Yêu cầu liên kết đã được tạo với trạng thái "pending". Patient sẽ nhận được thông báo về yêu cầu liên kết. Caregiver cần chờ patient chấp nhận. |
 
 ##### UC-033: Chấp nhận/từ chối yêu cầu (Patient)
 
@@ -1297,9 +1393,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nhận kết quả) |
-| Mô tả | Patient xem danh sách yêu cầu liên kết từ caregivers và chấp nhận hoặc từ chối |
-| Mục tiêu | Kiểm soát quyền truy cập của caregiver vào thông tin sức khỏe |
-| Ghi chú | Một patient chỉ có thể liên kết với một caregiver, khi chấp nhận sẽ tự động từ chối các yêu cầu khác |
+| Tóm tắt | Patient xem danh sách yêu cầu liên kết từ caregivers và chấp nhận hoặc từ chối. Use Case này cho phép patient kiểm soát quyền truy cập của caregiver vào thông tin sức khỏe. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. Có ít nhất một yêu cầu liên kết ở trạng thái "pending". |
+| Luồng sự kiện chính | 1. Patient mở màn hình "Yêu cầu liên kết"<br>2. Hệ thống hiển thị danh sách yêu cầu liên kết (status: pending) kèm thông tin caregiver<br>3. Patient chọn một yêu cầu và chọn "Chấp nhận" hoặc "Từ chối"<br>4a. Nếu chấp nhận: Hệ thống kiểm tra patient chưa có caregiver<br>5a. Hệ thống liên kết caregiver với patient<br>6a. Hệ thống cập nhật tất cả yêu cầu khác thành "rejected"<br>7a. Hệ thống thông báo thành công cho patient và caregiver<br>4b. Nếu từ chối: Hệ thống cập nhật yêu cầu thành "rejected"<br>5b. Hệ thống thông báo cho caregiver |
+| Luồng thay thế | 4a.1. Patient đã có caregiver: Hệ thống thông báo "Bạn đã có người thân được liên kết" và không cho phép chấp nhận |
+| Luồng ngoại lệ | 5a. Lỗi hệ thống khi liên kết: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi từ chối các yêu cầu khác: Hệ thống vẫn liên kết nhưng ghi log lỗi |
+| Hậu điều kiện | Nếu chấp nhận: Caregiver đã được liên kết với patient. Các yêu cầu khác đã bị từ chối. Caregiver có thể xem thông tin sức khỏe của patient. Nếu từ chối: Yêu cầu đã được cập nhật thành "rejected". |
 
 ##### UC-034: Xem danh sách patients (Caregiver)
 
@@ -1307,9 +1406,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | - |
-| Mô tả | Caregiver xem danh sách tất cả patients đã liên kết kèm thống kê tỷ lệ tuân thủ, cảnh báo, và trạng thái cần chú ý |
-| Mục tiêu | Nắm được tình trạng tổng quan của tất cả patients để ưu tiên chăm sóc |
-| Ghi chú | Có thể lọc theo: tất cả, cần chú ý, cập nhật gần đây |
+| Tóm tắt | Caregiver xem danh sách tất cả patients đã liên kết kèm thống kê tỷ lệ tuân thủ, cảnh báo, và trạng thái cần chú ý. Use Case này giúp caregiver nắm được tình trạng tổng quan để ưu tiên chăm sóc. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. Có ít nhất một patient đã được liên kết. |
+| Luồng sự kiện chính | 1. Caregiver mở màn hình "Danh sách người thân"<br>2. Hệ thống lấy danh sách tất cả patients có caregiverId = caregiver hiện tại<br>3. Hệ thống tính toán thống kê cho mỗi patient: tỷ lệ tuân thủ (7 ngày qua), số cảnh báo chưa đọc, trạng thái cần chú ý (tỷ lệ < 70% hoặc có cảnh báo)<br>4. Hệ thống hiển thị danh sách patients với thống kê<br>5. Caregiver có thể lọc: tất cả, cần chú ý, cập nhật gần đây (24h) |
+| Luồng thay thế | 2a. Không có patient nào: Hệ thống hiển thị thông báo "Chưa có người thân được liên kết"<br>5a. Lọc "cần chú ý": Chỉ hiển thị patients có tỷ lệ tuân thủ < 70% hoặc có cảnh báo chưa đọc<br>5b. Lọc "cập nhật gần đây": Chỉ hiển thị patients có cập nhật trong 24h qua |
+| Luồng ngoại lệ | 3a. Lỗi hệ thống khi tính toán thống kê: Hệ thống hiển thị danh sách không có thống kê và ghi log lỗi |
+| Hậu điều kiện | Danh sách patients đã được hiển thị với đầy đủ thống kê. Caregiver có thể chọn một patient để xem chi tiết. |
 
 ##### UC-035: Xem chi tiết patient (Caregiver)
 
@@ -1317,9 +1419,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | - |
-| Mô tả | Caregiver xem thông tin chi tiết của một patient bao gồm timeline thuốc, lịch sử, tóm tắt sức khỏe, và lịch hẹn |
-| Mục tiêu | Theo dõi chi tiết tình trạng sức khỏe của patient để có biện pháp chăm sóc phù hợp |
-| Ghi chú | Chỉ có thể xem, không thể sửa hoặc xóa dữ liệu của patient |
+| Tóm tắt | Caregiver xem thông tin chi tiết của một patient bao gồm timeline thuốc, lịch sử, tóm tắt sức khỏe, và lịch hẹn. Use Case này giúp theo dõi chi tiết tình trạng sức khỏe để có biện pháp chăm sóc phù hợp. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. Đã được patient chấp nhận liên kết. |
+| Luồng sự kiện chính | 1. Caregiver chọn một patient từ danh sách<br>2. Hệ thống kiểm tra quyền truy cập (caregiver đã được liên kết với patient này)<br>3. Hệ thống lấy và tính toán các thông tin: thông tin cá nhân, timeline thuốc trong ngày (nhóm theo buổi), lịch sử uống thuốc 7 ngày, tóm tắt sức khỏe hôm nay, danh sách lịch hẹn<br>4. Hệ thống hiển thị thông tin chi tiết patient<br>5. Caregiver có thể xem các tab khác nhau: Tổng quan, Thuốc, Sức khỏe, Lịch hẹn |
+| Luồng thay thế | 2a. Không có quyền truy cập: Hệ thống thông báo "Không có quyền truy cập" và từ chối hiển thị<br>3a. Không có dữ liệu: Hệ thống hiển thị thông báo "Chưa có dữ liệu" cho từng phần |
+| Luồng ngoại lệ | 3b. Lỗi hệ thống khi lấy dữ liệu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Thông tin chi tiết patient đã được hiển thị. Caregiver có thể xem các phần khác nhau và thực hiện các hành động được phép (tạo lịch hẹn, tạo ghi chú, gửi thông báo). |
 
 ##### UC-036: Xem cảnh báo (Caregiver)
 
@@ -1327,9 +1432,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | Patient (nguồn cảnh báo) |
-| Mô tả | Caregiver xem danh sách các cảnh báo về tình trạng sức khỏe của patients, có thể đánh dấu đã đọc |
-| Mục tiêu | Nhận biết kịp thời các vấn đề sức khỏe nghiêm trọng của patients |
-| Ghi chú | Cảnh báo được tạo tự động khi patient có triệu chứng mức độ >= 7 |
+| Tóm tắt | Caregiver xem danh sách các cảnh báo về tình trạng sức khỏe của patients, có thể đánh dấu đã đọc. Cảnh báo được tạo tự động khi patient có triệu chứng nghiêm trọng. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. Có ít nhất một patient đã được liên kết. |
+| Luồng sự kiện chính | 1. Caregiver mở màn hình "Cảnh báo" hoặc "Trung tâm cảnh báo"<br>2. Hệ thống lấy danh sách tất cả cảnh báo từ các patients đã liên kết<br>3. Hệ thống sắp xếp theo thời gian giảm dần (mới nhất trước)<br>4. Hệ thống hiển thị danh sách cảnh báo với thông tin: loại, mức độ nghiêm trọng, tiêu đề, nội dung, tên patient, thời gian<br>5. Caregiver có thể lọc theo patient hoặc xem tất cả<br>6. Caregiver có thể đánh dấu cảnh báo đã đọc |
+| Luồng thay thế | 2a. Không có cảnh báo nào: Hệ thống hiển thị thông báo "Không có cảnh báo"<br>5a. Lọc theo patient: Chỉ hiển thị cảnh báo của patient được chọn |
+| Luồng ngoại lệ | 2b. Lỗi hệ thống khi lấy dữ liệu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Danh sách cảnh báo đã được hiển thị. Caregiver có thể xem chi tiết và đánh dấu đã đọc. Số cảnh báo chưa đọc đã được cập nhật. |
 
 ##### UC-037: Tạo ghi chú chăm sóc (Caregiver)
 
@@ -1337,9 +1445,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | - |
-| Mô tả | Caregiver tạo ghi chú về việc chăm sóc patient với nội dung và tags để dễ tìm kiếm |
-| Mục tiêu | Lưu lại thông tin quan trọng về quá trình chăm sóc patient |
-| Ghi chú | Ghi chú chỉ được caregiver tạo ra xem, patient không thể xem |
+| Tóm tắt | Caregiver tạo ghi chú về việc chăm sóc patient với nội dung và tags để dễ tìm kiếm. Use Case này giúp lưu lại thông tin quan trọng về quá trình chăm sóc patient. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. Đã được patient chấp nhận liên kết. |
+| Luồng sự kiện chính | 1. Caregiver chọn patient cần tạo ghi chú<br>2. Caregiver chọn "Tạo ghi chú" hoặc "Ghi chú chăm sóc"<br>3. Nhập nội dung ghi chú (bắt buộc)<br>4. (Tùy chọn) Thêm tags để phân loại<br>5. Hệ thống kiểm tra quyền truy cập patient<br>6. Hệ thống lưu ghi chú với thông tin: patientId, caregiverId, nội dung, tags, thời gian tạo<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 4a. Không thêm tags: Bỏ qua bước 4, ghi chú được lưu không có tags |
+| Luồng ngoại lệ | 5a. Không có quyền truy cập: Hệ thống thông báo "Không có quyền truy cập" và từ chối lưu<br>6a. Lỗi hệ thống khi lưu: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Ghi chú đã được lưu và gắn với patient. Ghi chú có thể được xem lại từ màn hình chi tiết patient. Patient không thể xem ghi chú này. |
 
 ##### UC-038: Tạo lịch hẹn cho patient (Caregiver)
 
@@ -1347,9 +1458,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Caregiver |
 | Actor phụ | Patient (chủ sở hữu lịch hẹn) |
-| Mô tả | Caregiver tạo lịch hẹn khám bác sĩ cho patient sau khi đã được liên kết |
-| Mục tiêu | Hỗ trợ patient quản lý lịch hẹn khám bác sĩ |
-| Ghi chú | Patient vẫn có thể xem, sửa, xóa lịch hẹn do caregiver tạo |
+| Tóm tắt | Caregiver tạo lịch hẹn khám bác sĩ cho patient sau khi đã được liên kết. Use Case này giúp hỗ trợ patient quản lý lịch hẹn khám bác sĩ. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Caregiver. Đã được patient chấp nhận liên kết. |
+| Luồng sự kiện chính | 1. Caregiver chọn patient cần tạo lịch hẹn<br>2. Caregiver chọn "Tạo lịch hẹn"<br>3. Nhập thông tin: tên bác sĩ (bắt buộc), chuyên khoa, tên bệnh viện, ngày hẹn, giờ hẹn, ghi chú, thời gian nhắc nhở trước<br>4. Hệ thống kiểm tra quyền truy cập patient<br>5. Hệ thống tạo lịch hẹn với userId = patientId<br>6. Hệ thống lên lịch thông báo nhắc nhở cho patient<br>7. Hiển thị thông báo thành công |
+| Luồng thay thế | 3a. Không nhập một số trường tùy chọn: Hệ thống sử dụng giá trị mặc định hoặc để trống |
+| Luồng ngoại lệ | 4a. Không có quyền truy cập: Hệ thống thông báo "Không có quyền truy cập" và từ chối tạo<br>5a. Lỗi hệ thống khi tạo: Hệ thống thông báo lỗi và yêu cầu thử lại<br>6a. Lỗi khi lên lịch thông báo: Hệ thống vẫn tạo lịch hẹn nhưng ghi log lỗi |
+| Hậu điều kiện | Lịch hẹn đã được tạo và gắn với patient. Thông báo nhắc nhở đã được lên lịch cho patient. Patient có thể xem, sửa, xóa lịch hẹn này. Lịch hẹn hiển thị trong danh sách lịch hẹn của patient. |
 
 #### B.2.7 Báo cáo
 
@@ -1359,9 +1473,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | Caregiver (nếu đã liên kết) |
-| Mô tả | Người dùng xem báo cáo tổng hợp sức khỏe theo các khoảng thời gian khác nhau với các thống kê và biểu đồ |
-| Mục tiêu | Phân tích xu hướng sức khỏe và đánh giá hiệu quả chăm sóc |
-| Ghi chú | Có thể chọn khoảng thời gian: hôm nay, tuần này, tháng này, 7 ngày, 30 ngày |
+| Tóm tắt | Người dùng xem báo cáo tổng hợp sức khỏe theo các khoảng thời gian khác nhau với các thống kê và biểu đồ. Báo cáo giúp phân tích xu hướng sức khỏe và đánh giá hiệu quả chăm sóc. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Có dữ liệu sức khỏe trong khoảng thời gian được chọn. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Báo cáo"<br>2. Chọn khoảng thời gian: hôm nay, tuần này, tháng này, 7 ngày qua, 30 ngày qua<br>3. Hệ thống tính toán các thống kê: tỷ lệ tuân thủ uống thuốc, tổng calo nạp vào/tiêu thụ, danh sách bữa ăn, danh sách vận động, danh sách triệu chứng, thống kê thư giãn<br>4. Hệ thống hiển thị báo cáo với các biểu đồ và danh sách<br>5. Người dùng có thể xem chi tiết từng phần |
+| Luồng thay thế | 3a. Không có dữ liệu trong khoảng thời gian: Hệ thống hiển thị thông báo "Chưa có dữ liệu" |
+| Luồng ngoại lệ | 3b. Lỗi hệ thống khi tính toán: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | Báo cáo đã được hiển thị với đầy đủ thống kê. Người dùng có thể xuất PDF hoặc phân tích bằng AI. |
 
 ##### UC-040: Xuất báo cáo PDF
 
@@ -1369,9 +1486,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng xuất báo cáo sức khỏe ra file PDF để lưu trữ hoặc chia sẻ |
-| Mục tiêu | Lưu trữ báo cáo dưới dạng file để tham khảo sau hoặc chia sẻ với bác sĩ |
-| Ghi chú | File PDF bao gồm thông tin người dùng, kỳ báo cáo, và các thống kê chính |
+| Tóm tắt | Người dùng xuất báo cáo sức khỏe ra file PDF để lưu trữ hoặc chia sẻ. File PDF bao gồm thông tin người dùng, kỳ báo cáo, và các thống kê chính. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Đã xem báo cáo sức khỏe (UC-039). |
+| Luồng sự kiện chính | 1. Người dùng chọn "Xuất PDF" từ màn hình báo cáo<br>2. Hệ thống tạo file PDF với thông tin: thông tin người dùng, kỳ báo cáo, tỷ lệ tuân thủ uống thuốc, thống kê sức khỏe, danh sách bữa ăn, thống kê thư giãn<br>3. Hệ thống tạo file PDF<br>4. Hệ thống cho phép người dùng tải xuống hoặc chia sẻ file |
+| Luồng thay thế | 2a. Không có dữ liệu trong kỳ báo cáo: Hệ thống vẫn tạo PDF nhưng ghi chú "Chưa có dữ liệu" |
+| Luồng ngoại lệ | 3a. Lỗi khi tạo PDF: Hệ thống thông báo lỗi và yêu cầu thử lại<br>4a. Lỗi khi tải xuống: Hệ thống thông báo lỗi và yêu cầu thử lại |
+| Hậu điều kiện | File PDF đã được tạo. Người dùng có thể tải xuống hoặc chia sẻ file PDF. File có thể được mở bằng ứng dụng đọc PDF. |
 
 ##### UC-041: Phân tích báo cáo bằng AI
 
@@ -1379,9 +1499,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng yêu cầu AI phân tích báo cáo sức khỏe và đưa ra lưu ý về ăn uống, vận động, và triệu chứng |
-| Mục tiêu | Nhận lời khuyên chuyên sâu dựa trên dữ liệu sức khỏe thực tế |
-| Ghi chú | Kết quả phân tích được cache trong 12 giờ để tránh gọi lại nhiều lần |
+| Tóm tắt | Người dùng yêu cầu AI phân tích báo cáo sức khỏe và đưa ra lưu ý về ăn uống, vận động, và triệu chứng. Use Case này giúp nhận lời khuyên chuyên sâu dựa trên dữ liệu sức khỏe thực tế. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Đã xem báo cáo sức khỏe (UC-039). Dịch vụ AI đang hoạt động. |
+| Luồng sự kiện chính | 1. Người dùng đang ở màn hình báo cáo<br>2. Người dùng chọn "Phân tích bằng AI"<br>3. Hệ thống kiểm tra có kết quả phân tích cache chưa (trong 12 giờ)<br>4a. Nếu có cache và chưa hết hạn: Hệ thống hiển thị kết quả cache<br>4b. Nếu không có cache hoặc đã hết hạn: Hệ thống gửi dữ liệu báo cáo đến dịch vụ AI<br>5. AI phân tích và đưa ra lưu ý về: ăn uống (phân tích món ăn có phù hợp không), vận động (đánh giá mức độ), triệu chứng (lời khuyên xử lý)<br>6. Hệ thống lưu kết quả phân tích vào cache (hết hạn sau 12 giờ)<br>7. Hệ thống hiển thị kết quả phân tích |
+| Luồng thay thế | 3a. Không có dữ liệu trong báo cáo: Hệ thống thông báo "Không đủ dữ liệu để phân tích" |
+| Luồng ngoại lệ | 4b.1. Dịch vụ AI không khả dụng: Hệ thống thông báo "Dịch vụ AI tạm thời không khả dụng" và hiển thị cache nếu có<br>5a. AI không thể phân tích: Hệ thống thông báo "Không thể phân tích báo cáo" và hiển thị cache nếu có<br>6a. Lỗi khi lưu cache: Hệ thống vẫn hiển thị kết quả nhưng không lưu cache |
+| Hậu điều kiện | Kết quả phân tích AI đã được hiển thị. Kết quả đã được lưu cache trong 12 giờ. Người dùng có thể xem lại kết quả phân tích trong 12 giờ tiếp theo mà không cần gọi lại AI. |
 
 #### B.2.8 Thư giãn
 
@@ -1391,9 +1514,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng chọn và phát các bản nhạc thư giãn (Chill, Rain, Forest, Sea) để thư giãn |
-| Mục tiêu | Giảm căng thẳng và cải thiện tinh thần thông qua âm nhạc |
-| Ghi chú | Hệ thống ghi nhận thời gian nghe và lưu vào nhật ký wellness |
+| Tóm tắt | Người dùng chọn và phát các bản nhạc thư giãn (Chill, Rain, Forest, Sea) để thư giãn. Hệ thống ghi nhận thời gian nghe và lưu vào nhật ký wellness. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Thư giãn"<br>2. Chọn loại nhạc: Chill, Rain, Forest, hoặc Sea<br>3. Người dùng chọn "Phát"<br>4. Hệ thống phát nhạc<br>5. Người dùng nghe nhạc<br>6. Khi dừng, hệ thống tính thời gian nghe<br>7. Hệ thống lưu vào nhật ký wellness (type: music, durationSeconds) |
+| Luồng thay thế | 3a. Nhạc đang phát: Người dùng có thể dừng hoặc chuyển bài khác<br>6a. Người dùng dừng trước khi hết bài: Hệ thống tính thời gian từ lúc bắt đầu đến lúc dừng |
+| Luồng ngoại lệ | 4a. Lỗi khi phát nhạc: Hệ thống thông báo lỗi và yêu cầu thử lại<br>7a. Lỗi khi lưu nhật ký: Hệ thống vẫn phát nhạc nhưng không lưu thời gian |
+| Hậu điều kiện | Nhạc đã được phát. Thời gian nghe đã được ghi nhận và lưu vào nhật ký wellness. Thống kê thư giãn đã được cập nhật. |
 
 ##### UC-043: Thực hiện bài tập thở
 
@@ -1401,9 +1527,12 @@ Hệ thống SmartCare có 2 actors chính:
 |-----------|------|
 | Actor chính | Patient |
 | Actor phụ | - |
-| Mô tả | Người dùng thực hiện bài tập thở theo hướng dẫn của ứng dụng |
-| Mục tiêu | Thư giãn và cải thiện sức khỏe tinh thần thông qua bài tập thở |
-| Ghi chú | Hệ thống ghi nhận thời gian thực hiện và lưu vào nhật ký wellness |
+| Tóm tắt | Người dùng thực hiện bài tập thở theo hướng dẫn của ứng dụng. Hệ thống ghi nhận thời gian thực hiện và lưu vào nhật ký wellness để thư giãn và cải thiện sức khỏe tinh thần. |
+| Tiền điều kiện | Người dùng đã đăng nhập. Người dùng có vai trò Patient. |
+| Luồng sự kiện chính | 1. Người dùng mở màn hình "Thư giãn"<br>2. Chọn "Bài tập thở"<br>3. Hệ thống hiển thị hướng dẫn bài tập thở<br>4. Người dùng bắt đầu bài tập<br>5. Hệ thống bắt đầu đếm thời gian<br>6. Người dùng thực hiện bài tập theo hướng dẫn<br>7. Khi kết thúc, hệ thống tính thời gian thực hiện<br>8. Hệ thống lưu vào nhật ký wellness (type: breathing, durationSeconds) |
+| Luồng thay thế | 7a. Người dùng dừng giữa chừng: Hệ thống tính thời gian từ lúc bắt đầu đến lúc dừng |
+| Luồng ngoại lệ | 8a. Lỗi khi lưu nhật ký: Hệ thống thông báo lỗi nhưng vẫn cho phép thực hiện bài tập |
+| Hậu điều kiện | Bài tập thở đã được thực hiện. Thời gian thực hiện đã được ghi nhận và lưu vào nhật ký wellness. Thống kê thư giãn đã được cập nhật. |
 
 ### B.3 Luồng Nghiệp vụ Chính
 
@@ -1453,8 +1582,6 @@ Hệ thống SmartCare có 2 actors chính:
 6. AI phân tích và đưa ra lưu ý
 7. Hệ thống hiển thị kết quả phân tích
 8. Người dùng có thể xuất báo cáo PDF
-
----
 
 ## Appendix C: Issues List
 
