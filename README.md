@@ -959,64 +959,451 @@ Hệ thống SmartCare có 2 actors chính:
 
 ### B.2 Use Cases (Các trường hợp sử dụng)
 
-**B.2.1 Quản lý tài khoản:**
-- UC-001: Đăng ký tài khoản
-- UC-002: Xác thực tài khoản bằng OTP
-- UC-003: Đăng nhập
-- UC-004: Đăng xuất
-- UC-005: Quên mật khẩu
-- UC-006: Đổi mật khẩu
-- UC-007: Quản lý thông tin cá nhân
+#### B.2.1 Quản lý tài khoản
 
-**B.2.2 Quản lý thuốc:**
-- UC-008: Thêm thuốc mới
-- UC-009: Sửa thông tin thuốc
-- UC-010: Xóa thuốc
-- UC-011: Xem lịch uống thuốc hôm nay
-- UC-012: Đánh dấu đã uống thuốc
-- UC-013: Đánh dấu bỏ qua thuốc
-- UC-014: Xem danh sách thuốc đã quên
+##### UC-001: Đăng ký tài khoản
 
-**B.2.3 Theo dõi sức khỏe:**
-- UC-015: Ghi nhận bữa ăn
-- UC-016: Ghi nhận vận động
-- UC-017: Ghi nhận triệu chứng
-- UC-018: Xem nhật ký sức khỏe
-- UC-019: Sửa thông tin nhật ký
-- UC-020: Xóa nhật ký
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng mới đăng ký tài khoản bằng cách nhập thông tin cá nhân và nhận mã OTP để kích hoạt |
+| Mục tiêu | Tạo tài khoản mới trong hệ thống để bắt đầu sử dụng các chức năng quản lý sức khỏe |
+| Ghi chú | Yêu cầu số điện thoại chưa được đăng ký, mật khẩu tối thiểu 6 ký tự |
 
-**B.2.4 Quản lý lịch hẹn:**
-- UC-021: Tạo lịch hẹn
-- UC-022: Xem danh sách lịch hẹn
-- UC-023: Sửa lịch hẹn
-- UC-024: Xóa lịch hẹn
-- UC-025: Đánh dấu lịch hẹn hoàn thành
+##### UC-002: Xác thực tài khoản bằng OTP
 
-**B.2.5 Trợ lý AI:**
-- UC-026: Chat với AI
-- UC-027: Ước tính calo
-- UC-028: Phân tích đơn thuốc
-- UC-029: Nhận diện tình trạng bệnh lý
-- UC-030: Xem gợi ý sức khỏe
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng nhập mã OTP 4 chữ số để kích hoạt tài khoản sau khi đăng ký |
+| Mục tiêu | Xác minh quyền sở hữu số điện thoại và kích hoạt tài khoản |
+| Ghi chú | Mã OTP có thời hạn 5 phút, có thể yêu cầu gửi lại |
 
-**B.2.6 Chức năng Caregiver:**
-- UC-031: Tạo mã liên kết (Patient)
-- UC-032: Gửi yêu cầu liên kết (Caregiver)
-- UC-033: Chấp nhận/từ chối yêu cầu (Patient)
-- UC-034: Xem danh sách patients (Caregiver)
-- UC-035: Xem chi tiết patient (Caregiver)
-- UC-036: Xem cảnh báo (Caregiver)
-- UC-037: Tạo ghi chú chăm sóc (Caregiver)
-- UC-038: Tạo lịch hẹn cho patient (Caregiver)
+##### UC-003: Đăng nhập
 
-**B.2.7 Báo cáo:**
-- UC-039: Xem báo cáo sức khỏe
-- UC-040: Xuất báo cáo PDF
-- UC-041: Phân tích báo cáo bằng AI
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng đã có tài khoản đăng nhập bằng số điện thoại và mật khẩu |
+| Mục tiêu | Xác thực danh tính và truy cập vào hệ thống |
+| Ghi chú | Tài khoản phải đã được kích hoạt, nếu chưa sẽ yêu cầu nhập OTP |
 
-**B.2.8 Thư giãn:**
-- UC-042: Nghe nhạc thư giãn
-- UC-043: Thực hiện bài tập thở
+##### UC-004: Đăng xuất
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng kết thúc phiên đăng nhập và quay về màn hình đăng nhập |
+| Mục tiêu | Bảo mật tài khoản khi không sử dụng ứng dụng |
+| Ghi chú | Dữ liệu local có thể được giữ lại để đăng nhập nhanh lần sau |
+
+##### UC-005: Quên mật khẩu
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng quên mật khẩu, yêu cầu đặt lại mật khẩu mới thông qua mã OTP |
+| Mục tiêu | Khôi phục quyền truy cập tài khoản khi quên mật khẩu |
+| Ghi chú | Cần xác thực bằng OTP trước khi cho phép đặt mật khẩu mới |
+
+##### UC-006: Đổi mật khẩu
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng đã đăng nhập thay đổi mật khẩu hiện tại bằng mật khẩu mới |
+| Mục tiêu | Cập nhật mật khẩu để tăng cường bảo mật tài khoản |
+| Ghi chú | Yêu cầu nhập mật khẩu hiện tại để xác thực |
+
+##### UC-007: Quản lý thông tin cá nhân
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient, Caregiver |
+| Actor phụ | - |
+| Mô tả | Người dùng xem và cập nhật thông tin cá nhân như tên, email, chiều cao, cân nặng, tình trạng bệnh lý |
+| Mục tiêu | Duy trì thông tin cá nhân chính xác và cập nhật trong hệ thống |
+| Ghi chú | Một số thông tin như số điện thoại có thể không được thay đổi |
+
+#### B.2.2 Quản lý thuốc
+
+##### UC-008: Thêm thuốc mới
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng thêm thông tin thuốc mới vào danh sách, bao gồm tên, liều lượng, lịch uống |
+| Mục tiêu | Thiết lập lịch uống thuốc để nhận nhắc nhở tự động |
+| Ghi chú | Hệ thống tự động tạo reminder cho ngày hôm nay nếu phù hợp với tần suất |
+
+##### UC-009: Sửa thông tin thuốc
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng cập nhật thông tin thuốc đã có như tên, liều lượng, lịch uống |
+| Mục tiêu | Điều chỉnh thông tin thuốc khi có thay đổi từ bác sĩ |
+| Ghi chú | Việc sửa có thể ảnh hưởng đến các reminder đã được tạo |
+
+##### UC-010: Xóa thuốc
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xóa thuốc khỏi danh sách khi không còn sử dụng |
+| Mục tiêu | Loại bỏ thuốc không còn cần thiết và dừng các nhắc nhở liên quan |
+| Ghi chú | Xóa thuốc sẽ xóa tất cả reminder liên quan |
+
+##### UC-011: Xem lịch uống thuốc hôm nay
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nếu đã liên kết) |
+| Mô tả | Người dùng xem danh sách tất cả các lần uống thuốc trong ngày, sắp xếp theo giờ |
+| Mục tiêu | Nắm được lịch uống thuốc trong ngày để không bỏ sót |
+| Ghi chú | Hiển thị trên Dashboard, có thể đánh dấu các reminder đã quên |
+
+##### UC-012: Đánh dấu đã uống thuốc
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xác nhận đã uống thuốc đúng giờ hoặc muộn hơn so với lịch |
+| Mục tiêu | Ghi nhận việc tuân thủ uống thuốc và cập nhật trạng thái reminder |
+| Ghi chú | Hệ thống lưu thời gian uống thuốc và hủy các thông báo nhắc nhở còn lại |
+
+##### UC-013: Đánh dấu bỏ qua thuốc
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xác nhận bỏ qua không uống thuốc tại thời điểm đã lên lịch |
+| Mục tiêu | Ghi nhận việc không tuân thủ để theo dõi và phân tích |
+| Ghi chú | Hệ thống cập nhật trạng thái và hủy các thông báo nhắc nhở còn lại |
+
+##### UC-014: Xem danh sách thuốc đã quên
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nếu đã liên kết) |
+| Mô tả | Người dùng xem danh sách các lần uống thuốc đã quá giờ hơn 1 giờ nhưng vẫn chưa uống |
+| Mục tiêu | Nhận biết các lần uống thuốc đã bị quên để có biện pháp xử lý |
+| Ghi chú | Hiển thị tối đa 50 mục, sắp xếp theo giờ giảm dần |
+
+#### B.2.3 Theo dõi sức khỏe
+
+##### UC-015: Ghi nhận bữa ăn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng ghi lại thông tin bữa ăn bao gồm tên món, lượng calo, và có thể lên lịch nhắc nhở |
+| Mục tiêu | Theo dõi chế độ ăn uống và lượng calo nạp vào hàng ngày |
+| Ghi chú | Có thể sử dụng AI để ước tính calo tự động |
+
+##### UC-016: Ghi nhận vận động
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng ghi lại hoạt động vận động bao gồm loại, thời gian, lượng calo tiêu thụ, và có thể lên lịch nhắc nhở |
+| Mục tiêu | Theo dõi mức độ vận động và lượng calo tiêu thụ hàng ngày |
+| Ghi chú | Có thể sử dụng AI để ước tính calo tự động |
+
+##### UC-017: Ghi nhận triệu chứng
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nhận cảnh báo) |
+| Mô tả | Người dùng ghi lại các triệu chứng sức khỏe với tên, mức độ nghiêm trọng (1-10), và ghi chú |
+| Mục tiêu | Theo dõi tình trạng sức khỏe và phát hiện các vấn đề cần chú ý |
+| Ghi chú | Nếu mức độ >= 7, hệ thống tự động tạo cảnh báo cho caregiver |
+
+##### UC-018: Xem nhật ký sức khỏe
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nếu đã liên kết) |
+| Mô tả | Người dùng xem danh sách các bữa ăn, vận động, và triệu chứng đã ghi nhận theo thời gian |
+| Mục tiêu | Xem lại lịch sử hoạt động sức khỏe để phân tích xu hướng |
+| Ghi chú | Có thể lọc theo loại (bữa ăn, vận động, triệu chứng) và khoảng thời gian |
+
+##### UC-019: Sửa thông tin nhật ký
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng chỉnh sửa thông tin bữa ăn, vận động, hoặc triệu chứng đã ghi nhận |
+| Mục tiêu | Sửa lỗi hoặc bổ sung thông tin cho các bản ghi đã tạo |
+| Ghi chú | Có thể sửa tất cả các trường thông tin |
+
+##### UC-020: Xóa nhật ký
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xóa bản ghi bữa ăn, vận động, hoặc triệu chứng khỏi nhật ký |
+| Mục tiêu | Loại bỏ các bản ghi không chính xác hoặc không cần thiết |
+| Ghi chú | Xóa sẽ ảnh hưởng đến thống kê và báo cáo |
+
+#### B.2.4 Quản lý lịch hẹn
+
+##### UC-021: Tạo lịch hẹn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (có thể tạo cho patient) |
+| Mô tả | Người dùng tạo lịch hẹn khám bác sĩ với thông tin bác sĩ, bệnh viện, ngày giờ, và thiết lập thời gian nhắc nhở |
+| Mục tiêu | Quản lý lịch hẹn khám bác sĩ và nhận nhắc nhở trước giờ hẹn |
+| Ghi chú | Mặc định nhắc nhở trước 24 giờ, có thể tùy chỉnh |
+
+##### UC-022: Xem danh sách lịch hẹn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nếu đã liên kết) |
+| Mô tả | Người dùng xem danh sách các lịch hẹn sắp tới hoặc đã hoàn thành, sắp xếp theo ngày |
+| Mục tiêu | Nắm được các lịch hẹn sắp tới để chuẩn bị |
+| Ghi chú | Có thể lọc theo trạng thái: sắp tới, đã hoàn thành |
+
+##### UC-023: Sửa lịch hẹn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (có thể sửa cho patient) |
+| Mô tả | Người dùng cập nhật thông tin lịch hẹn khi có thay đổi |
+| Mục tiêu | Điều chỉnh thông tin lịch hẹn cho chính xác |
+| Ghi chú | Có thể sửa tất cả các trường thông tin |
+
+##### UC-024: Xóa lịch hẹn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xóa lịch hẹn khi không còn cần thiết |
+| Mục tiêu | Loại bỏ lịch hẹn đã hủy hoặc không còn hiệu lực |
+| Ghi chú | Xóa sẽ hủy các thông báo nhắc nhở liên quan |
+
+##### UC-025: Đánh dấu lịch hẹn hoàn thành
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xác nhận đã hoàn thành lịch hẹn khám bác sĩ |
+| Mục tiêu | Cập nhật trạng thái lịch hẹn và lưu lại lịch sử |
+| Ghi chú | Lịch hẹn đã hoàn thành sẽ không hiển thị trong danh sách sắp tới |
+
+#### B.2.5 Trợ lý AI
+
+##### UC-026: Chat với AI
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng trò chuyện với trợ lý AI về các vấn đề sức khỏe và nhận lời khuyên |
+| Mục tiêu | Nhận tư vấn sức khỏe nhanh chóng và phù hợp với tình trạng bệnh lý cá nhân |
+| Ghi chú | AI sử dụng thông tin tình trạng bệnh lý và lịch sử chat để đưa ra lời khuyên phù hợp |
+
+##### UC-027: Ước tính calo
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng nhập tên món ăn hoặc loại vận động, AI ước tính lượng calo và chuẩn hóa tên |
+| Mục tiêu | Tự động tính toán calo để tiết kiệm thời gian nhập liệu |
+| Ghi chú | AI chuẩn hóa tên thành tiếng Việt có dấu đầy đủ |
+
+##### UC-028: Phân tích đơn thuốc
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng cung cấp ảnh đơn thuốc hoặc văn bản, AI trích xuất thông tin thuốc tự động |
+| Mục tiêu | Tự động hóa việc nhập thông tin thuốc từ đơn thuốc để tiết kiệm thời gian |
+| Ghi chú | Người dùng có thể chỉnh sửa thông tin trước khi lưu |
+
+##### UC-029: Nhận diện tình trạng bệnh lý
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng nhập mô tả tình trạng bệnh, AI nhận diện và chuẩn hóa thành tên bệnh tiếng Việt |
+| Mục tiêu | Cập nhật tình trạng bệnh lý một cách chính xác và thống nhất |
+| Ghi chú | AI chuẩn hóa tên bệnh thành tiếng Việt có dấu, sau đó cập nhật vào hồ sơ người dùng |
+
+##### UC-030: Xem gợi ý sức khỏe
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Hệ thống hiển thị các gợi ý về chế độ ăn, vận động, và lối sống dựa trên tình trạng bệnh lý |
+| Mục tiêu | Nhận lời khuyên cá nhân hóa để cải thiện sức khỏe |
+| Ghi chú | Gợi ý được tạo bởi AI dựa trên tình trạng bệnh lý của người dùng |
+
+#### B.2.6 Chức năng Caregiver
+
+##### UC-031: Tạo mã liên kết (Patient)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Patient tạo mã liên kết 6 chữ số để chia sẻ với caregiver, mã này cố định và không thay đổi |
+| Mục tiêu | Cho phép caregiver gửi yêu cầu liên kết để theo dõi sức khỏe |
+| Ghi chú | Mỗi patient chỉ có một mã liên kết duy nhất, mã không thay đổi sau khi tạo |
+
+##### UC-032: Gửi yêu cầu liên kết (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | Patient (nhận yêu cầu) |
+| Mô tả | Caregiver nhập mã liên kết 6 chữ số của patient để gửi yêu cầu liên kết |
+| Mục tiêu | Thiết lập mối quan hệ chăm sóc với patient để theo dõi sức khỏe |
+| Ghi chú | Yêu cầu ở trạng thái "pending" chờ patient chấp nhận |
+
+##### UC-033: Chấp nhận/từ chối yêu cầu (Patient)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nhận kết quả) |
+| Mô tả | Patient xem danh sách yêu cầu liên kết từ caregivers và chấp nhận hoặc từ chối |
+| Mục tiêu | Kiểm soát quyền truy cập của caregiver vào thông tin sức khỏe |
+| Ghi chú | Một patient chỉ có thể liên kết với một caregiver, khi chấp nhận sẽ tự động từ chối các yêu cầu khác |
+
+##### UC-034: Xem danh sách patients (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | - |
+| Mô tả | Caregiver xem danh sách tất cả patients đã liên kết kèm thống kê tỷ lệ tuân thủ, cảnh báo, và trạng thái cần chú ý |
+| Mục tiêu | Nắm được tình trạng tổng quan của tất cả patients để ưu tiên chăm sóc |
+| Ghi chú | Có thể lọc theo: tất cả, cần chú ý, cập nhật gần đây |
+
+##### UC-035: Xem chi tiết patient (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | - |
+| Mô tả | Caregiver xem thông tin chi tiết của một patient bao gồm timeline thuốc, lịch sử, tóm tắt sức khỏe, và lịch hẹn |
+| Mục tiêu | Theo dõi chi tiết tình trạng sức khỏe của patient để có biện pháp chăm sóc phù hợp |
+| Ghi chú | Chỉ có thể xem, không thể sửa hoặc xóa dữ liệu của patient |
+
+##### UC-036: Xem cảnh báo (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | Patient (nguồn cảnh báo) |
+| Mô tả | Caregiver xem danh sách các cảnh báo về tình trạng sức khỏe của patients, có thể đánh dấu đã đọc |
+| Mục tiêu | Nhận biết kịp thời các vấn đề sức khỏe nghiêm trọng của patients |
+| Ghi chú | Cảnh báo được tạo tự động khi patient có triệu chứng mức độ >= 7 |
+
+##### UC-037: Tạo ghi chú chăm sóc (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | - |
+| Mô tả | Caregiver tạo ghi chú về việc chăm sóc patient với nội dung và tags để dễ tìm kiếm |
+| Mục tiêu | Lưu lại thông tin quan trọng về quá trình chăm sóc patient |
+| Ghi chú | Ghi chú chỉ được caregiver tạo ra xem, patient không thể xem |
+
+##### UC-038: Tạo lịch hẹn cho patient (Caregiver)
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Caregiver |
+| Actor phụ | Patient (chủ sở hữu lịch hẹn) |
+| Mô tả | Caregiver tạo lịch hẹn khám bác sĩ cho patient sau khi đã được liên kết |
+| Mục tiêu | Hỗ trợ patient quản lý lịch hẹn khám bác sĩ |
+| Ghi chú | Patient vẫn có thể xem, sửa, xóa lịch hẹn do caregiver tạo |
+
+#### B.2.7 Báo cáo
+
+##### UC-039: Xem báo cáo sức khỏe
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | Caregiver (nếu đã liên kết) |
+| Mô tả | Người dùng xem báo cáo tổng hợp sức khỏe theo các khoảng thời gian khác nhau với các thống kê và biểu đồ |
+| Mục tiêu | Phân tích xu hướng sức khỏe và đánh giá hiệu quả chăm sóc |
+| Ghi chú | Có thể chọn khoảng thời gian: hôm nay, tuần này, tháng này, 7 ngày, 30 ngày |
+
+##### UC-040: Xuất báo cáo PDF
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng xuất báo cáo sức khỏe ra file PDF để lưu trữ hoặc chia sẻ |
+| Mục tiêu | Lưu trữ báo cáo dưới dạng file để tham khảo sau hoặc chia sẻ với bác sĩ |
+| Ghi chú | File PDF bao gồm thông tin người dùng, kỳ báo cáo, và các thống kê chính |
+
+##### UC-041: Phân tích báo cáo bằng AI
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng yêu cầu AI phân tích báo cáo sức khỏe và đưa ra lưu ý về ăn uống, vận động, và triệu chứng |
+| Mục tiêu | Nhận lời khuyên chuyên sâu dựa trên dữ liệu sức khỏe thực tế |
+| Ghi chú | Kết quả phân tích được cache trong 12 giờ để tránh gọi lại nhiều lần |
+
+#### B.2.8 Thư giãn
+
+##### UC-042: Nghe nhạc thư giãn
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng chọn và phát các bản nhạc thư giãn (Chill, Rain, Forest, Sea) để thư giãn |
+| Mục tiêu | Giảm căng thẳng và cải thiện tinh thần thông qua âm nhạc |
+| Ghi chú | Hệ thống ghi nhận thời gian nghe và lưu vào nhật ký wellness |
+
+##### UC-043: Thực hiện bài tập thở
+
+| Thuộc tính | Mô tả |
+|-----------|------|
+| Actor chính | Patient |
+| Actor phụ | - |
+| Mô tả | Người dùng thực hiện bài tập thở theo hướng dẫn của ứng dụng |
+| Mục tiêu | Thư giãn và cải thiện sức khỏe tinh thần thông qua bài tập thở |
+| Ghi chú | Hệ thống ghi nhận thời gian thực hiện và lưu vào nhật ký wellness |
 
 ### B.3 Luồng Nghiệp vụ Chính
 
