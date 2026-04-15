@@ -8,6 +8,7 @@ const HealthLog = require('../models/HealthLog');
 const WellnessLog = require('../models/WellnessLog');
 const Medication = require('../models/Medication');
 const PDFDocument = require('pdfkit');
+const path = require('path');
 const User = require('../models/User');
 
 /**
@@ -288,6 +289,17 @@ const exportPDF = async (req, res) => {
     // Create PDF
     const doc = new PDFDocument({ margin: 50 });
     
+    // Register Custom Fonts for Vietnamese Support
+    try {
+      const fontRegular = path.join(__dirname, '..', 'assets', 'fonts', 'Arial-Regular.ttf');
+      const fontBold = path.join(__dirname, '..', 'assets', 'fonts', 'Arial-Bold.ttf');
+      doc.registerFont('CustomRegular', fontRegular);
+      doc.registerFont('CustomBold', fontBold);
+      doc.font('CustomRegular');
+    } catch (fontErr) {
+      console.warn('[EXPORT PDF] Could not load custom fonts:', fontErr.message);
+    }
+
     // Set response headers
     const filename = `BaoCao_${range}_${new Date().toISOString().split('T')[0]}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
@@ -304,105 +316,91 @@ const exportPDF = async (req, res) => {
       return `${day}/${month}/${year}`;
     };
     
-    // Header
-    doc.fontSize(20).text('BÁO CÁO SỨC KHỎE', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(12);
-    doc.text(`Người bệnh: ${user.name}`, { align: 'center' });
-    doc.text(`SĐT: ${user.phone}`, { align: 'center' });
-    if (user.medicalCondition && user.medicalCondition !== 'Normal') {
-      doc.text(`Tình trạng: ${user.medicalCondition}`, { align: 'center' });
-    }
-    doc.moveDown(0.5);
+    // Header Banner
+    doc.rect(0, 0, doc.page.width, 100).fill('#1E40AF'); // Dark Blue background
+    doc.fillColor('#FFFFFF').font('CustomBold').fontSize(22).text('BÁO CÁO SỨC KHỎE ĐIỆN TỬ', 0, 40, { align: 'center' });
     
+    // Patient Info Box
+    doc.moveDown(3);
+    const boxTop = 120;
+    doc.roundedRect(50, boxTop, doc.page.width - 100, 90, 8).fillAndStroke('#F3F4F6', '#E5E7EB');
+    
+    const infoY = boxTop + 15;
+    doc.fillColor('#111827').font('CustomRegular').fontSize(12);
+    doc.text(`Tên bệnh nhân:`, 70, infoY).font('CustomBold').text(user.name, 165, infoY);
+    doc.font('CustomRegular').text(`Điện thoại:`, 70, infoY + 25).font('CustomBold').text(user.phone, 165, infoY + 25);
+    doc.font('CustomRegular').text(`Tình trạng:`, 70, infoY + 50).font('CustomBold').text(user.medicalCondition || 'Bình thường', 165, infoY + 50);
+
     const rangeLabel = range === 'today' ? 'Hôm nay' : range === 'week' ? 'Tuần này' : range === 'month' ? 'Tháng này' : `${range}`;
-    doc.text(`Kỳ báo cáo: ${rangeLabel}`, { align: 'center' });
-    doc.text(`Từ: ${formatDateStr(startDate)} - Đến: ${formatDateStr(endDate)}`, { align: 'center' });
-    doc.moveDown(1);
+    doc.font('CustomRegular').text(`Kỳ báo cáo:`, 320, infoY).font('CustomBold').text(rangeLabel, 410, infoY);
+    doc.font('CustomRegular').text(`Từ ngày:`, 320, infoY + 25).font('CustomBold').text(formatDateStr(startDate), 410, infoY + 25);
+    doc.font('CustomRegular').text(`Đến ngày:`, 320, infoY + 50).font('CustomBold').text(formatDateStr(endDate), 410, infoY + 50);
+
+    doc.y = boxTop + 110;
+
+    const drawSectionHeader = (title) => {
+        doc.moveDown(1.5);
+        doc.fillColor('#1E40AF').font('CustomBold').fontSize(14).text(title, 50, doc.y);
+        doc.y += 8;
+        doc.lineWidth(1).strokeColor('#E5E7EB').moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
+        doc.moveDown(0.8);
+        doc.fillColor('#374151').font('CustomRegular').fontSize(12);
+        doc.x = 50;
+    };
 
     // Medication Adherence
-    doc.fontSize(16).text('1. TUÂN THỦ UỐNG THUỐC', { underline: true });
+    drawSectionHeader('1. KẾT QUẢ TUÂN THỦ UỐNG THUỐC');
+    doc.text(`• Tổng số liều cần uống: ${totalReminders}`);
     doc.moveDown(0.3);
-    doc.fontSize(12);
+    doc.text(`• Đã uống đúng giờ: ${takenReminders} liều `).font('CustomBold').fillColor(adherenceRate > 70 ? '#10B981' : '#EF4444').text(`(Đạt ${adherenceRate}%)`, { continued: false }).font('CustomRegular').fillColor('#374151');
     
-    // Create table for medication adherence
-    const tableTop = doc.y;
-    const tableLeft = 50;
-    const colWidth = 120;
-    const rowHeight = 20;
-    
-    // Table header
-    doc.fontSize(12).font('Helvetica-Bold');
-    doc.text('Tổng', tableLeft, tableTop);
-    doc.text('Đã uống', tableLeft + colWidth, tableTop);
-    doc.text('Tỷ lệ tuân thủ', tableLeft + colWidth * 2, tableTop);
-    
-    // Table data
-    doc.font('Helvetica');
-    doc.text(`${totalReminders}`, tableLeft, tableTop + rowHeight);
-    doc.text(`${takenReminders}`, tableLeft + colWidth, tableTop + rowHeight);
-    doc.text(`${adherenceRate}%`, tableLeft + colWidth * 2, tableTop + rowHeight);
-    
-    doc.y = tableTop + rowHeight * 2;
-    doc.moveDown(1);
-
     // Health Stats
-    doc.fontSize(16).text('2. THỐNG KÊ SỨC KHỎE', { underline: true });
+    drawSectionHeader('2. THỐNG KÊ LƯỢNG CALO & VẬN ĐỘNG');
+    doc.text(`• Tổng calo nạp vào (Ăn uống): ${totalCaloriesIn} kcal`);
     doc.moveDown(0.3);
-    doc.fontSize(12);
-    doc.text(`Tổng calo nạp vào: ${totalCaloriesIn} kcal`);
-    doc.text(`Tổng calo tiêu thụ: ${totalCaloriesOut} kcal`);
+    doc.text(`• Tổng calo tiêu thụ (Tập luyện): ${totalCaloriesOut} kcal`);
+    doc.moveDown(0.3);
     const calorieBalance = totalCaloriesIn - totalCaloriesOut;
-    doc.text(`Cân bằng calo: ${calorieBalance} kcal`);
-    doc.moveDown(1);
+    doc.text(`• Cân bằng calo thực tế: `).font('CustomBold').fillColor('#1E40AF').text(`${calorieBalance > 0 ? '+' : ''}${calorieBalance} kcal`).font('CustomRegular').fillColor('#374151');
 
-    // Meals (section 4, skip section 3)
+    // Meals 
     if (meals.length > 0) {
-      doc.fontSize(16).text('4. BỮA ĂN', { underline: true });
-      doc.moveDown(0.3);
-      doc.fontSize(12);
+      drawSectionHeader('3. CHI TIẾT BỮA ĂN GẦN ĐÂY');
       const mealsByDate = {};
       meals.forEach(meal => {
-        if (!mealsByDate[meal.date]) {
-          mealsByDate[meal.date] = [];
-        }
+        if (!mealsByDate[meal.date]) mealsByDate[meal.date] = [];
         mealsByDate[meal.date].push(meal);
       });
-      Object.keys(mealsByDate).sort().reverse().slice(0, 10).forEach(date => {
-        // Format date as DD/MM/YYYY
+      
+      let count = 0;
+      Object.keys(mealsByDate).sort().reverse().forEach(date => {
+        if (count >= 5) return;
         const [year, month, day] = date.split('-');
-        const formattedDate = `${day}/${month}/${year}`;
-        doc.text(`Ngày ${formattedDate}:`);
+        doc.font('CustomBold').fillColor('#111827').text(`Ngày ${day}/${month}/${year}:`);
+        doc.moveDown(0.2);
         mealsByDate[date].forEach(meal => {
-          // Format: "-FoodName: calories kcal" (exactly like screenshot)
-          const foodText = meal.foodName || 'Bữa ăn';
-          doc.text(`-${foodText}: ${meal.calories} kcal`, { indent: 20 });
+          doc.font('CustomRegular').fillColor('#4B5563').text(`   - ${meal.foodName || 'Bữa ăn'}: ${meal.calories} kcal`);
         });
+        doc.moveDown(0.5);
+        count++;
       });
-      doc.moveDown(1);
     }
 
-    // Wellness (section 6, skip section 5 if no symptoms)
+    // Wellness 
     if (wellnessLogs.length > 0) {
-      doc.fontSize(16).text('6. THƯ GIÃN', { underline: true });
+      drawSectionHeader('4. HOẠT ĐỘNG THƯ GIÃN TINH THẦN');
+      doc.text(`• Số phiên thư giãn: ${wellnessLogs.length}`);
       doc.moveDown(0.3);
-      doc.fontSize(12);
-      doc.text(`Tổng thời gian: ${Math.round(totalSeconds / 60)} phút`);
-      doc.text(`Số lần: ${wellnessLogs.length}`);
-      doc.moveDown(1);
+      doc.text(`• Tổng thời gian: ${Math.round(totalSeconds / 60)} phút`);
     }
 
     // Footer
     const now = new Date();
-    const formatTime = (date) => {
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${hours}:${minutes}:${seconds}`;
-    };
-    doc.fontSize(10).text(
-      `Xuất báo cáo ngày: ${formatTime(now)} ${formatDateStr(now)}`,
-      { align: 'center' }
+    const formatTime = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    doc.rect(0, doc.page.height - 40, doc.page.width, 40).fill('#F3F4F6');
+    doc.fillColor('#9CA3AF').fontSize(10).text(
+      `Trích xuất tự động từ hệ thống SmartCare lúc ${formatTime(now)} ngày ${formatDateStr(now)}`,
+      0, doc.page.height - 25, { align: 'center' }
     );
 
     // Finalize PDF

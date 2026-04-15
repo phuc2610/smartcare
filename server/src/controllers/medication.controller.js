@@ -15,8 +15,11 @@ const createMedicationSchema = z.object({
     unit: z.string().default('mg'),
     notes: z.string().optional(),
     frequency: z.enum(['DAILY', 'EVERY_OTHER_DAY']),
-    times: z.array(z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)), // Format HH:mm
+    sessions: z.array(z.enum(['MORNING', 'NOON', 'EVENING'])).optional(),
+    mealTiming: z.enum(['BEFORE_MEAL', 'AFTER_MEAL', 'NONE']).optional(),
+    times: z.array(z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)).optional(), // Format HH:mm
     startDate: z.string().datetime(),
+    endDate: z.string().datetime().optional().nullable(),
   }),
 });
 
@@ -26,7 +29,7 @@ const createMedicationSchema = z.object({
  */
 const createMedication = async (req, res) => {
   try {
-    const { name, dosage, unit, notes, frequency, times, startDate } = req.body;
+    const { name, dosage, unit, notes, frequency, sessions, mealTiming, times, startDate, endDate } = req.body;
 
     // Tạo medication mới với userId từ JWT token
     const medication = await Medication.create({
@@ -36,8 +39,11 @@ const createMedication = async (req, res) => {
       unit: unit || 'mg',
       notes: notes || '',
       frequency,
-      times,
+      sessions: sessions || [],
+      mealTiming: mealTiming || 'NONE',
+      times: times || [],
       startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : null,
     });
 
     // Tự động tạo reminders cho hôm nay dựa trên frequency và times
@@ -200,6 +206,15 @@ const deleteReminder = async (req, res) => {
 const generateRemindersForMedication = async (medication) => {
   const today = new Date();
   const startDate = new Date(medication.startDate);
+  
+  // Dừng tạo nhắc nhở nếu ngày hiện tại đã vượt qua ngày kết thúc
+  if (medication.endDate) {
+    const endDate = new Date(medication.endDate);
+    endDate.setHours(23, 59, 59, 999);
+    if (today > endDate) {
+      return; 
+    }
+  }
 
   // Xác định có nên tạo reminder hôm nay không
   let shouldSchedule = false;
@@ -213,11 +228,31 @@ const generateRemindersForMedication = async (medication) => {
     shouldSchedule = diffDays % 2 === 0;
   }
 
-  // Nếu cần tạo reminder, duyệt qua tất cả các giờ trong times
-  if (shouldSchedule) {
+  // Xác định mảng times/sessions cuối cùng để loop
+  const User = require('../models/User');
+  const userObj = await User.findById(medication.userId);
+  const prefs = userObj?.medicationTimes || { morning: '08:00', noon: '12:00', evening: '20:00' };
+
+  let creationTargets = []; // Array of { timeStr, session }
+  
+  if (medication.sessions && medication.sessions.length > 0) {
+    for (const session of medication.sessions) {
+      if (session === 'MORNING') creationTargets.push({ timeStr: prefs.morning, session: 'MORNING' });
+      if (session === 'NOON') creationTargets.push({ timeStr: prefs.noon, session: 'NOON' });
+      if (session === 'EVENING') creationTargets.push({ timeStr: prefs.evening, session: 'EVENING' });
+    }
+  } else if (medication.times && medication.times.length > 0) {
+    // Fallback for explicitly specified times
     for (const timeStr of medication.times) {
+      creationTargets.push({ timeStr, session: 'CUSTOM' });
+    }
+  }
+
+  // Nếu cần tạo reminder, duyệt qua tất cả các giờ đã map
+  if (shouldSchedule && creationTargets.length > 0) {
+    for (const target of creationTargets) {
       // Parse giờ và phút từ string "HH:mm"
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [hours, minutes] = target.timeStr.split(':').map(Number);
       const scheduleDate = new Date(today);
       scheduleDate.setHours(hours, minutes, 0, 0);
 
@@ -236,6 +271,8 @@ const generateRemindersForMedication = async (medication) => {
           unit: medication.unit,
           scheduledTime: scheduleDate,
           status: 'PENDING',
+          mealTiming: medication.mealTiming || 'NONE',
+          session: target.session,
           isSynced: true,
           lastUpdated: new Date(),
         });
@@ -283,6 +320,7 @@ module.exports = {
   getMissedMedications,
   createMedicationSchema,
   updateReminderSchema,
+  generateRemindersForMedication,
 };
 
 

@@ -34,3 +34,34 @@ export const updateNotificationSettings = async (
   return result.data;
 };
 
+export interface MedicationTimes {
+  morning: string;
+  noon: string;
+  evening: string;
+}
+
+export const getMedicationTimes = async (): Promise<{ medicationTimes: MedicationTimes }> => {
+  const result = await api.get<{ medicationTimes: MedicationTimes }>('/api/settings/medication-times');
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Get medication times failed');
+  }
+
+  return result.data;
+};
+
+export const updateMedicationTimes = async (
+  times: MedicationTimes
+): Promise<{ medicationTimes: MedicationTimes }> => {
+  const result = await api.patch<{ medicationTimes: MedicationTimes }>(
+    '/api/settings/medication-times',
+    times
+  );
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Update medication times failed');
+  }
+
+  return result.data;
+};
+

@@ -5,10 +5,15 @@ const medicationSchema = new mongoose.Schema({
   name: { type: String, required: true },
   dosage: { type: String, required: true },
   unit: { type: String, default: 'mg' },
-  notes: { type: String, default: '' },
+  notes: { type: String, default: null },
+  isActive: { type: Boolean, default: true },
+  prescribedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   frequency: { type: String, enum: ['DAILY', 'EVERY_OTHER_DAY'], required: true },
-  times: [{ type: String }], // Array of "HH:mm"
+  sessions: [{ type: String, enum: ['MORNING', 'NOON', 'EVENING'] }],
+  mealTiming: { type: String, enum: ['BEFORE_MEAL', 'AFTER_MEAL', 'NONE'], default: 'NONE' },
+  times: [{ type: String }], // Array of "HH:mm" - Fallback for older apps or custom exact times
   startDate: { type: Date, required: true },
+  endDate: { type: Date, default: null },
 }, {
   timestamps: true,
 });

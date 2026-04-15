@@ -14,7 +14,7 @@ const registerSchema = z.object({
     name: z.string().min(1),
     phone: z.string().regex(/^(84|0[3|5|7|8|9])+([0-9]{8})\b/),
     password: z.string().min(6),
-    role: z.enum(['PATIENT', 'CAREGIVER']),
+    role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
   }),
 });
 

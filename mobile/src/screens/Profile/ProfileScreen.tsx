@@ -6,6 +6,7 @@ import { updateProfile as updateProfileAPI } from '../../services/user.service';
 import { uploadImage } from '../../services/upload.service';
 import { identifyDisease } from '../../services/ai.service';
 import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
+import { linkDoctor, getMyDoctors, revokeDoctor } from '../../services/doctor.service';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Avatar } from '../../components/Avatar';
@@ -27,6 +28,23 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [inputCode, setInputCode] = useState('');
   const [linkSuccessMsg, setLinkSuccessMsg] = useState('');
+  
+  // Doctor link states
+  const [doctorCode, setDoctorCode] = useState('');
+  const [linkDoctorLoading, setLinkDoctorLoading] = useState(false);
+  const [doctorLinkMsg, setDoctorLinkMsg] = useState('');
+  const [myDoctors, setMyDoctors] = useState<any[]>([]);
+
+  const fetchMyDoctors = async () => {
+    try {
+      if (user?.role === UserRole.PATIENT) {
+        const res = await getMyDoctors();
+        setMyDoctors(res.doctors || []);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch doctors', err);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -52,6 +70,8 @@ export const ProfileScreen = ({ navigation, route }: any) => {
         // Caregiver should not have medical condition
         setConditionInput('');
       }
+      
+      fetchMyDoctors();
     }
   }, [user]);
 
@@ -230,6 +250,40 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     }
   };
 
+  const handleLinkDoctor = async () => {
+    if (!user || !doctorCode) return;
+    setLinkDoctorLoading(true);
+    try {
+      const res = await linkDoctor(doctorCode);
+      showInfo('Kết nối thành công', `Đã liên kết với bác sĩ ${res.doctor.name}`);
+      setDoctorCode('');
+      fetchMyDoctors();
+    } catch (error: any) {
+      Alert.alert('Lỗi', error.message || 'Không thể liên kết bác sĩ');
+    } finally {
+      setLinkDoctorLoading(false);
+    }
+  };
+
+  const handleRevokeDoctor = async (doctorId: string) => {
+    Alert.alert('Thu hồi quyền', 'Bạn có chắc chắn muốn ngừng chia sẻ hồ sơ với bác sĩ này?', [
+      { text: 'Hủy', style: 'cancel' },
+      { 
+        text: 'Đồng ý',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await revokeDoctor(doctorId);
+            showInfo('Thành công', 'Đã thu hồi quyền truy cập của bác sĩ này');
+            fetchMyDoctors();
+          } catch (e: any) {
+             Alert.alert('Lỗi', e.message || 'Không thể thu hồi quyền');
+          }
+        }
+      }
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
@@ -380,7 +434,52 @@ export const ProfileScreen = ({ navigation, route }: any) => {
               </View>
             )}
           </View>
-        ) : (
+        ) : null}
+
+        {user?.role === UserRole.PATIENT ? (
+          <View style={styles.linkCard}>
+            <Text style={styles.linkTitle}>🩺 Bác sĩ của tôi</Text>
+            <Text style={styles.linkSubtitle}>
+              Nhập mã định danh của bác sĩ chuyên khoa hoặc phòng khám để liên kết số liệu y tế.
+            </Text>
+            
+            <TextInput
+              style={styles.linkInput}
+              placeholder="Mã bác sĩ (VD: ABCD123)"
+              value={doctorCode}
+              onChangeText={setDoctorCode}
+              autoCapitalize="characters"
+              textAlign="center"
+            />
+
+            <TouchableOpacity
+              style={[styles.linkButton, (!doctorCode) && styles.linkButtonDisabled]}
+              onPress={handleLinkDoctor}
+              disabled={linkDoctorLoading || !doctorCode}
+            >
+              <Text style={styles.linkButtonText}>
+                {linkDoctorLoading ? 'Đang kết nối...' : 'Trao quyền truy cập'}
+              </Text>
+            </TouchableOpacity>
+
+            {myDoctors.length > 0 && (
+              <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Danh sách Bác sĩ Đang kết nối</Text>
+                {myDoctors.map((doc: any, index: number) => (
+                  <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, marginBottom: 8 }}>
+                    <View>
+                      <Text style={{ fontWeight: '600', color: COLORS.text, fontSize: 16 }}>BS. {doc.name}</Text>
+                      <Text style={{ fontSize: 13, color: COLORS.textLight, marginTop: 2 }}>{doc.specialty}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleRevokeDoctor(doc.doctorId)} style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                      <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '500' }}>Huỷ</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : user?.role === UserRole.CAREGIVER ? (
           <View style={styles.linkCard}>
             <Text style={styles.linkTitle}>🔗 Kết nối người bệnh</Text>
             <Text style={styles.linkSubtitle}>
@@ -415,7 +514,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
               </>
             )}
           </View>
-        )}
+        ) : null}
       </View>
 
       <TouchableOpacity

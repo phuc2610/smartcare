@@ -18,7 +18,7 @@ import { Screen } from '../../ui/Screen';
 import { Button } from '../../ui/Button';
 import { AppHeader } from '../../components/AppHeader';
 import { Logo } from '../../components/Logo';
-import { getNotificationSettings, updateNotificationSettings } from '../../services/settings.service';
+import { getNotificationSettings, updateNotificationSettings, getMedicationTimes, updateMedicationTimes, MedicationTimes } from '../../services/settings.service';
 
 interface NotificationSettings {
   medicationReminderBefore: number;
@@ -42,8 +42,15 @@ export const SettingsScreen = () => {
     exerciseEnabled: true,
   });
 
+  const [medTimes, setMedTimes] = useState<MedicationTimes>({
+    morning: '08:00',
+    noon: '12:00',
+    evening: '20:00',
+  });
+
   useEffect(() => {
     loadSettings();
+    loadMedTimes();
   }, []);
 
   const loadSettings = async () => {
@@ -64,11 +71,23 @@ export const SettingsScreen = () => {
     }
   };
 
+  const loadMedTimes = async () => {
+    try {
+      const data = await getMedicationTimes();
+      if (data.medicationTimes) {
+        setMedTimes(data.medicationTimes);
+      }
+    } catch (error) {
+      console.error('Failed to load medication times:', error);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
       await updateNotificationSettings(settings);
-      Alert.alert('Thành công', 'Đã lưu cài đặt thông báo');
+      await updateMedicationTimes(medTimes);
+      Alert.alert('Thành công', 'Đã lưu cài đặt thông báo và giờ uống thuốc');
     } catch (error: any) {
       Alert.alert('Lỗi', error?.message || 'Không thể lưu cài đặt');
     } finally {
@@ -239,6 +258,85 @@ export const SettingsScreen = () => {
                 max={60}
               />
             )}
+          </Card>
+        </View>
+
+        {/* Giờ uống thuốc theo buổi */}
+        <View style={styles.section}>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            💊 Giờ uống thuốc theo Buổi
+          </Text>
+          <Card style={styles.card}>
+            <Text variant="caption" color="textSecondary" style={{ marginBottom: SPACING.md }}>
+              Bác sĩ sẽ kê thuốc theo buổi (Sáng, Trưa, Tối). Bạn có thể tuỳ chỉnh giờ uống cụ thể phù hợp với lối sống của mình.
+            </Text>
+            
+            {/* Buổi Sáng */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
+                  <Icon name="wb-sunny" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Sáng</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 06:00 – 09:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.morning}
+                onChangeText={(text) => setMedTimes({ ...medTimes, morning: text })}
+                placeholder="08:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Buổi Trưa */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FFEDD5' }]}>
+                  <Icon name="wb-cloudy" size={20} color="#F97316" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Trưa</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 10:00 – 13:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.noon}
+                onChangeText={(text) => setMedTimes({ ...medTimes, noon: text })}
+                placeholder="12:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Buổi Tối */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#E0E7FF' }]}>
+                  <Icon name="nightlight-round" size={20} color="#6366F1" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Tối</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 17:00 – 21:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.evening}
+                onChangeText={(text) => setMedTimes({ ...medTimes, evening: text })}
+                placeholder="20:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
           </Card>
         </View>
 

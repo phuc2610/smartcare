@@ -29,36 +29,12 @@ const chat = async (req, res) => {
     
     // Create context-specific instructions based on medical condition
     let conditionContext = '';
-    if (medicalCondition === 'Diabetes') {
-      conditionContext = `Người dùng đang mắc bệnh TIỂU ĐƯỜNG. Khi trả lời, bạn cần:
-      - Tư vấn về chế độ ăn uống phù hợp với bệnh tiểu đường (hạn chế đường, tinh bột, tăng cường rau xanh)
-      - Khuyến khích vận động nhẹ nhàng, đều đặn
-      - Nhắc nhở về việc kiểm tra đường huyết thường xuyên
-      - Tránh các thực phẩm có chỉ số đường huyết cao
-      - Tư vấn về dấu hiệu hạ đường huyết và cách xử lý`;
-    } else if (medicalCondition === 'Hypertension') {
-      conditionContext = `Người dùng đang mắc bệnh TĂNG HUYẾT ÁP. Khi trả lời, bạn cần:
-      - Tư vấn về chế độ ăn ít muối, ít chất béo
-      - Khuyến khích vận động vừa phải, tránh gắng sức
-      - Nhắc nhở về việc đo huyết áp thường xuyên
-      - Tránh stress, giữ tinh thần thoải mái
-      - Hạn chế rượu bia, thuốc lá`;
-    } else if (medicalCondition === 'Obesity') {
-      conditionContext = `Người dùng đang mắc bệnh BÉO PHÌ. Khi trả lời, bạn cần:
-      - Tư vấn về chế độ ăn giảm calo, tăng cường protein và chất xơ
-      - Khuyến khích vận động đều đặn, tăng dần cường độ
-      - Tư vấn về cách theo dõi cân nặng
-      - Tránh các thực phẩm nhiều đường, chất béo
-      - Khuyến khích thay đổi lối sống từ từ, bền vững`;
-    } else if (medicalCondition === 'Gastritis') {
-      conditionContext = `Người dùng đang mắc bệnh VIÊM DẠ DÀY. Khi trả lời, bạn cần:
-      - Tư vấn về chế độ ăn nhẹ, dễ tiêu, tránh đồ cay nóng, chua
-      - Khuyến khích ăn nhiều bữa nhỏ, không để bụng đói
-      - Tránh rượu bia, cà phê, thuốc lá
-      - Tư vấn về cách giảm stress vì stress ảnh hưởng đến dạ dày
-      - Nhắc nhở về việc uống thuốc đúng giờ nếu có`;
-    } else if (medicalCondition === 'Other') {
-      conditionContext = `Người dùng có tình trạng bệnh lý khác. Hãy tư vấn một cách cẩn thận và khuyến khích tham khảo ý kiến bác sĩ.`;
+    if (medicalCondition && medicalCondition !== 'Normal' && medicalCondition !== 'Bình thường' && medicalCondition !== 'None specified') {
+      conditionContext = `Người dùng đang mắc bệnh hoặc có tình trạng: ${medicalCondition}. Khi trả lời, bạn cần:
+      - Tư vấn chế độ ăn uống, vận động và nghỉ ngơi ĐẶC THÙ phù hợp với bệnh "${medicalCondition}".
+      - Cảnh báo các thực phẩm, thói quen xấu cần tránh đối với người mắc bệnh này.
+      - Nhắc nhở việc theo dõi các chỉ số sức khỏe liên quan (nếu có).
+      - Áp dụng các kiến thức y khoa chuẩn xác, chi tiết về "${medicalCondition}" để đưa ra lời khuyên.`;
     } else {
       conditionContext = `Người dùng chưa có tình trạng bệnh lý cụ thể. Tư vấn về sức khỏe tổng quát và phòng ngừa bệnh.`;
     }
@@ -281,16 +257,11 @@ const identifyDisease = async (req, res) => {
 Input người dùng: "${input}"
 
 QUY TẮC:
-- Nếu input mô tả về bệnh tiểu đường, đường huyết cao, đái tháo đường → trả về: "Tiểu đường"
-- Nếu input mô tả về tăng huyết áp, cao huyết áp, huyết áp cao → trả về: "Tăng huyết áp"
-- Nếu input mô tả về béo phì, thừa cân, béo → trả về: "Béo phì"
-- Nếu input mô tả về viêm dạ dày, đau dạ dày, dạ dày → trả về: "Viêm dạ dày"
-- Nếu input mô tả về mỡ máu cao, rối loạn mỡ máu, cholesterol cao → trả về: "Rối loạn mỡ máu"
-- Nếu input mô tả về tim mạch, bệnh tim → trả về: "Bệnh tim mạch"
-- Nếu input mô tả về hen suyễn, khó thở → trả về: "Hen suyễn"
-- Nếu input mô tả về viêm khớp, đau khớp → trả về: "Viêm khớp"
-- Nếu input mô tả về bệnh khác, hãy trả về TÊN BỆNH/TÌNH TRẠNG bằng TIẾNG VIỆT CÓ DẤU CHUẨN (tối đa 50 ký tự)
-- Nếu input rỗng, không rõ ràng, hoặc không có bệnh → trả về: "Bình thường"
+- Có khả năng nhận diện TẤT CẢ các loại bệnh từ phổ biến đến hiếm gặp (Tiểu đường, Gút, Xương khớp, Tim mạch, Dạ dày, Ung thư, Hô hấp, Tâm lý...).
+- Chuẩn hóa các từ lóng/mô tả thành TÊN BỆNH CHÍNH THỨC y khoa (ví dụ: "đau bao tử" -> "Viêm dạ dày", "đường cao" -> "Tiểu đường").
+- Nếu người dùng kể nhiều bệnh, hãy liệt kê chúng ngăn cách bằng dấu phẩy (ví dụ: "Tiểu đường, Bệnh Gút, Tăng huyết áp").
+- Trả về danh sách bệnh bằng TIẾNG VIỆT CÓ DẤU CHUẨN (tối đa 50 ký tự).
+- Nếu input rỗng, không rõ ràng, hoặc chỉ là chào hỏi → trả về: "Bình thường".
 
 QUAN TRỌNG:
 - LUÔN trả về bằng TIẾNG VIỆT CÓ DẤU ĐẦY ĐỦ
@@ -320,7 +291,7 @@ Trả về JSON với format: {"condition": "Tên bệnh/tình trạng bằng ti
   } catch (error) {
     console.error('Disease Identify Error:', error);
     // Fallback: return normalized input
-    const normalizedInput = normalizeCondition(input);
+    const normalizedInput = normalizeCondition(req.body?.input);
     res.json({ condition: normalizedInput });
   }
 };
@@ -390,6 +361,12 @@ const getHealthRecommendations = async (req, res) => {
 
     const prompt = `You are a health expert. Generate 2-3 personalized health recommendations for a Vietnamese patient with medical condition: "${medicalCondition}".
 
+CRITICAL REQUIREMENTS FOR DIVERSITY:
+- Provide UNIQUE, UNCOMMON, but scientifically accurate health tips.
+- DO NOT repeat common cliches (like generic "drink 2L water" or "eat vegetables") unless deeply tailored to the condition in a novel way.
+- Vary the categories (DIET, EXERCISE, LIFESTYLE, MENTAL_HEALTH, SLEEP).
+- Ensure high diversity for every request! (Random seed: ${Math.random()})
+
 Requirements:
 - Recommendations should be specific, actionable, and suitable for Vietnamese patients
 - Each recommendation should have: type (DIET, EXERCISE, or LIFESTYLE), title (short, clear), description (detailed, practical)
@@ -416,6 +393,7 @@ Example format:
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       max_tokens: 600,
+      temperature: 0.9,
     });
 
     const result = JSON.parse(completion.choices[0].message.content);

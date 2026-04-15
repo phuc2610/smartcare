@@ -5,10 +5,10 @@ import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 import { logWellnessSession } from '../../services/wellness.service';
 import { COLORS } from '../../utils/constants';
 
-const RainSound = require('../../assets/Rain.mp3');
-const SeaSound = require('../../assets/see.mp3');
-const ChillSound = require('../../assets/Chill.mp3');
-const ForestSound = require('../../assets/Forest.mp3');
+const RainSound = require('../../assets/tieng_mua_roi.mp3');
+const SeaSound = require('../../assets/tieng_song_bien.mp3');
+const ChillSound = require('../../assets/piano.mp3');
+const ForestSound = require('../../assets/rung_cay.mp3');
 
 const SOUND_LIBRARY = [
   { id: 'rain', title: 'Mưa Rơi', uri: RainSound },

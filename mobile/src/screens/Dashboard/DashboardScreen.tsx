@@ -665,7 +665,11 @@ const TaskItem: React.FC<TaskItemProps> = ({
         hour: '2-digit',
         minute: '2-digit',
       });
-      return `${time} • ${reminder.dosage} ${reminder.unit}`;
+      const sessionLabels: Record<string, string> = { MORNING: '☀️ Sáng', NOON: '🌤️ Trưa', EVENING: '🌙 Tối' };
+      const mealLabels: Record<string, string> = { BEFORE_MEAL: '🍽️ Trước ăn', AFTER_MEAL: '✅ Sau ăn no' };
+      const sessionStr = (reminder as any).session && sessionLabels[(reminder as any).session] ? ` • ${sessionLabels[(reminder as any).session]}` : '';
+      const mealStr = (reminder as any).mealTiming && mealLabels[(reminder as any).mealTiming] ? ` • ${mealLabels[(reminder as any).mealTiming]}` : '';
+      return `${time} • ${reminder.dosage} ${reminder.unit}${sessionStr}${mealStr}`;
     }
     const healthLog = item as HealthLog;
     if (healthLog.type === 'meal') {
