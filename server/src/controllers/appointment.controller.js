@@ -91,20 +91,19 @@ const createAppointment = async (req, res) => {
 const getAppointments = async (req, res) => {
   try {
     const { upcoming, completed } = req.query;
-    const query = { userId: req.user._id }; // Chỉ lấy appointments của user hiện tại
+    const query = { userId: req.user._id };
 
-    // Nếu query upcoming=true: chỉ lấy appointments chưa hoàn thành và chưa đến ngày
     if (upcoming === 'true') {
       query.isCompleted = false;
-      query.appointmentDate = { $gte: new Date() };
-    } 
-    // Nếu query completed=true: chỉ lấy appointments đã hoàn thành
-    else if (completed === 'true') {
+      // Dùng đầu ngày hôm nay (UTC+7 = UTC-7h) để tránh mất lịch do lệch múi giờ
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      startOfToday.setTime(startOfToday.getTime() - 7 * 60 * 60 * 1000); // UTC offset VN
+      query.appointmentDate = { $gte: startOfToday };
+    } else if (completed === 'true') {
       query.isCompleted = true;
     }
-    // Nếu không có query: lấy tất cả
 
-    // Lấy appointments và sắp xếp theo ngày tăng dần
     const appointments = await Appointment.find(query)
       .sort({ appointmentDate: 1 });
 

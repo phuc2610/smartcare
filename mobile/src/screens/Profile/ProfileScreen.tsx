@@ -469,7 +469,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
                   <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, marginBottom: 8 }}>
                     <View>
                       <Text style={{ fontWeight: '600', color: COLORS.text, fontSize: 16 }}>BS. {doc.name}</Text>
-                      <Text style={{ fontSize: 13, color: COLORS.textLight, marginTop: 2 }}>{doc.specialty}</Text>
+                      <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>{doc.specialty}</Text>
                     </View>
                     <TouchableOpacity onPress={() => handleRevokeDoctor(doc.doctorId)} style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
                       <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '500' }}>Huỷ</Text>

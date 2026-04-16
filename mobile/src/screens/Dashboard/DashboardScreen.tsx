@@ -108,11 +108,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       });
       setMissedHealthLogIds(missedHealthLogSet);
       
-      // Filter appointments for today
-      const todayAppointments = appointmentsData.appointments.filter(apt => {
-        const aptDate = new Date(apt.appointmentDate);
-        return aptDate >= startOfDay && aptDate <= endOfDay && !apt.isCompleted;
-      });
+      // Hiển thị tất cả lịch hẹn sắp tới (không lọc theo ngày hôm nay)
+      // để bệnh nhân thấy cả lịch hẹn bác sĩ đặt cho ngày tương lai
+      const todayAppointments = appointmentsData.appointments.filter(apt => !apt.isCompleted);
       setAppointments(todayAppointments);
     } catch (error) {
       console.error('Failed to fetch data:', error);
