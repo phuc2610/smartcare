@@ -138,6 +138,105 @@ const getPatientVitals = async (req, res) => {
   }
 };
 
+// Bác sĩ xem độ tuân thủ thuốc của bệnh nhân
+const getPatientAdherence = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId, status: 'ACTIVE' });
+    if (!link) return res.status(403).json({ error: 'Bệnh nhân chưa liên kết' });
+
+    // Lấy danh sách medication của bệnh nhân
+    const medications = await Medication.find({ userId: patientId, isActive: true }).lean();
+    const medIds = medications.map(m => m._id);
+
+    const now = new Date();
+    const d7ago  = new Date(now); d7ago.setDate(now.getDate() - 7);
+    const d30ago = new Date(now); d30ago.setDate(now.getDate() - 30);
+
+    // Lấy tất cả reminders 30 ngày qua
+    const reminders30 = await Reminder.find({
+      medicationId: { $in: medIds },
+      scheduledTime: { $gte: d30ago, $lte: now },
+    }).lean();
+
+    // Reminders 7 ngày qua
+    const reminders7 = reminders30.filter(r => new Date(r.scheduledTime) >= d7ago);
+
+    const calcRate = (arr) => {
+      const past = arr.filter(r => new Date(r.scheduledTime) <= now);
+      if (!past.length) return null;
+      const taken = past.filter(r => r.status === 'TAKEN').length;
+      return Math.round((taken / past.length) * 100);
+    };
+
+    // Thống kê theo từng thuốc
+    const byMed = medications.map(med => {
+      const medReminders = reminders30.filter(r => String(r.medicationId) === String(med._id));
+      const past = medReminders.filter(r => new Date(r.scheduledTime) <= now);
+      const taken  = past.filter(r => r.status === 'TAKEN').length;
+      const skipped = past.filter(r => r.status === 'SKIPPED').length;
+      const pending = past.filter(r => r.status === 'PENDING').length;
+      const rate = past.length ? Math.round((taken / past.length) * 100) : null;
+      return {
+        medicationId: med._id,
+        name: med.name,
+        dosage: med.dosage,
+        total: past.length,
+        taken,
+        skipped,
+        pending,
+        adherenceRate: rate,
+      };
+    });
+
+    // Bỏ thuốc chưa có reminder nào
+    const activeMeds = byMed.filter(m => m.total > 0);
+
+    // Ngày bỏ thuốc (SKIPPED) trong 7 ngày
+    const missedDoses = reminders7
+      .filter(r => r.status === 'SKIPPED')
+      .sort((a, b) => new Date(b.scheduledTime) - new Date(a.scheduledTime))
+      .slice(0, 20)
+      .map(r => ({
+        date: r.scheduledTime,
+        medicationName: r.medicationName,
+        session: r.session,
+      }));
+
+    // Daily adherence cho 7 ngày (cho biểu đồ)
+    const dailyData = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(now); dayStart.setDate(now.getDate() - i); dayStart.setHours(0,0,0,0);
+      const dayEnd   = new Date(dayStart); dayEnd.setHours(23,59,59,999);
+      const dayRems  = reminders7.filter(r => {
+        const t = new Date(r.scheduledTime);
+        return t >= dayStart && t <= dayEnd;
+      });
+      const pastDay = dayRems.filter(r => new Date(r.scheduledTime) <= now);
+      const takenDay  = pastDay.filter(r => r.status === 'TAKEN').length;
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        label: dayStart.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' }),
+        total: pastDay.length,
+        taken: takenDay,
+        rate: pastDay.length ? Math.round((takenDay / pastDay.length) * 100) : null,
+      });
+    }
+
+    res.json({
+      adherenceRate7d:  calcRate(reminders7),
+      adherenceRate30d: calcRate(reminders30),
+      totalMedications: medications.length,
+      activeMedications: activeMeds.length,
+      byMedication: activeMeds,
+      missedDoses,
+      dailyData,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Bác sĩ kê đơn thuốc cho bệnh nhân
 const prescribeMedication = async (req, res) => {
   try {
@@ -216,6 +315,7 @@ module.exports = {
   linkDoctor,
   getPatients,
   getPatientVitals,
+  getPatientAdherence,
   prescribeMedication,
   revokeDoctor,
   getMyDoctors,

@@ -33,10 +33,18 @@ export default function PatientDetails() {
   const [myId, setMyId] = useState('');
 
   // Medical Records
-  const [activeTab, setActiveTab] = useState<'vitals' | 'records'>('vitals');
+  const [activeTab, setActiveTab] = useState<'vitals' | 'records' | 'adherence'>('vitals');
   const [medRecords, setMedRecords] = useState<any[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
+
+  // Adherence
+  const [adherence, setAdherence] = useState<any>(null);
+  const [adherenceLoading, setAdherenceLoading] = useState(false);
+
+  // Alerts
+  const [patientAlerts, setPatientAlerts] = useState<any[]>([]);
+  const [alertRunning, setAlertRunning] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -52,6 +60,8 @@ export default function PatientDetails() {
     fetchProfile();
     fetchVitals();
     fetchMedRecords();
+    fetchAdherence();
+    fetchPatientAlerts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
@@ -98,6 +108,46 @@ export default function PatientDetails() {
     } finally {
       setRecordsLoading(false);
     }
+  };
+
+  const fetchAdherence = async () => {
+    setAdherenceLoading(true);
+    try {
+      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/adherence`);
+      setAdherence(res.data);
+    } catch {
+      setAdherence(null);
+    } finally {
+      setAdherenceLoading(false);
+    }
+  };
+
+  const fetchPatientAlerts = async () => {
+    try {
+      const res = await axios.get(`http://localhost:4000/api/alerts/patient/${patientId}`);
+      setPatientAlerts(res.data.alerts || []);
+    } catch {
+      setPatientAlerts([]);
+    }
+  };
+
+  const runPatientAnalysis = async () => {
+    setAlertRunning(true);
+    try {
+      await axios.post(`http://localhost:4000/api/alerts/analyze/${patientId}`);
+      await fetchPatientAlerts();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Lỗi phân tích');
+    } finally {
+      setAlertRunning(false);
+    }
+  };
+
+  const markAlertRead = async (alertId: string) => {
+    try {
+      await axios.patch(`http://localhost:4000/api/alerts/${alertId}/read`);
+      setPatientAlerts(prev => prev.map(a => a._id === alertId ? { ...a, isRead: true } : a));
+    } catch {}
   };
 
   const fetchMessages = async () => {
@@ -249,6 +299,40 @@ export default function PatientDetails() {
                   💬 Nhắn Tin Bệnh Nhân
                 </button>
               </div>
+
+              {/* === AI Risk Alert Panel === */}
+              <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: patientAlerts.filter(a => a.severity === 'error').length > 0 ? '#FEF2F2' : '#F9FAFB', borderRadius: '12px', border: patientAlerts.filter(a => a.severity === 'error').length > 0 ? '1px solid #FECACA' : '1px solid #E5E7EB' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: patientAlerts.length > 0 ? '#991B1B' : '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🤖 AI Risk Alerts {patientAlerts.filter(a => !a.isRead).length > 0 && (
+                      <span style={{ background: '#EF4444', color: 'white', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '999px', marginLeft: '4px' }}>
+                        {patientAlerts.filter(a => !a.isRead).length}
+                      </span>
+                    )}
+                  </span>
+                  <button onClick={runPatientAnalysis} disabled={alertRunning}
+                    style={{ fontSize: '0.72rem', fontWeight: '700', padding: '3px 10px', borderRadius: '6px', border: 'none', cursor: alertRunning ? 'not-allowed' : 'pointer', background: alertRunning ? '#E5E7EB' : 'linear-gradient(135deg, #7C3AED, #A855F7)', color: alertRunning ? '#9CA3AF' : 'white' }}>
+                    {alertRunning ? '...' : '⚡ Quét'}
+                  </button>
+                </div>
+                {patientAlerts.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#9CA3AF', textAlign: 'center' }}>✅ Chưa có cảnh báo</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {patientAlerts.slice(0, 5).map((alert: any) => {
+                      const colors = { error: ['#FEF2F2','#EF4444','#991B1B'], warning: ['#FFFBEB','#F59E0B','#B45309'], info: ['#EFF6FF','#3B82F6','#1D4ED8'] }[alert.severity as string] || ['#F9FAFB','#9CA3AF','#6B7280'];
+                      return (
+                        <div key={alert._id}
+                          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', backgroundColor: colors[0], borderLeft: `3px solid ${colors[1]}`, opacity: alert.isRead ? 0.6 : 1, cursor: 'pointer' }}
+                          onClick={() => markAlertRead(alert._id)}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '700', color: colors[2], marginBottom: '2px' }}>{alert.title}</div>
+                          <div style={{ fontSize: '0.72rem', color: colors[2], opacity: 0.8 }}>{new Date(alert.createdAt).toLocaleDateString('vi-VN')}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -258,11 +342,12 @@ export default function PatientDetails() {
             {/* Tab Switcher */}
             <div style={{ display: 'flex', gap: '8px', backgroundColor: 'white', padding: '6px', borderRadius: '14px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: '1px solid #E5E7EB' }}>
               {([
-                { key: 'vitals',  label: '📊 Nhật ký sức khoẻ', icon: Activity },
-                { key: 'records', label: '🏥 Lịch Sử Khám Bệnh', icon: Stethoscope },
+                { key: 'vitals',    label: '📊 Nhật Ký Sức Khoẻ' },
+                { key: 'records',   label: '🏥 Lịch Sử Khám' },
+                { key: 'adherence', label: '💊 Tuân Thủ Thuốc' },
               ] as const).map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                  style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem', transition: 'all 0.2s',
+                  style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', transition: 'all 0.2s',
                     background: activeTab === tab.key ? 'linear-gradient(135deg, #1E40AF, #3B82F6)' : 'transparent',
                     color: activeTab === tab.key ? 'white' : '#6B7280',
                     boxShadow: activeTab === tab.key ? '0 4px 12px rgba(30,64,175,0.3)' : 'none',
@@ -271,6 +356,146 @@ export default function PatientDetails() {
                 </button>
               ))}
             </div>
+
+            {/* ===== TAB: TUÂN THỦ THUỐC ===== */}
+            {activeTab === 'adherence' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                {adherenceLoading && (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
+                    <div style={{ width: 36, height: 36, border: '4px solid #E5E7EB', borderTop: '4px solid #1E40AF', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                    Đang tải dữ liệu tuân thủ...
+                  </div>
+                )}
+
+                {!adherenceLoading && !adherence && (
+                  <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '3rem', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.06)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💊</div>
+                    <p style={{ color: '#6B7280' }}>Chưa có dữ liệu tuân thủ thuốc.<br />Bệnh nhân cần được kê đơn và sử dụng app để ghi nhận.</p>
+                  </div>
+                )}
+
+                {!adherenceLoading && adherence && (() => {
+                  const r7  = adherence.adherenceRate7d;
+                  const r30 = adherence.adherenceRate30d;
+                  const rateColor = (r: number | null) => r === null ? '#9CA3AF' : r >= 80 ? '#10B981' : r >= 50 ? '#F59E0B' : '#EF4444';
+                  const rateLabel = (r: number | null) => r === null ? 'N/A' : r >= 80 ? 'Tốt' : r >= 50 ? 'Trung bình' : 'Kém';
+
+                  return (
+                    <>
+                      {/* Tổng quan */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
+                        {[
+                          { label: '7 ngày qua', value: r7 !== null ? `${r7}%` : 'N/A', sub: rateLabel(r7), color: rateColor(r7) },
+                          { label: '30 ngày qua', value: r30 !== null ? `${r30}%` : 'N/A', sub: rateLabel(r30), color: rateColor(r30) },
+                          { label: 'Thuốc đang dùng', value: adherence.activeMedications ?? 0, sub: 'loại thuốc', color: '#3B82F6' },
+                          { label: 'Bỏ liều (7 ngày)', value: adherence.missedDoses?.length ?? 0, sub: 'lần bỏ thuốc', color: adherence.missedDoses?.length > 0 ? '#EF4444' : '#10B981' },
+                        ].map(stat => (
+                          <div key={stat.label} style={{ backgroundColor: 'white', padding: '1.25rem', borderRadius: '14px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', borderTop: `3px solid ${stat.color}`, textAlign: 'center' }}>
+                            <div style={{ fontSize: '2rem', fontWeight: '800', color: stat.color, lineHeight: 1 }}>{stat.value}</div>
+                            <div style={{ fontSize: '0.78rem', fontWeight: '600', color: stat.color, margin: '4px 0 6px', background: `${stat.color}15`, padding: '2px 8px', borderRadius: '999px', display: 'inline-block' }}>{stat.sub}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#9CA3AF' }}>{stat.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Biểu đồ 7 ngày (pure CSS bar chart) */}
+                      {adherence.dailyData?.length > 0 && (
+                        <div style={{ backgroundColor: 'white', padding: '1.75rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)' }}>
+                          <h3 style={{ margin: '0 0 1.5rem 0', fontSize: '1rem', fontWeight: '800', color: '#1E293B' }}>
+                            📈 Biểu đồ tuân thủ 7 ngày
+                          </h3>
+                          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', height: '140px', paddingBottom: '8px', borderBottom: '2px solid #E5E7EB' }}>
+                            {adherence.dailyData.map((day: any, di: number) => {
+                              const rate = day.rate ?? 0;
+                              const barH = rate > 0 ? `${Math.max(rate * 1.3, 10)}px` : '4px';
+                              const bc = rate >= 80 ? '#10B981' : rate >= 50 ? '#F59E0B' : rate > 0 ? '#EF4444' : '#E5E7EB';
+                              return (
+                                <div key={di} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'flex-end' }}>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: '700', color: bc }}>{day.rate !== null ? `${day.rate}%` : '-'}</div>
+                                  <div style={{ width: '100%', height: barH, backgroundColor: bc, borderRadius: '6px 6px 0 0', transition: 'height 0.5s ease', minHeight: '4px' }} />
+                                  <div style={{ fontSize: '0.68rem', color: '#9CA3AF', textAlign: 'center', marginTop: '6px', lineHeight: 1.2 }}>{day.label}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', gap: '16px', marginTop: '12px', justifyContent: 'center' }}>
+                            {[['#10B981','≥ 80% Tốt'],['#F59E0B','50-79% TB'],['#EF4444','< 50% Kém']].map(([c, l]) => (
+                              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '3px', backgroundColor: c }} />
+                                <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>{l}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Theo từng thuốc */}
+                      {adherence.byMedication?.length > 0 && (
+                        <div style={{ backgroundColor: 'white', padding: '1.75rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)' }}>
+                          <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1rem', fontWeight: '800', color: '#1E293B' }}>💊 Tuân thủ theo từng thuốc (30 ngày)</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {adherence.byMedication.map((med: any) => {
+                              const rc = rateColor(med.adherenceRate);
+                              const pct = med.adherenceRate ?? 0;
+                              return (
+                                <div key={med.medicationId}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                    <div>
+                                      <span style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.9rem' }}>{med.name}</span>
+                                      <span style={{ marginLeft: '8px', fontSize: '0.8rem', color: '#9CA3AF' }}>{med.dosage}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span style={{ fontSize: '0.78rem', color: '#9CA3AF' }}>✅ {med.taken} / ❌ {med.skipped} / ⏳ {med.pending}</span>
+                                      <span style={{ fontWeight: '800', fontSize: '0.95rem', color: rc, background: `${rc}15`, padding: '2px 10px', borderRadius: '999px' }}>
+                                        {med.adherenceRate !== null ? `${med.adherenceRate}%` : 'N/A'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div style={{ height: '8px', backgroundColor: '#F3F4F6', borderRadius: '999px', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${pct}%`, backgroundColor: rc, borderRadius: '999px', transition: 'width 0.8s ease' }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Liều bỏ gần đây */}
+                      {adherence.missedDoses?.length > 0 && (
+                        <div style={{ backgroundColor: 'white', padding: '1.75rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', border: '1px solid #FEE2E2' }}>
+                          <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1rem', fontWeight: '800', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            ⚠️ Liều bỏ gần đây (7 ngày) <span style={{ background: '#FEE2E2', color: '#DC2626', padding: '2px 10px', borderRadius: '999px', fontSize: '0.8rem' }}>{adherence.missedDoses.length}</span>
+                          </h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {adherence.missedDoses.slice(0, 10).map((d: any, di: number) => (
+                              <div key={di} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.7rem 1rem', backgroundColor: '#FFF5F5', borderRadius: '10px', border: '1px solid #FECACA', borderLeft: '4px solid #EF4444' }}>
+                                <span style={{ fontSize: '1.2rem' }}>❌</span>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '700', color: '#991B1B', fontSize: '0.88rem' }}>{d.medicationName}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>{new Date(d.date).toLocaleDateString('vi-VN')}</div>
+                                  <div style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>{{ MORNING: 'Sáng', NOON: 'Trưa', EVENING: 'Tối' }[d.session as string] || d.session}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {adherence.missedDoses?.length === 0 && adherence.activeMedications > 0 && (
+                        <div style={{ backgroundColor: '#F0FDF4', borderRadius: '16px', padding: '2rem', textAlign: 'center', border: '1px solid #BBF7D0' }}>
+                          <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🎉</div>
+                          <p style={{ color: '#166534', fontWeight: '700', margin: 0 }}>Bệnh nhân không bỏ liều nào trong 7 ngày qua!</p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* ===== TAB: LỊCH SỬ KHÁM ===== */}
             {activeTab === 'records' && (

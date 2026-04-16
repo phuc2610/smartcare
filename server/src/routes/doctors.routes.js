@@ -27,4 +27,7 @@ router.get('/patients/:patientId/vitals', authenticate, doctorController.getPati
 // Bác sĩ kê đơn thuốc cho bệnh nhân
 router.post('/patients/:patientId/prescriptions', authenticate, doctorController.prescribeMedication);
 
+// Bác sĩ xem độ tuân thủ thuốc của bệnh nhân
+router.get('/patients/:patientId/adherence', authenticate, doctorController.getPatientAdherence);
+
 module.exports = router;

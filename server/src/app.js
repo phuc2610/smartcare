@@ -22,6 +22,7 @@ const chatRoutes = require('./routes/chat.routes');
 const doctorRoutes = require('./routes/doctors.routes');
 const drugCatalogRoutes = require('./routes/drugCatalog.routes');
 const medicalRecordRoutes = require('./routes/medicalRecord.routes');
+const alertRoutes         = require('./routes/alert.routes');
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/drug-catalog', drugCatalogRoutes);
 app.use('/api/medical-records', medicalRecordRoutes);
+app.use('/api/alerts',          alertRoutes);
 
 // Error handler
 app.use(errorHandler);
