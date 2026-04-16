@@ -24,64 +24,49 @@ const sendMessage = async (req, res) => {
     const senderId = req.user._id.toString();
     const { receiverId, content, messageType = 'text', imageUrl } = sendMessageSchema.parse(req.body);
 
-    // Kiểm tra người nhận có tồn tại không
     const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      return res.status(404).json({ error: 'Người nhận không tồn tại' });
-    }
+    if (!receiver) return res.status(404).json({ error: 'Người nhận không tồn tại' });
 
-    // Kiểm tra quyền liên kết
     const sender = await User.findById(senderId);
     let hasPermission = false;
 
     if (sender.role === 'PATIENT') {
-      // Người bệnh -> người thân
+      // Bệnh nhân -> Người chăm sóc
       const hasLinked = receiver.role === 'CAREGIVER' && receiver.caregiverId?.toString() === senderId;
       const hasPending = receiver.role === 'CAREGIVER' && (
-        await CaregiverRequest.findOne({
-          patientId: senderId,
-          caregiverId: receiverId,
-          status: { $in: ['pending', 'accepted'] },
-        })
+        await CaregiverRequest.findOne({ patientId: senderId, caregiverId: receiverId, status: { $in: ['pending', 'accepted'] } })
       );
-      hasPermission = hasLinked || !!hasPending;
+      // Bệnh nhân -> Bác sĩ đang quản lý
+      const DoctorPatientLink = require('../models/DoctorPatientLink');
+      const hasDoctor = receiver.role === 'DOCTOR' && (
+        await DoctorPatientLink.findOne({ doctorId: receiverId, patientId: senderId, status: 'ACTIVE' })
+      );
+      hasPermission = hasLinked || !!hasPending || !!hasDoctor;
+
     } else if (sender.role === 'CAREGIVER') {
-      // Người thân -> người bệnh
       const hasLinked = receiver.role === 'PATIENT' && receiver.caregiverId?.toString() === senderId;
       const hasPending = receiver.role === 'PATIENT' && (
-        await CaregiverRequest.findOne({
-          patientId: receiverId,
-          caregiverId: senderId,
-          status: { $in: ['pending', 'accepted'] },
-        })
+        await CaregiverRequest.findOne({ patientId: receiverId, caregiverId: senderId, status: { $in: ['pending', 'accepted'] } })
       );
       hasPermission = hasLinked || !!hasPending;
+
+    } else if (sender.role === 'DOCTOR') {
+      // Bác sĩ -> Bệnh nhân đang quản lý
+      const DoctorPatientLink = require('../models/DoctorPatientLink');
+      const link = await DoctorPatientLink.findOne({ doctorId: senderId, patientId: receiverId, status: 'ACTIVE' });
+      hasPermission = !!link;
     }
 
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'Bạn không có quyền nhắn tin với người này' });
-    }
+    if (!hasPermission) return res.status(403).json({ error: 'Bạn không có quyền nhắn tin với người này' });
 
-    // Tạo tin nhắn
-    const message = new Message({
-      senderId,
-      receiverId,
-      content,
-      messageType,
-      imageUrl: messageType === 'image' ? imageUrl : null,
-    });
-
+    const message = new Message({ senderId, receiverId, content, messageType, imageUrl: messageType === 'image' ? imageUrl : null });
     await message.save();
-
-    // Populate thông tin người gửi
     await message.populate('senderId', 'name avatar');
     await message.populate('receiverId', 'name avatar');
 
     res.status(201).json({ message });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
-    }
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors[0].message });
     console.error('Send message error:', error);
     res.status(500).json({ error: 'Không thể gửi tin nhắn' });
   }
@@ -228,23 +213,23 @@ const getMessages = async (req, res) => {
     if (currentUser.role === 'PATIENT') {
       const hasLinked = otherUser.role === 'CAREGIVER' && otherUser.caregiverId?.toString() === userId;
       const hasPending = otherUser.role === 'CAREGIVER' && (
-        await CaregiverRequest.findOne({
-          patientId: userId,
-          caregiverId: otherUserId,
-          status: { $in: ['pending', 'accepted'] },
-        })
+        await CaregiverRequest.findOne({ patientId: userId, caregiverId: otherUserId, status: { $in: ['pending', 'accepted'] } })
       );
-      hasPermission = hasLinked || !!hasPending;
+      const DoctorPatientLink = require('../models/DoctorPatientLink');
+      const hasDoctor = otherUser.role === 'DOCTOR' && (
+        await DoctorPatientLink.findOne({ doctorId: otherUserId, patientId: userId, status: 'ACTIVE' })
+      );
+      hasPermission = hasLinked || !!hasPending || !!hasDoctor;
     } else if (currentUser.role === 'CAREGIVER') {
       const hasLinked = otherUser.role === 'PATIENT' && otherUser.caregiverId?.toString() === userId;
       const hasPending = otherUser.role === 'PATIENT' && (
-        await CaregiverRequest.findOne({
-          patientId: otherUserId,
-          caregiverId: userId,
-          status: { $in: ['pending', 'accepted'] },
-        })
+        await CaregiverRequest.findOne({ patientId: otherUserId, caregiverId: userId, status: { $in: ['pending', 'accepted'] } })
       );
       hasPermission = hasLinked || !!hasPending;
+    } else if (currentUser.role === 'DOCTOR') {
+      const DoctorPatientLink = require('../models/DoctorPatientLink');
+      const link = await DoctorPatientLink.findOne({ doctorId: userId, patientId: otherUserId, status: 'ACTIVE' });
+      hasPermission = !!link;
     }
 
     if (!hasPermission) {

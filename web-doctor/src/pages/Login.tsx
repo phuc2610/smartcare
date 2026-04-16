@@ -15,6 +15,8 @@ export default function Login() {
         return;
       }
       localStorage.setItem('token', res.data.token);
+      // Lưu profile để dùng cho đặt lịch hẹn
+      localStorage.setItem('doctorProfile', JSON.stringify(res.data.user));
       window.location.href = '/dashboard';
     } catch (err: any) {
       alert(err.response?.data?.error || 'Đăng nhập thất bại');

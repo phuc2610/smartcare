@@ -33,38 +33,40 @@ const createAppointment = async (req, res) => {
       appointmentDate, 
       appointmentTime,
       notes,
-      reminderBefore = 24, // Mặc định nhắc trước 24 giờ
-      userId // Cho phép caregiver tạo appointment cho patient
+      reminderBefore = 24,
+      userId // Cho phép caregiver/doctor tạo appointment cho patient
     } = req.body;
 
-    // Xác định userId đích: mặc định là user hiện tại
     let targetUserId = req.user._id;
-    
-    // Nếu có userId và user là caregiver, cho phép tạo appointment cho patient
+    let createdByRole = req.user.role;
+    let linkedDoctorId = null;
+
     if (userId && req.user.role === 'CAREGIVER') {
-      // Kiểm tra caregiver có quyền truy cập patient này không
       const User = require('../models/User');
       const patient = await User.findById(userId);
-      if (!patient) {
-        return res.status(404).json({ error: 'Patient not found' });
-      }
-      // Kiểm tra patient có đúng role không
-      if (patient.role !== 'PATIENT') {
-        return res.status(400).json({ error: 'User is not a patient' });
-      }
-      // Kiểm tra caregiver có liên kết với patient này không
+      if (!patient) return res.status(404).json({ error: 'Patient not found' });
+      if (patient.role !== 'PATIENT') return res.status(400).json({ error: 'User is not a patient' });
       if (patient.caregiverId?.toString() !== req.user._id.toString()) {
         return res.status(403).json({ error: 'Access denied. You are not linked to this patient.' });
       }
       targetUserId = userId;
-    } else if (userId && req.user.role !== 'CAREGIVER') {
-      // Chỉ caregiver mới có thể tạo appointment cho người khác
-      return res.status(403).json({ error: 'Only caregivers can create appointments for patients' });
+
+    } else if (userId && req.user.role === 'DOCTOR') {
+      // Bác sĩ đặt lịch tái khám cho bệnh nhân -> phải có active link
+      const DoctorPatientLink = require('../models/DoctorPatientLink');
+      const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId: userId, status: 'ACTIVE' });
+      if (!link) return res.status(403).json({ error: 'Patient not linked or revoked' });
+      targetUserId = userId;
+      linkedDoctorId = req.user._id;
+
+    } else if (userId && req.user.role !== 'CAREGIVER' && req.user.role !== 'DOCTOR') {
+      return res.status(403).json({ error: 'Only caregivers or doctors can create appointments for patients' });
     }
 
-    // Tạo appointment mới
     const appointment = new Appointment({
       userId: targetUserId,
+      doctorId: linkedDoctorId,
+      createdByRole,
       doctorName,
       doctorSpecialty: doctorSpecialty || '',
       hospitalName: hospitalName || '',
@@ -76,7 +78,6 @@ const createAppointment = async (req, res) => {
     });
 
     await appointment.save();
-
     res.json({ appointment });
   } catch (error) {
     res.status(500).json({ error: error.message });
