@@ -8,6 +8,8 @@ const {
   getHealthRecommendations,
   analyzeReport,
   getChatHistory,
+  suggestMedications,
+  checkDrugInteractions,
   chatSchema,
   parseMedicationSchema,
   estimateCaloriesSchema,
@@ -26,7 +28,13 @@ router.post('/disease/identify', authenticate, validate(identifyDiseaseSchema), 
 router.post('/health/recommendations', authenticate, validate(getHealthRecommendationsSchema), getHealthRecommendations);
 router.post('/report/analyze', authenticate, validate(analyzeReportSchema), analyzeReport);
 
+// A – Gợi ý thuốc cho bác sĩ
+router.post('/medication/suggest', authenticate, suggestMedications);
+// B – Kiểm tra tương tác thuốc
+router.post('/medication/interactions', authenticate, checkDrugInteractions);
+
 module.exports = router;
+
 
 
 

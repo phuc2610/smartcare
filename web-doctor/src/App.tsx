@@ -4,6 +4,7 @@ import Prescribe from './pages/Prescribe.tsx';
 import PatientDetails from './pages/PatientDetails.tsx';
 import Login from './pages/Login.tsx';
 import Register from './pages/Register.tsx';
+import DrugCatalog from './pages/DrugCatalog.tsx';
 import './index.css';
 
 function App() {
@@ -26,6 +27,10 @@ function App() {
         <Route 
           path="/patients/:patientId" 
           element={isAuthenticated ? <PatientDetails /> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="/drug-catalog" 
+          element={isAuthenticated ? <DrugCatalog /> : <Navigate to="/login" />} 
         />
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
       </Routes>

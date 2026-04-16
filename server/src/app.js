@@ -20,6 +20,8 @@ const customReminderRoutes = require('./routes/customReminders.routes');
 const appointmentRoutes = require('./routes/appointments.routes');
 const chatRoutes = require('./routes/chat.routes');
 const doctorRoutes = require('./routes/doctors.routes');
+const drugCatalogRoutes = require('./routes/drugCatalog.routes');
+const medicalRecordRoutes = require('./routes/medicalRecord.routes');
 
 const app = express();
 
@@ -72,6 +74,8 @@ app.use('/api/custom-reminders', customReminderRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api/drug-catalog', drugCatalogRoutes);
+app.use('/api/medical-records', medicalRecordRoutes);
 
 // Error handler
 app.use(errorHandler);

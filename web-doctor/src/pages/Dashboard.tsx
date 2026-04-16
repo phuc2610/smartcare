@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Activity } from 'lucide-react';
+import { LogOut, Activity, Package } from 'lucide-react';
 
 export default function Dashboard() {
   const [patients, setPatients] = useState([]);
@@ -40,20 +40,28 @@ export default function Dashboard() {
             <Activity size={32} color="#60A5FA" /> 
             SmartCare <span style={{ fontWeight: '400', opacity: 0.8, marginLeft: '4px' }}>Clinical</span>
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{doctorProfile?.name || 'Bác sĩ'}</div>
-              <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Ban Giám Đốc | Khoa Nội</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: '600' }}>{doctorProfile?.name || 'Bác sĩ'}</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>Ban Giám Đốc | Khoa Nội</div>
+              </div>
+              <button
+                onClick={() => navigate('/drug-catalog')}
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <Package size={18} /> Danh Mục Thuốc
+              </button>
+              <button 
+                onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <LogOut size={18} /> Đăng xuất
+              </button>
             </div>
-            <button 
-              onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
-              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'all 0.2s' }}
-              onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-            >
-              <LogOut size={18} /> Đăng xuất
-            </button>
-          </div>
         </div>
       </nav>
 

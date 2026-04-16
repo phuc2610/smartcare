@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, AlertTriangle, Apple, FileText, Calendar, MessageSquare, Send, X, Clock } from 'lucide-react';
+import { ArrowLeft, Activity, AlertTriangle, Apple, FileText, Calendar, MessageSquare, Send, X, Clock, Stethoscope, ChevronDown, ChevronUp, Pill } from 'lucide-react';
 
 export default function PatientDetails() {
   const { patientId } = useParams();
@@ -32,6 +32,12 @@ export default function PatientDetails() {
   const [chatLoading, setChatLoading] = useState(false);
   const [myId, setMyId] = useState('');
 
+  // Medical Records
+  const [activeTab, setActiveTab] = useState<'vitals' | 'records'>('vitals');
+  const [medRecords, setMedRecords] = useState<any[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
@@ -45,6 +51,7 @@ export default function PatientDetails() {
 
     fetchProfile();
     fetchVitals();
+    fetchMedRecords();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
@@ -78,6 +85,18 @@ export default function PatientDetails() {
       setLogs(res.data.logs);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Lỗi khi tải dữ liệu');
+    }
+  };
+
+  const fetchMedRecords = async () => {
+    setRecordsLoading(true);
+    try {
+      const res = await axios.get(`http://localhost:4000/api/medical-records/${patientId}?limit=20`);
+      setMedRecords(res.data.records || []);
+    } catch {
+      setMedRecords([]);
+    } finally {
+      setRecordsLoading(false);
     }
   };
 
@@ -233,8 +252,165 @@ export default function PatientDetails() {
             </div>
           </div>
 
-          {/* === CỘT PHẢI: Báo cáo sức khoẻ === */}
+          {/* === CỘT PHẢI: Tab === */}
           <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* Tab Switcher */}
+            <div style={{ display: 'flex', gap: '8px', backgroundColor: 'white', padding: '6px', borderRadius: '14px', boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: '1px solid #E5E7EB' }}>
+              {([
+                { key: 'vitals',  label: '📊 Nhật ký sức khoẻ', icon: Activity },
+                { key: 'records', label: '🏥 Lịch Sử Khám Bệnh', icon: Stethoscope },
+              ] as const).map(tab => (
+                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                  style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem', transition: 'all 0.2s',
+                    background: activeTab === tab.key ? 'linear-gradient(135deg, #1E40AF, #3B82F6)' : 'transparent',
+                    color: activeTab === tab.key ? 'white' : '#6B7280',
+                    boxShadow: activeTab === tab.key ? '0 4px 12px rgba(30,64,175,0.3)' : 'none',
+                  }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ===== TAB: LỊCH SỬ KHÁM ===== */}
+            {activeTab === 'records' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Stethoscope size={20} color="#1E40AF" /> Hồ sơ khám bệnh <span style={{ background: '#DBEAFE', color: '#1D4ED8', padding: '2px 10px', borderRadius: '999px', fontSize: '0.8rem' }}>{medRecords.length}</span>
+                  </h3>
+                  <button onClick={() => navigate(`/prescribe/${patientId}`)}
+                    style={{ background: 'linear-gradient(135deg, #059669, #10B981)', color: 'white', border: 'none', padding: '0.7rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(5,150,105,0.3)' }}>
+                    + Tạo Hồ Sơ Khám Mới
+                  </button>
+                </div>
+
+                {recordsLoading && (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
+                    <div style={{ width: 36, height: 36, border: '4px solid #E5E7EB', borderTop: '4px solid #1E40AF', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+                    Đang tải lịch sử khám...
+                  </div>
+                )}
+
+                {!recordsLoading && medRecords.length === 0 && (
+                  <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '3rem', textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.06)' }}>
+                    <Stethoscope size={48} color="#D1D5DB" style={{ margin: '0 auto 1rem' }} />
+                    <p style={{ color: '#6B7280', marginBottom: '1rem' }}>Chưa có hồ sơ khám nào.<br />Tạo hồ sơ khám đầu tiên cho bệnh nhân này.</p>
+                    <button onClick={() => navigate(`/prescribe/${patientId}`)}
+                      style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', color: 'white', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>
+                      💊 Kê Đơn Lần Đầu
+                    </button>
+                  </div>
+                )}
+
+                {!recordsLoading && medRecords.map((rec: any) => {
+                  const isOpen = expandedRecord === rec._id;
+                  const vitals = rec.vitalSigns || {};
+                  const hasVitals = Object.values(vitals).some(v => v !== null && v !== '' && v !== undefined);
+                  return (
+                    <div key={rec._id} style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+                      {/* Record header */}
+                      <div onClick={() => setExpandedRecord(isOpen ? null : rec._id)}
+                        style={{ padding: '1.25rem 1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: isOpen ? 'linear-gradient(135deg, #EFF6FF, #DBEAFE)' : 'white',
+                          borderBottom: isOpen ? '1px solid #BFDBFE' : 'none' }}
+                        onMouseOver={e => !isOpen && (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseOut={e => !isOpen && (e.currentTarget.style.background = 'white')}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Stethoscope size={22} color="white" />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '800', fontSize: '1rem', color: '#111827', marginBottom: '2px' }}>{rec.diagnosis}</div>
+                            <div style={{ fontSize: '0.82rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span>📅 {new Date(rec.createdAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                              {rec.icdCode && <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 8px', borderRadius: '6px', fontWeight: '600' }}>ICD: {rec.icdCode}</span>}
+                              <span style={{ background: '#F0FDF4', color: '#16A34A', padding: '1px 8px', borderRadius: '6px', fontWeight: '600' }}>{(rec.prescriptionIds || []).length} thuốc</span>
+                            </div>
+                          </div>
+                        </div>
+                        {isOpen ? <ChevronUp size={20} color="#6B7280" /> : <ChevronDown size={20} color="#6B7280" />}
+                      </div>
+
+                      {/* Record detail */}
+                      {isOpen && (
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', animation: 'fadeIn 0.2s ease' }}>
+                          {/* Triệu chứng */}
+                          {rec.symptoms?.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>🚨 Triệu chứng</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {rec.symptoms.map((s: any, si: number) => {
+                                  const c = s.severity <= 3 ? '#10B981' : s.severity <= 6 ? '#F59E0B' : '#EF4444';
+                                  return <span key={si} style={{ padding: '4px 12px', borderRadius: '999px', fontSize: '0.82rem', fontWeight: '600', backgroundColor: c + '18', color: c, border: `1px solid ${c}30` }}>{s.name} ({s.severity}/10)</span>;
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Dấu hiệu sinh tồn */}
+                          {hasVitals && (
+                            <div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>❤️ Dấu hiệu sinh tồn</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                                {[
+                                  { key: 'bloodPressure', label: 'Huyết áp', unit: 'mmHg' },
+                                  { key: 'heartRate', label: 'Nhịp tim', unit: 'bpm' },
+                                  { key: 'temperature', label: 'Nhiệt độ', unit: '°C' },
+                                  { key: 'weight', label: 'Cân nặng', unit: 'kg' },
+                                  { key: 'spO2', label: 'SpO₂', unit: '%' },
+                                  { key: 'bloodSugar', label: 'Đường huyết', unit: 'mmol/L' },
+                                ].filter(v => vitals[v.key] !== null && vitals[v.key] !== undefined && vitals[v.key] !== '').map(v => (
+                                  <div key={v.key} style={{ padding: '0.6rem 0.8rem', backgroundColor: '#F8FAFF', borderRadius: '8px', border: '1px solid #DBEAFE' }}>
+                                    <div style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '2px' }}>{v.label}</div>
+                                    <div style={{ fontWeight: '700', color: '#1E40AF', fontSize: '0.95rem' }}>{vitals[v.key]} <span style={{ fontSize: '0.7rem', fontWeight: '400' }}>{v.unit}</span></div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Đơn thuốc */}
+                          {rec.prescriptionIds?.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', marginBottom: '8px' }}>💊 Đơn thuốc kê</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {rec.prescriptionIds.map((med: any, mi: number) => (
+                                  <div key={mi} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.65rem 1rem', backgroundColor: '#F0FDF4', borderRadius: '8px', border: '1px solid #BBF7D0' }}>
+                                    <Pill size={16} color="#16A34A" />
+                                    <div style={{ flex: 1 }}>
+                                      <span style={{ fontWeight: '700', color: '#166534' }}>{med.name || med}</span>
+                                      {med.dosage && <span style={{ fontSize: '0.82rem', color: '#6B7280', marginLeft: '8px' }}>{med.dosage}</span>}
+                                    </div>
+                                    {med.sessions?.length > 0 && (
+                                      <span style={{ fontSize: '0.78rem', color: '#16A34A', background: '#DCFCE7', padding: '2px 8px', borderRadius: '6px' }}>
+                                        {med.sessions.map((s: string) => ({ MORNING: 'Sáng', NOON: 'Trưa', EVENING: 'Tối' }[s] || s)).join('/')}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Ghi chú + tái khám */}
+                          {(rec.note || rec.followUpDate) && (
+                            <div style={{ padding: '0.9rem 1rem', backgroundColor: '#FFFBEB', borderRadius: '10px', border: '1px solid #FDE68A' }}>
+                              {rec.note && <p style={{ margin: '0 0 4px 0', fontSize: '0.88rem', color: '#92400E' }}>📝 {rec.note}</p>}
+                              {rec.followUpDate && <p style={{ margin: 0, fontSize: '0.88rem', color: '#B45309', fontWeight: '600' }}>📅 Hẹn tái khám: {new Date(rec.followUpDate).toLocaleDateString('vi-VN')}</p>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ===== TAB: NHẬT KÝ SỨC KHOẺ ===== */}
+            {activeTab === 'vitals' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
             {/* Bộ lọc ngày */}
             <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'flex-end', gap: '1rem', border: '1px solid #E5E7EB' }}>
@@ -320,8 +496,10 @@ export default function PatientDetails() {
                       <div style={{ fontSize: '0.8rem', color: '#9CA3AF', marginTop: '4px' }}>{new Date(e.date).toLocaleDateString('vi-VN')}</div>
                     </div>
                   ))}
-                </div>}
+                 </div>}
             </div>
+            </div>
+            )}
           </div>
         </div>
       </main>
