@@ -18,6 +18,9 @@ router.get('/my-doctors', authenticate, doctorController.getMyDoctors);
 // Bác sĩ lấy danh sách bệnh nhân
 router.get('/patients', authenticate, doctorController.getPatients);
 
+// Bác sĩ lấy thông tin hồ sơ của 1 bệnh nhân
+router.get('/patients/:patientId/profile', authenticate, doctorController.getPatientProfile);
+
 // Bác sĩ lấy chỉ số của 1 bệnh nhân
 router.get('/patients/:patientId/vitals', authenticate, doctorController.getPatientVitals);
 

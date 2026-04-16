@@ -132,14 +132,24 @@ export default function Dashboard() {
                     </td>
                     <td style={{ padding: '1.5rem 2rem', color: '#6B7280', fontSize: '0.95rem' }}>{new Date(p.linkedAt).toLocaleDateString('vi-VN')}</td>
                     <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => navigate(`/prescribe/${p.patientId}`)}
-                        style={{ backgroundColor: '#1E40AF', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
-                        onMouseOver={e => { e.currentTarget.style.backgroundColor = '#1E3A8A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                        onMouseOut={e => { e.currentTarget.style.backgroundColor = '#1E40AF'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                      >
-                        Kê Đơn Điện Tử
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={() => navigate(`/patients/${p.patientId}`)}
+                          style={{ backgroundColor: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB', padding: '0.75rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', transition: 'all 0.2s' }}
+                          onMouseOver={e => { e.currentTarget.style.backgroundColor = '#E5E7EB'; }}
+                          onMouseOut={e => { e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
+                        >
+                          Hồ Sơ
+                        </button>
+                        <button 
+                          onClick={() => navigate(`/prescribe/${p.patientId}`)}
+                          style={{ backgroundColor: '#1E40AF', color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
+                          onMouseOver={e => { e.currentTarget.style.backgroundColor = '#1E3A8A'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                          onMouseOut={e => { e.currentTarget.style.backgroundColor = '#1E40AF'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                        >
+                          Kê Đơn
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

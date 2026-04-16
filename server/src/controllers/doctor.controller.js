@@ -80,6 +80,24 @@ const getPatients = async (req, res) => {
   }
 };
 
+// Bác sĩ lấy hồ sơ y tế bệnh nhân
+const getPatientProfile = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    
+    // Check permission
+    const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId, status: 'ACTIVE' });
+    if (!link) return res.status(403).json({ error: 'Patient not linked or revoked' });
+
+    const patient = await User.findById(patientId).select('name phone email avatar medicalCondition height weight createdAt');
+    if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+    res.json({ patient, linkedAt: link.grantedAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Bác sĩ lấy dữ liệu sinh tồn cơ bản của một bệnh nhân
 const getPatientVitals = async (req, res) => {
   try {
@@ -89,14 +107,29 @@ const getPatientVitals = async (req, res) => {
     const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId, status: 'ACTIVE' });
     if (!link) return res.status(403).json({ error: 'Patient not linked or revoked' });
     
-    // Get last 30 days of health logs
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    const { startDate, endDate } = req.query;
+    
+    let queryStartDate = new Date();
+    queryStartDate.setDate(queryStartDate.getDate() - 30);
+    let queryEndDate = new Date();
+
+    if (startDate && endDate) {
+      const parsedStart = new Date(startDate);
+      const parsedEnd = new Date(endDate);
+      parsedEnd.setHours(23, 59, 59, 999);
+      
+      const diffTime = Math.abs(parsedEnd - parsedStart);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      
+      if (diffDays <= 31) { // Lấy 30-31 ngày
+        queryStartDate = parsedStart;
+        queryEndDate = parsedEnd;
+      }
+    }
     
     const vitalLogs = await HealthLog.find({
       userId: patientId,
-      date: { $gte: startDate },
-      // Assuming vitals might be tracked under 'symptom' or a new type. We just return all logs for now
+      date: { $gte: queryStartDate, $lte: queryEndDate },
     }).sort({ date: -1 });
     
     res.json({ logs: vitalLogs });
@@ -185,5 +218,6 @@ module.exports = {
   getPatientVitals,
   prescribeMedication,
   revokeDoctor,
-  getMyDoctors
+  getMyDoctors,
+  getPatientProfile
 };
