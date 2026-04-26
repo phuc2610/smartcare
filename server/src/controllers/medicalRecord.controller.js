@@ -191,4 +191,40 @@ const getMyRecords = async (req, res) => {
   }
 };
 
-module.exports = { createRecord, getRecords, getRecordById, updateRecord, getMyRecords };
+// ─── GET /api/medical-records/:patientId/:recordId/pdf ──────────────────────
+/**
+ * Xuất PDF hồ sơ khám + đơn thuốc (M7)
+ */
+const exportPDF = async (req, res) => {
+  try {
+    const { patientId, recordId } = req.params;
+    const doctorId = req.user._id;
+
+    if (req.user.role !== 'DOCTOR') return res.status(403).json({ error: 'Access denied' });
+    if (!await checkLink(doctorId, patientId)) return res.status(403).json({ error: 'Bệnh nhân chưa liên kết' });
+
+    const record = await MedicalRecord.findOne({ _id: recordId, patientId })
+      .populate('doctorId', 'name doctorProfile')
+      .populate('prescriptionIds');
+
+    if (!record) return res.status(404).json({ error: 'Không tìm thấy hồ sơ khám' });
+
+    const User = require('../models/User');
+    const patient = await User.findById(patientId).select('name phone medicalCondition height weight');
+    if (!patient) return res.status(404).json({ error: 'Không tìm thấy bệnh nhân' });
+
+    const { generatePrescriptionPDF } = require('../services/prescription.pdf.js');
+
+    const fileName = `DonThuoc_${patient.name.replace(/\s+/g, '_')}_${new Date(record.createdAt).toISOString().split('T')[0]}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+
+    const pdfDoc = generatePrescriptionPDF(record.toObject(), patient.toObject());
+    pdfDoc.pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { createRecord, getRecords, getRecordById, updateRecord, getMyRecords, exportPDF };

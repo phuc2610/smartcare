@@ -7,6 +7,7 @@ const {
   getRecordById,
   updateRecord,
   getMyRecords,
+  exportPDF,
 } = require('../controllers/medicalRecord.controller');
 
 // Bệnh nhân xem lịch sử khám của chính mình
@@ -17,6 +18,9 @@ router.get('/:patientId', authenticate, getRecords);
 
 // Bác sĩ: tạo hồ sơ khám mới (+ kê đơn) cho bệnh nhân
 router.post('/:patientId', authenticate, createRecord);
+
+// Bác sĩ: xuất PDF hồ sơ khám + đơn thuốc (M7)
+router.get('/:patientId/:recordId/pdf', authenticate, exportPDF);
 
 // Bác sĩ: xem chi tiết 1 hồ sơ khám
 router.get('/:patientId/:recordId', authenticate, getRecordById);

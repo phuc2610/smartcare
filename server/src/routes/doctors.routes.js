@@ -30,4 +30,10 @@ router.post('/patients/:patientId/prescriptions', authenticate, doctorController
 // Bác sĩ xem độ tuân thủ thuốc của bệnh nhân
 router.get('/patients/:patientId/adherence', authenticate, doctorController.getPatientAdherence);
 
+// Bác sĩ xem lịch sử đơn thuốc (M4 — Prescription History)
+router.get('/patients/:patientId/prescription-history', authenticate, doctorController.getPrescriptionHistory);
+
+// Bác sĩ xem xu hướng triệu chứng (M6 — Symptom Trend)
+router.get('/patients/:patientId/symptom-trend', authenticate, doctorController.getSymptomTrend);
+
 module.exports = router;

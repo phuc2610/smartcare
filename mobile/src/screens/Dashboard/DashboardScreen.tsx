@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Animated, Platform, PermissionsAndroid } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -40,6 +40,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [filter, setFilter] = useState<'all' | 'medication' | 'meal' | 'exercise' | 'appointment'>('all');
   const [missedReminderIds, setMissedReminderIds] = useState<Set<string>>(new Set());
   const [missedHealthLogIds, setMissedHealthLogIds] = useState<Set<string>>(new Set());
+
+  // SOS state (M10)
+  const [sosLoading, setSosLoading] = useState(false);
+  const [sosSent, setSosSent] = useState(false);
+  const sosPulseAnim = useRef(new Animated.Value(1)).current;
 
   const effectiveUserId = targetUserId || user?._id;
 
@@ -313,6 +318,86 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     return <Loading message="Đang tải..." />;
   }
 
+  // SOS pulse animation
+  const startSOSPulse = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(sosPulseAnim, { toValue: 1.08, duration: 600, useNativeDriver: true }),
+        Animated.timing(sosPulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+  };
+
+  // Start pulse animation on mount
+  if (!sosLoading && !sosSent) {
+    startSOSPulse();
+  }
+
+  const handleSOS = () => {
+    Alert.alert(
+      '🆘 Gửi SOS Khẩn Cấp',
+      'Bạn chắc chắn muốn gửi tín hiệu SOS đến tất cả bác sĩ đang theo dõi? \n\nHành động này chỉ dùng trong trường hợp khẩn cấp.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: '🆘 Gửi SOS Ngay',
+          style: 'destructive',
+          onPress: async () => {
+            setSosLoading(true);
+            try {
+              let location: { latitude: number; longitude: number } | undefined;
+
+              // Try to get GPS location
+              try {
+                if (Platform.OS === 'android') {
+                  const granted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                    {
+                      title: 'Vị trí GPS',
+                      message: 'SmartCare cần vị trí của bạn để gửi kèm tín hiệu SOS',
+                      buttonPositive: 'Cho phép',
+                      buttonNegative: 'Từ chối',
+                    }
+                  );
+                  if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+                    const Geolocation = require('react-native-geolocation-service').default;
+                    const pos = await new Promise<any>((resolve, reject) => {
+                      Geolocation.getCurrentPosition(
+                        (position: any) => resolve(position),
+                        (error: any) => reject(error),
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                      );
+                    });
+                    location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                  }
+                }
+              } catch (geoErr) {
+                // GPS failed - still send SOS without location
+                console.log('GPS unavailable, sending SOS without location');
+              }
+
+              const { sendSOS } = require('../../services/sos.service');
+              const result = await sendSOS(location);
+
+              if (result.ok) {
+                setSosSent(true);
+                Alert.alert('✅ Đã gửi', 'Tín hiệu SOS đã được gửi đến bác sĩ của bạn. Hãy giữ bình tĩnh và chờ phản hồi.');
+                // Reset after 30s
+                setTimeout(() => setSosSent(false), 30000);
+              } else {
+                Alert.alert('Lỗi', result.error || 'Không thể gửi SOS. Hãy thử lại.');
+              }
+            } catch (err) {
+              Alert.alert('Lỗi', 'Không thể gửi SOS. Kiểm tra kết nối mạng.');
+            } finally {
+              setSosLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Screen scrollable scrollViewProps={{ refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} /> }}>
       {/* Personalized Header */}
@@ -397,6 +482,36 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             </TouchableOpacity>
           </View>
         </>
+      )}
+
+      {/* SOS Emergency Button (M10) */}
+      {!readOnly && (
+        <View style={styles.sosContainer}>
+          <Animated.View style={{ transform: [{ scale: sosPulseAnim }] }}>
+            <TouchableOpacity
+              onPress={handleSOS}
+              disabled={sosLoading || sosSent}
+              activeOpacity={0.7}
+              style={[
+                styles.sosButton,
+                sosSent && styles.sosButtonSent,
+                sosLoading && styles.sosButtonLoading,
+              ]}
+            >
+              <Text variant="title" style={styles.sosIcon}>
+                {sosSent ? '✅' : sosLoading ? '⏳' : '🆘'}
+              </Text>
+              <View>
+                <Text variant="body" style={styles.sosTitle}>
+                  {sosSent ? 'Đã gửi SOS' : sosLoading ? 'Đang gửi...' : 'SOS Khẩn Cấp'}
+                </Text>
+                <Text variant="caption" style={styles.sosSubtitle}>
+                  {sosSent ? 'Bác sĩ đã nhận được tín hiệu' : 'Nhấn để gửi cảnh báo đến bác sĩ'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       )}
 
       {/* Health Tips */}
@@ -945,5 +1060,43 @@ const styles = StyleSheet.create({
   taskNotes: {
     marginTop: SPACING.xs,
     fontStyle: 'italic',
+  },
+  // SOS Emergency Styles (M10)
+  sosContainer: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+  },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: '#DC2626',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.md,
+    shadowColor: '#DC2626',
+    elevation: 8,
+  },
+  sosButtonSent: {
+    backgroundColor: '#16A34A',
+    shadowColor: '#16A34A',
+  },
+  sosButtonLoading: {
+    backgroundColor: '#9CA3AF',
+    shadowColor: '#9CA3AF',
+  },
+  sosIcon: {
+    fontSize: 32,
+  },
+  sosTitle: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  sosSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    marginTop: 2,
   },
 });

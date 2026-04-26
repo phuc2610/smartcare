@@ -3,6 +3,7 @@ const DoctorPatientLink = require('../models/DoctorPatientLink');
 const Medication = require('../models/Medication');
 const Reminder = require('../models/Reminder');
 const HealthLog = require('../models/HealthLog');
+const MedicalRecord = require('../models/MedicalRecord');
 const crypto = require('crypto');
 
 // Bác sĩ lấy profile của mình (bao gồm danh sách linkCode)
@@ -310,6 +311,166 @@ const getMyDoctors = async (req, res) => {
   }
 };
 
+// Bác sĩ xem lịch sử đơn thuốc của bệnh nhân (M4)
+const getPrescriptionHistory = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    if (req.user.role !== 'DOCTOR') return res.status(403).json({ error: 'Access denied' });
+
+    const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId, status: 'ACTIVE' });
+    if (!link) return res.status(403).json({ error: 'Bệnh nhân chưa liên kết' });
+
+    // Lấy tất cả MedicalRecords (chứa prescriptionIds) - nhóm đơn theo lần khám
+    const records = await MedicalRecord.find({ patientId })
+      .populate('doctorId', 'name doctorProfile')
+      .populate({
+        path: 'prescriptionIds',
+        model: 'Medication',
+        select: 'name dosage frequency sessions mealTiming startDate endDate notes isActive unit prescribedBy createdAt',
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Lấy thêm các Medication không nằm trong MedicalRecord nào (kê riêng trước đây)
+    const allRecordMedIds = records.flatMap(r => (r.prescriptionIds || []).map(m => String(m._id)));
+    const orphanMeds = await Medication.find({
+      userId: patientId,
+      _id: { $nin: allRecordMedIds },
+    })
+      .populate('prescribedBy', 'name doctorProfile')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Build response: grouped by visit (MedicalRecord) + orphan group
+    const grouped = records.map(r => ({
+      recordId: r._id,
+      diagnosis: r.diagnosis,
+      icdCode: r.icdCode || '',
+      doctorName: r.doctorId?.name || 'N/A',
+      visitDate: r.createdAt,
+      followUpDate: r.followUpDate,
+      symptoms: r.symptoms || [],
+      vitalSigns: r.vitalSigns || {},
+      note: r.note || '',
+      medications: (r.prescriptionIds || []).map(med => ({
+        _id: med._id,
+        name: med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        sessions: med.sessions,
+        mealTiming: med.mealTiming,
+        startDate: med.startDate,
+        endDate: med.endDate,
+        notes: med.notes,
+        isActive: med.isActive,
+        unit: med.unit,
+        createdAt: med.createdAt,
+      })),
+    }));
+
+    // Orphan medications (kê riêng, không có hồ sơ khám)
+    const orphanGroup = orphanMeds.length > 0 ? {
+      recordId: null,
+      diagnosis: 'Kê đơn riêng (không có hồ sơ khám)',
+      icdCode: '',
+      doctorName: orphanMeds[0]?.prescribedBy?.name || 'N/A',
+      visitDate: orphanMeds[0]?.createdAt,
+      followUpDate: null,
+      symptoms: [],
+      vitalSigns: {},
+      note: '',
+      medications: orphanMeds.map(med => ({
+        _id: med._id,
+        name: med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        sessions: med.sessions,
+        mealTiming: med.mealTiming,
+        startDate: med.startDate,
+        endDate: med.endDate,
+        notes: med.notes,
+        isActive: med.isActive,
+        unit: med.unit,
+        createdAt: med.createdAt,
+      })),
+    } : null;
+
+    const allGroups = orphanGroup ? [...grouped, orphanGroup] : grouped;
+
+    res.json({
+      totalVisits: allGroups.length,
+      totalMedications: allGroups.reduce((sum, g) => sum + g.medications.length, 0),
+      history: allGroups,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Bác sĩ xem xu hướng triệu chứng theo thời gian (M6)
+const getSymptomTrend = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    if (req.user.role !== 'DOCTOR') return res.status(403).json({ error: 'Access denied' });
+
+    const link = await DoctorPatientLink.findOne({ doctorId: req.user._id, patientId, status: 'ACTIVE' });
+    if (!link) return res.status(403).json({ error: 'Bệnh nhân chưa liên kết' });
+
+    const days = Math.min(90, Math.max(7, Number(req.query.days) || 30));
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const logs = await HealthLog.find({
+      userId: patientId,
+      type: 'symptom',
+      date: { $gte: since },
+    })
+      .sort({ date: 1 })
+      .lean();
+
+    // Build raw data points
+    const dataPoints = logs.map(l => ({
+      date: new Date(l.date).toISOString().split('T')[0],
+      symptomName: l.details?.symptomName || 'Không rõ',
+      severity: l.details?.severity || 0,
+      note: l.details?.note || '',
+    }));
+
+    // Unique symptom names
+    const symptomNames = [...new Set(dataPoints.map(d => d.symptomName))];
+
+    // Group by date → for charting
+    const dateMap = {};
+    for (const dp of dataPoints) {
+      if (!dateMap[dp.date]) dateMap[dp.date] = {};
+      // If multiple entries same symptom same date → take max severity
+      if (!dateMap[dp.date][dp.symptomName] || dp.severity > dateMap[dp.date][dp.symptomName]) {
+        dateMap[dp.date][dp.symptomName] = dp.severity;
+      }
+    }
+
+    // Build chart-ready series: [{date, symptom1, symptom2, ...}]
+    const dates = Object.keys(dateMap).sort();
+    const series = dates.map(date => {
+      const entry = { date };
+      for (const name of symptomNames) {
+        entry[name] = dateMap[date][name] || null;
+      }
+      return entry;
+    });
+
+    res.json({
+      days,
+      totalLogs: logs.length,
+      symptomNames,
+      series,
+      dataPoints,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getProfile,
   linkDoctor,
@@ -319,5 +480,8 @@ module.exports = {
   prescribeMedication,
   revokeDoctor,
   getMyDoctors,
-  getPatientProfile
+  getPatientProfile,
+  getPrescriptionHistory,
+  getSymptomTrend,
 };
+

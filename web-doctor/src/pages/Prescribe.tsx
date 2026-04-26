@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pill, Sun, CloudSun, Moon, Sparkles, AlertTriangle, CheckCircle, X, Loader, Plus, Thermometer, Heart, Stethoscope } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Pill, Sun, CloudSun, Moon, Sparkles, AlertTriangle, CheckCircle, X, Loader, Plus, Thermometer, Heart, Stethoscope, RefreshCw, Send, Utensils, Building2 } from 'lucide-react';
 
 interface DrugSuggestion {
   name: string;
@@ -67,6 +67,69 @@ export default function Prescribe() {
   const [visitNote, setVisitNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
 
+  // ICD-10 autocomplete (M9)
+  const [icdSearch, setIcdSearch] = useState('');
+  const [showIcdDropdown, setShowIcdDropdown] = useState(false);
+
+  const ICD10_CODES = [
+    { code: 'E11', name: 'Đái tháo đường type 2' },
+    { code: 'E10', name: 'Đái tháo đường type 1' },
+    { code: 'I10', name: 'Tăng huyết áp vô căn (nguyên phát)' },
+    { code: 'I11', name: 'Bệnh tim do tăng huyết áp' },
+    { code: 'I25', name: 'Bệnh tim thiếu máu cục bộ mạn tính' },
+    { code: 'I50', name: 'Suy tim' },
+    { code: 'I63', name: 'Nhồi máu não' },
+    { code: 'J06', name: 'Nhiễm khuẩn hô hấp trên cấp' },
+    { code: 'J18', name: 'Viêm phổi' },
+    { code: 'J44', name: 'Bệnh phổi tắc nghẽn mạn tính (COPD)' },
+    { code: 'J45', name: 'Hen phế quản' },
+    { code: 'K21', name: 'Trào ngược dạ dày-thực quản (GERD)' },
+    { code: 'K25', name: 'Loét dạ dày' },
+    { code: 'K26', name: 'Loét tá tràng' },
+    { code: 'K29', name: 'Viêm dạ dày và tá tràng' },
+    { code: 'K35', name: 'Viêm ruột thừa cấp' },
+    { code: 'K76', name: 'Bệnh gan nhiễm mỡ' },
+    { code: 'K80', name: 'Sỏi mật' },
+    { code: 'M54', name: 'Đau lưng' },
+    { code: 'M17', name: 'Thoái hoá khớp gối' },
+    { code: 'M79', name: 'Đau cơ xương khớp' },
+    { code: 'N18', name: 'Bệnh thận mạn tính' },
+    { code: 'N39', name: 'Nhiễm trùng tiết niệu' },
+    { code: 'E78', name: 'Rối loạn chuyển hoá lipoprotein (mỡ máu)' },
+    { code: 'E03', name: 'Suy giáp' },
+    { code: 'E05', name: 'Cường giáp' },
+    { code: 'G43', name: 'Đau nửa đầu (Migraine)' },
+    { code: 'G47', name: 'Rối loạn giấc ngủ' },
+    { code: 'F32', name: 'Rối loạn trầm cảm' },
+    { code: 'F41', name: 'Rối loạn lo âu' },
+    { code: 'D50', name: 'Thiếu máu thiếu sắt' },
+    { code: 'B34', name: 'Nhiễm virus không xác định' },
+    { code: 'A09', name: 'Tiêu chảy nhiễm trùng' },
+    { code: 'A15', name: 'Lao phổi' },
+    { code: 'B18', name: 'Viêm gan virus mạn tính' },
+    { code: 'L20', name: 'Viêm da cơ địa (chàm)' },
+    { code: 'L50', name: 'Mề đay' },
+    { code: 'H10', name: 'Viêm kết mạc' },
+    { code: 'H66', name: 'Viêm tai giữa' },
+    { code: 'J02', name: 'Viêm họng cấp' },
+    { code: 'J03', name: 'Viêm amidan cấp' },
+    { code: 'J20', name: 'Viêm phế quản cấp' },
+    { code: 'R50', name: 'Sốt không rõ nguyên nhân' },
+    { code: 'R51', name: 'Đau đầu' },
+    { code: 'R10', name: 'Đau bụng' },
+    { code: 'R05', name: 'Ho' },
+    { code: 'E66', name: 'Béo phì' },
+    { code: 'E55', name: 'Thiếu vitamin D' },
+    { code: 'I48', name: 'Rung nhĩ' },
+    { code: 'N40', name: 'Phì đại tuyến tiền liệt' },
+  ];
+
+  const filteredICD = ICD10_CODES.filter(item =>
+    icdSearch.length === 0 ? true :
+    item.code.toLowerCase().includes(icdSearch.toLowerCase()) ||
+    item.name.toLowerCase().includes(icdSearch.toLowerCase())
+  );
+
   // Dấu hiệu sinh tồn
   const [vitals, setVitals] = useState({
     bloodPressure: '',
@@ -83,6 +146,12 @@ export default function Prescribe() {
   const [interactionLoading, setInteractionLoading] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+
+  // Re-prescribe (M4)
+  const [searchParams] = useSearchParams();
+  const represcribeId = searchParams.get('represcribe');
+  const [isReprescribe, setIsReprescribe] = useState(false);
+  const [represcribeDate, setReprescribeDate] = useState('');
 
   function newRow(id: number): PrescriptionRow {
     return {
@@ -108,14 +177,71 @@ export default function Prescribe() {
     const token = localStorage.getItem('token');
     if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchPatientInfo();
+    if (represcribeId) fetchReprescribeData(represcribeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patientId]);
+  }, [patientId, represcribeId]);
 
   const fetchPatientInfo = async () => {
     try {
       const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/profile`);
       setPatientInfo(res.data.patient);
     } catch { /* silent */ }
+  };
+
+  // M4: fetch old MedicalRecord and pre-fill form
+  const fetchReprescribeData = async (recordId: string) => {
+    try {
+      const res = await axios.get(`http://localhost:4000/api/medical-records/${patientId}/${recordId}`);
+      const rec = res.data.record;
+      if (!rec) return;
+
+      setIsReprescribe(true);
+      setReprescribeDate(new Date(rec.createdAt).toLocaleDateString('vi-VN'));
+
+      // Pre-fill diagnosis
+      setDiagnosis(rec.diagnosis || '');
+      setIcdCode(rec.icdCode || '');
+      setVisitNote(rec.note || '');
+
+      // Pre-fill symptoms
+      if (rec.symptoms?.length) {
+        setSymptoms(rec.symptoms.map((s: any) => ({
+          symptomName: s.name || s.symptomName || '',
+          severity: s.severity || 5,
+        })));
+      }
+
+      // Pre-fill vitals
+      if (rec.vitalSigns) {
+        const vs = rec.vitalSigns;
+        setVitals({
+          bloodPressure: vs.bloodPressure || '',
+          heartRate: vs.heartRate?.toString() || '',
+          temperature: vs.temperature?.toString() || '',
+          weight: vs.weight?.toString() || '',
+          spO2: vs.spO2?.toString() || '',
+          bloodSugar: vs.bloodSugar?.toString() || '',
+        });
+      }
+
+      // Pre-fill prescriptions
+      if (rec.prescriptionIds?.length) {
+        const prefilled: PrescriptionRow[] = rec.prescriptionIds.map((med: any, idx: number) => ({
+          id: idx + 1,
+          name: med.name || '',
+          dosage: med.dosage || '',
+          frequency: med.frequency || 'DAILY',
+          sessions: med.sessions || [],
+          mealTiming: med.mealTiming || 'AFTER_MEAL',
+          startDate: new Date().toISOString().split('T')[0], // reset to today
+          endDate: '',
+          notes: med.notes || '',
+        }));
+        setRows(prefilled);
+      }
+    } catch {
+      // silent fallback — just open empty form
+    }
   };
 
   // A – Tìm trong Danh Mục Thuốc + gợi ý AI (debounced)
@@ -233,9 +359,9 @@ export default function Prescribe() {
   // Submit: tạo MedicalRecord (bao gồm đơn thuốc)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!diagnosis.trim()) { alert('⚠️ Vui lòng nhập Chẩn đoán trước khi phát hành đơn!'); return; }
+    if (!diagnosis.trim()) { alert('Vui lòng nhập Chẩn đoán trước khi phát hành đơn!'); return; }
     const filledRows = rows.filter(r => r.name.trim());
-    if (filledRows.length === 0) { alert('⚠️ Vui lòng nhập ít nhất 1 thuốc!'); return; }
+    if (filledRows.length === 0) { alert('Vui lòng nhập ít nhất 1 thuốc!'); return; }
     for (const row of filledRows) {
       if (row.sessions.length === 0) { alert(`Thuốc "${row.name}" chưa chọn buổi uống!`); return; }
     }
@@ -266,7 +392,7 @@ export default function Prescribe() {
           notes:     row.notes,
         })),
       });
-      alert(`✅ Đã lưu hồ sơ khám + ${filledRows.length} đơn thuốc cho bệnh nhân!`);
+      alert(`Đã lưu hồ sơ khám + ${filledRows.length} đơn thuốc cho bệnh nhân!`);
       navigate(`/patients/${patientId}`);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Gửi thất bại');
@@ -278,7 +404,15 @@ export default function Prescribe() {
 
   return (
     <div style={{ backgroundColor: '#F1F5F9', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .scroll-col::-webkit-scrollbar { width: 6px; }
+        .scroll-col::-webkit-scrollbar-track { background: transparent; }
+        .scroll-col::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .scroll-col::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+        .scroll-col { scrollbar-width: thin; scrollbar-color: #CBD5E1 transparent; }
+      `}</style>
 
       {/* Navbar */}
       <nav style={{ backgroundColor: '#1E3A8A', color: 'white', padding: '1rem 2rem', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -298,12 +432,25 @@ export default function Prescribe() {
         </div>
       </nav>
 
-      <main style={{ padding: '2.5rem 2rem', maxWidth: '1100px', margin: '0 auto' }}>
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '2rem', alignItems: 'start' }}>
+      {/* Re-prescribe Banner (M4) */}
+      {isReprescribe && (
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0.5rem 2rem 0' }}>
+          <div style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', padding: '0.9rem 1.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
+            <RefreshCw size={20} />
+            <div>
+              <div style={{ fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}><RefreshCw size={15} /> Tái kê đơn từ hồ sơ khám ngày {represcribeDate}</div>
+              <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>Dữ liệu đã được điền sẵn — bạn có thể chỉnh sửa trước khi phát hành đơn mới.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main style={{ padding: '0 2rem', maxWidth: '1100px', margin: '0 auto', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
+        <form onSubmit={handleSubmit} style={{ height: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '2rem', alignItems: 'start', height: '100%' }}>
 
             {/* ===== CỘT TRÁI: Danh sách thuốc ===== */}
-            <div>
+            <div style={{ overflowY: 'auto', height: '100%', paddingRight: '8px', paddingTop: '1.5rem', paddingBottom: '2rem' }} className="scroll-col">
               {rows.map((row, idx) => (
                 <div key={row.id} style={{ backgroundColor: 'white', borderRadius: '16px', padding: '2rem', marginBottom: '1.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0', position: 'relative' }}>
                   {/* Header row */}
@@ -358,12 +505,12 @@ export default function Prescribe() {
                               style={{ padding: '0.85rem 1.25rem', cursor: 'pointer', borderBottom: di < catalogResults.length - 1 ? '1px solid #F0FDF4' : 'none', transition: 'background 0.15s' }}
                               onMouseOver={e => e.currentTarget.style.backgroundColor = '#F0FDF4'}
                               onMouseOut={e => e.currentTarget.style.backgroundColor = 'white'}>
-                              <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.9rem' }}>💊 {drug.name}</div>
+                              <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '4px' }}><Pill size={14} color="#1E40AF" /> {drug.name}</div>
                               <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '2px' }}>
                                 {drug.activeIngredient && <span>🧪 {drug.activeIngredient} · </span>}
                                 {drug.defaultDosage} · {(drug.defaultSessions || []).map((s: string) => ({ MORNING: 'Sáng', NOON: 'Trưa', EVENING: 'Tối' }[s] || s)).join('/')}
                               </div>
-                              {drug.stock < 50 && <div style={{ fontSize: '0.75rem', color: '#F59E0B', marginTop: '2px' }}>⚠️ Tồn kho thấp: {drug.stock} {drug.unit}</div>}
+                              {drug.stock < 50 && <div style={{ fontSize: '0.75rem', color: '#F59E0B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}><AlertTriangle size={12} /> Tồn kho thấp: {drug.stock} {drug.unit}</div>}
                             </div>
                           ))}
                         </div>
@@ -413,14 +560,14 @@ export default function Prescribe() {
                       <label style={{ display: 'block', marginBottom: '10px', fontWeight: '600', color: '#374151', fontSize: '0.9rem' }}>Hình thức uống</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                         {[
-                          { key: 'BEFORE_MEAL', label: 'Trước ăn 30 phút', emoji: '🍽️' },
-                          { key: 'AFTER_MEAL', label: 'Sau khi ăn no', emoji: '✅' },
+                          { key: 'BEFORE_MEAL', label: 'Trước ăn 30 phút' },
+                          { key: 'AFTER_MEAL', label: 'Sau khi ăn no' },
                         ].map(opt => {
                           const active = row.mealTiming === opt.key;
                           return (
                             <button type="button" key={opt.key} onClick={() => updateRow(idx, 'mealTiming', opt.key)}
                               style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.9rem 1rem', borderRadius: '10px', cursor: 'pointer', border: active ? '2px solid #2563EB' : '2px solid #E2E8F0', backgroundColor: active ? '#EFF6FF' : '#FAFAFA', transition: 'all 0.2s' }}>
-                              <span style={{ fontSize: '1.4rem' }}>{opt.emoji}</span>
+                              {opt.key === 'BEFORE_MEAL' ? <Utensils size={22} color={active ? '#2563EB' : '#6B7280'} /> : <CheckCircle size={22} color={active ? '#2563EB' : '#6B7280'} />}
                               <span style={{ fontWeight: '600', fontSize: '0.9rem', color: active ? '#2563EB' : '#6B7280' }}>{opt.label}</span>
                             </button>
                           );
@@ -464,12 +611,12 @@ export default function Prescribe() {
                 style={{ width: '100%', padding: '1.25rem', background: 'linear-gradient(135deg, #059669, #10B981)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '1.1rem', cursor: submitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 15px rgba(16,185,129,0.4)', opacity: submitting ? 0.7 : 1, transition: 'all 0.2s' }}
                 onMouseOver={e => !submitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseOut={e => (e.currentTarget.style.transform = 'translateY(0)')}>
-                {submitting ? '⏳ Đang lưu hồ sơ...' : `🚀 Hoàn tất Khám — Phát Hành Đơn Thuốc`}
+                {submitting ? <><Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> Đang lưu hồ sơ...</> : <><Send size={16} /> Hoàn tất Khám — Phát Hành Đơn Thuốc</>}
               </button>
             </div>
 
             {/* ===== CỘT PHẢI: AI Panel ===== */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto', height: '100%', paddingLeft: '4px', paddingTop: '1.5rem', paddingBottom: '2rem' }} className="scroll-col">
 
               {/* ===== PANEL CHẨN ĐOÁN (bắt buộc) ===== */}
               <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.06)', border: '2px solid #BFDBFE' }}>
@@ -494,14 +641,43 @@ export default function Prescribe() {
                     />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Mã ICD-10 (tùy chọn)</label>
+                    <div style={{ position: 'relative' }}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Mã ICD-10 (tùy chọn)
+                        {icdCode && <span style={{ marginLeft: '6px', fontSize: '0.75rem', color: '#059669', backgroundColor: '#F0FDF4', padding: '2px 8px', borderRadius: '999px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><CheckCircle size={12} /> {icdCode}</span>}
+                      </label>
                       <input
-                        value={icdCode}
-                        onChange={e => setIcdCode(e.target.value)}
-                        placeholder="VD: E11, I10..."
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '0.75rem', borderRadius: '8px', border: '1.5px solid #E2E8F0', fontSize: '0.88rem', outline: 'none' }}
+                        value={icdSearch}
+                        onChange={e => { setIcdSearch(e.target.value); setShowIcdDropdown(true); }}
+                        onFocus={() => setShowIcdDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowIcdDropdown(false), 200)}
+                        placeholder={icdCode ? `${icdCode} — ${ICD10_CODES.find(i => i.code === icdCode)?.name || ''}` : 'Gõ mã hoặc tên bệnh...'}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '0.75rem', borderRadius: '8px', border: icdCode ? '1.5px solid #059669' : '1.5px solid #E2E8F0', fontSize: '0.88rem', outline: 'none', backgroundColor: icdCode ? '#F0FDF4' : '#fff' }}
                       />
+                      {icdCode && (
+                        <button type="button" onClick={() => { setIcdCode(''); setIcdSearch(''); }}
+                          style={{ position: 'absolute', right: '8px', top: '34px', background: '#FEE2E2', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', color: '#DC2626', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>
+                          ×
+                        </button>
+                      )}
+                      {showIcdDropdown && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', borderRadius: '10px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', border: '1px solid #DBEAFE', zIndex: 100, marginTop: '4px', maxHeight: '240px', overflowY: 'auto', animation: 'fadeIn 0.15s ease' }}>
+                          <div style={{ padding: '6px 10px', fontSize: '0.72rem', fontWeight: '700', color: '#1D4ED8', backgroundColor: '#EFF6FF', borderBottom: '1px solid #DBEAFE', borderRadius: '10px 10px 0 0', position: 'sticky', top: 0 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Building2 size={13} color="#1D4ED8" /> ICD-10 — {filteredICD.length} mã</span>
+                          </div>
+                          {filteredICD.length === 0 ? (
+                            <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: '#9CA3AF' }}>Không tìm thấy mã phù hợp</div>
+                          ) : filteredICD.map(item => (
+                            <div key={item.code}
+                              onMouseDown={(e) => { e.preventDefault(); setIcdCode(item.code); setIcdSearch(''); setShowIcdDropdown(false); }}
+                              style={{ padding: '0.6rem 0.9rem', cursor: 'pointer', borderBottom: '1px solid #F3F4F6', transition: 'background 0.1s', display: 'flex', alignItems: 'center', gap: '10px' }}
+                              onMouseOver={e => e.currentTarget.style.backgroundColor = '#EFF6FF'}
+                              onMouseOut={e => e.currentTarget.style.backgroundColor = 'white'}>
+                              <span style={{ fontWeight: '800', color: '#1E40AF', fontSize: '0.85rem', minWidth: '38px', backgroundColor: '#DBEAFE', padding: '2px 8px', borderRadius: '6px', textAlign: 'center' }}>{item.code}</span>
+                              <span style={{ fontSize: '0.84rem', color: '#374151' }}>{item.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Tái khám (tùy chọn)</label>
@@ -671,7 +847,7 @@ export default function Prescribe() {
                   <div style={{ marginTop: '1rem', animation: 'fadeIn 0.2s ease' }}>
                     {suggestLoading ? (
                       <div style={{ padding: '1.25rem', textAlign: 'center', color: '#7C3AED', fontSize: '0.9rem' }}>
-                        ⏳ AI đang phân tích chẩn đoán...
+                        <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> AI đang phân tích chẩn đoán...
                       </div>
                     ) : suggestions.length === 0 ? (
                       <div style={{ padding: '1rem', textAlign: 'center', backgroundColor: '#F9FAFB', borderRadius: '10px', border: '1px dashed #D1D5DB' }}>
@@ -679,7 +855,7 @@ export default function Prescribe() {
                       </div>
                     ) : suggestions[0]?.name === '__error__' ? (
                       <div style={{ padding: '1rem', backgroundColor: '#FEF2F2', borderRadius: '10px', border: '1px solid #FECACA' }}>
-                        <div style={{ fontWeight: '600', color: '#DC2626', fontSize: '0.85rem', marginBottom: '4px' }}>⚠️ Không thể kết nối AI</div>
+                        <div style={{ fontWeight: '600', color: '#DC2626', fontSize: '0.85rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={14} /> Không thể kết nối AI</div>
                         <div style={{ fontSize: '0.8rem', color: '#991B1B' }}>{suggestions[0].reason}</div>
                       </div>
                     ) : (
@@ -692,11 +868,11 @@ export default function Prescribe() {
                             style={{ padding: '0.9rem 1rem', border: '1.5px solid #EDE9FE', borderRadius: '10px', cursor: 'pointer', backgroundColor: '#FAFAFA', transition: 'all 0.2s' }}
                             onMouseOver={e => { e.currentTarget.style.backgroundColor = '#F5F3FF'; e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.transform = 'translateX(2px)'; }}
                             onMouseOut={e => { e.currentTarget.style.backgroundColor = '#FAFAFA'; e.currentTarget.style.borderColor = '#EDE9FE'; e.currentTarget.style.transform = 'translateX(0)'; }}>
-                            <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.9rem', marginBottom: '4px' }}>💊 {s.name}</div>
+                            <div style={{ fontWeight: '700', color: '#1E293B', fontSize: '0.9rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Pill size={14} color="#1E40AF" /> {s.name}</div>
                             <div style={{ fontSize: '0.8rem', color: '#6B7280', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                               <span>📏 {s.dosage}</span>
                               <span>🕐 {(s.sessions || []).map((ss: string) => ({ MORNING: 'Sáng', NOON: 'Trưa', EVENING: 'Tối' }[ss] || ss)).join('/')}</span>
-                              <span>{s.mealTiming === 'BEFORE_MEAL' ? '🍽️ Trước ăn' : '✅ Sau ăn'}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>{s.mealTiming === 'BEFORE_MEAL' ? <><Utensils size={12} /> Trước ăn</> : <><CheckCircle size={12} /> Sau ăn</>}</span>
                             </div>
                             <div style={{ fontSize: '0.75rem', color: '#7C3AED', marginTop: '6px', fontStyle: 'italic', borderTop: '1px solid #EDE9FE', paddingTop: '5px' }}>
                               💡 {s.reason}

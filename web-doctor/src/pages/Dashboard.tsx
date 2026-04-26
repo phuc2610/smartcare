@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Activity, Package, AlertTriangle, Bell, RefreshCw, BellRing } from 'lucide-react';
+import { LogOut, Activity, Package, AlertTriangle, Bell, RefreshCw, BellRing, CheckCircle, Sparkles } from 'lucide-react';
 
 export default function Dashboard() {
   const [patients, setPatients]         = useState<any[]>([]);
@@ -59,9 +59,9 @@ export default function Dashboard() {
   };
 
   const severityStyle = (s: string) => ({
-    error:   { bg: '#FEF2F2', border: '#FECACA', dot: '#EF4444', badge: '#FEE2E2', badgeText: '#DC2626', label: '🔴 Nguy hiểm' },
-    warning: { bg: '#FFFBEB', border: '#FDE68A', dot: '#F59E0B', badge: '#FEF3C7', badgeText: '#B45309', label: '🟡 Cảnh báo' },
-    info:    { bg: '#EFF6FF', border: '#BFDBFE', dot: '#3B82F6', badge: '#DBEAFE', badgeText: '#1D4ED8', label: '🔵 Thông tin' },
+    error:   { bg: '#FEF2F2', border: '#FECACA', dot: '#EF4444', badge: '#FEE2E2', badgeText: '#DC2626', label: 'Nguy hiểm' },
+    warning: { bg: '#FFFBEB', border: '#FDE68A', dot: '#F59E0B', badge: '#FEF3C7', badgeText: '#B45309', label: 'Cảnh báo' },
+    info:    { bg: '#EFF6FF', border: '#BFDBFE', dot: '#3B82F6', badge: '#DBEAFE', badgeText: '#1D4ED8', label: 'Thông tin' },
   }[s] || { bg: '#F9FAFB', border: '#E5E7EB', dot: '#9CA3AF', badge: '#F3F4F6', badgeText: '#6B7280', label: s });
 
   // Gắn patient info vào mỗi row để hiện alert badge
@@ -122,7 +122,7 @@ export default function Dashboard() {
           {/* Alert stats */}
           <div style={{ gridColumn: 'span 3', backgroundColor: 'white', padding: '1.75rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', borderTop: '3px solid #EF4444' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ color: '#6B7280', margin: 0, fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Nguy hiểm 🔴</h3>
+              <h3 style={{ color: '#6B7280', margin: 0, fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Nguy hiểm</h3>
               <div style={{ padding: '8px', backgroundColor: '#FEF2F2', borderRadius: '8px' }}>
                 <AlertTriangle size={20} color="#EF4444" />
               </div>
@@ -133,7 +133,7 @@ export default function Dashboard() {
 
           <div style={{ gridColumn: 'span 3', backgroundColor: 'white', padding: '1.75rem', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', borderTop: '3px solid #F59E0B' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ color: '#6B7280', margin: 0, fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Cảnh báo 🟡</h3>
+              <h3 style={{ color: '#6B7280', margin: 0, fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Cảnh báo</h3>
               <div style={{ padding: '8px', backgroundColor: '#FFFBEB', borderRadius: '8px' }}>
                 <Bell size={20} color="#F59E0B" />
               </div>
@@ -172,13 +172,13 @@ export default function Dashboard() {
                 background: alertLoading ? '#E5E7EB' : 'linear-gradient(135deg, #7C3AED, #A855F7)', color: alertLoading ? '#9CA3AF' : 'white',
                 boxShadow: alertLoading ? 'none' : '0 4px 10px rgba(124,58,237,0.3)' }}>
               <RefreshCw size={15} style={{ animation: alertLoading ? 'spin 1s linear infinite' : 'none' }} />
-              {alertLoading ? 'Đang phân tích...' : '🤖 Phân tích AI'}
+              <Sparkles size={15} /> {alertLoading ? 'Đang phân tích...' : 'Phân tích AI'}
             </button>
           </div>
 
           {!alertSummary || alertSummary.totalPatients === 0 ? (
             <div style={{ padding: '2.5rem', textAlign: 'center', color: '#9CA3AF' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>✅</div>
+              <CheckCircle size={40} color="#10B981" style={{ marginBottom: '8px' }} />
               <p style={{ margin: 0, fontWeight: '600' }}>Không có cảnh báo nào. Nhấn "Phân tích AI" để quét lại.</p>
             </div>
           ) : (
@@ -270,7 +270,7 @@ export default function Dashboard() {
                           {alertInfo.alerts.length} alert
                         </span>
                       ) : (
-                        <span style={{ color: '#10B981', fontSize: '0.82rem', fontWeight: '600' }}>✅ Bình thường</span>
+                        <span style={{ color: '#10B981', fontSize: '0.82rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={14} /> Bình thường</span>
                       )}
                     </td>
                     <td style={{ padding: '1.25rem 1.5rem', color: '#6B7280', fontSize: '0.9rem' }}>

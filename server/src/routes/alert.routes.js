@@ -8,6 +8,7 @@ const {
   getDoctorAlertSummary,
   markRead,
   markAllRead,
+  createSOS,
 } = require('../controllers/alert.controller');
 
 // Chạy engine phân tích cho tất cả bệnh nhân của bác sĩ (gọi từ Dashboard)
@@ -27,5 +28,8 @@ router.patch('/:alertId/read', authenticate, markRead);
 
 // Đánh dấu tất cả alerts của bệnh nhân đã đọc
 router.patch('/patient/:patientId/read-all', authenticate, markAllRead);
+
+// Bệnh nhân gửi SOS khẩn cấp (M10)
+router.post('/sos', authenticate, createSOS);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, Edit3, Trash2, Package, ChevronDown, X, Save, Beaker } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Edit3, Trash2, Package, ChevronDown, X, Save, Beaker, Utensils, CheckCircle } from 'lucide-react';
 
 const API = 'http://localhost:4000/api/drug-catalog';
 
@@ -210,7 +210,7 @@ export default function DrugCatalog() {
                     {/* Tên + Nhóm */}
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '1rem', color: '#1E293B', marginBottom: '3px' }}>{drug.name}</div>
-                      {drug.activeIngredient && <div style={{ fontSize: '0.82rem', color: '#6B7280' }}>🧪 {drug.activeIngredient}</div>}
+                      {drug.activeIngredient && <div style={{ fontSize: '0.82rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}><Beaker size={13} /> {drug.activeIngredient}</div>}
                       <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.75rem', fontWeight: '600', color: cat.color, backgroundColor: cat.bg, padding: '2px 8px', borderRadius: '999px' }}>{cat.label}</span>
                     </div>
                     {/* Liều mặc định */}
@@ -222,7 +222,7 @@ export default function DrugCatalog() {
                     {/* Hình thức */}
                     <div>
                       <div style={{ fontSize: '0.75rem', color: '#9CA3AF', marginBottom: '2px' }}>Hình thức</div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: '600', color: '#374151' }}>{drug.defaultMealTiming === 'BEFORE_MEAL' ? '🍽️ Trước ăn' : '✅ Sau ăn'}</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: '600', color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' }}>{drug.defaultMealTiming === 'BEFORE_MEAL' ? <><Utensils size={14} /> Trước ăn</> : <><CheckCircle size={14} /> Sau ăn</>}</div>
                     </div>
                     {/* Giá */}
                     <div>
@@ -330,7 +330,7 @@ export default function DrugCatalog() {
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>Hình thức uống mặc định</label>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  {[{ key: 'BEFORE_MEAL', label: '🍽️ Trước ăn 30 phút' }, { key: 'AFTER_MEAL', label: '✅ Sau khi ăn no' }].map(opt => {
+                  {[{ key: 'BEFORE_MEAL', label: 'Trước ăn 30 phút' }, { key: 'AFTER_MEAL', label: 'Sau khi ăn no' }].map(opt => {
                     const active = form.defaultMealTiming === opt.key;
                     return (
                       <button type="button" key={opt.key} onClick={() => setForm(p => ({ ...p, defaultMealTiming: opt.key }))}

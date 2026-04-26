@@ -132,4 +132,43 @@ const markAllRead = async (req, res) => {
   }
 };
 
-module.exports = { analyzeOne, analyzeAll, getPatientAlerts, getDoctorAlertSummary, markRead, markAllRead };
+// ─── POST /api/alerts/sos — Bệnh nhân gửi SOS khẩn cấp (M10) ──────────────
+const createSOS = async (req, res) => {
+  try {
+    if (req.user.role !== 'PATIENT') return res.status(403).json({ error: 'Chỉ bệnh nhân mới có thể gửi SOS' });
+
+    const { location, message: userMessage } = req.body;
+    const User = require('../models/User');
+    const patient = await User.findById(req.user._id).select('name phone');
+    if (!patient) return res.status(404).json({ error: 'User not found' });
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('vi-VN');
+
+    let alertMessage = `Bệnh nhân ${patient.name} (SĐT: ${patient.phone}) đã gửi tín hiệu SOS khẩn cấp lúc ${timeStr} ngày ${dateStr}.`;
+    if (userMessage) alertMessage += ` Lời nhắn: ${userMessage}`;
+    if (location && location.latitude && location.longitude) {
+      alertMessage += ` Vị trí GPS: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+    }
+
+    const alert = await Alert.create({
+      patientId: req.user._id,
+      type: 'sos',
+      severity: 'error',
+      title: '🆘 SOS Khẩn Cấp',
+      message: alertMessage,
+      isRead: false,
+    });
+
+    res.status(201).json({
+      ok: true,
+      message: 'Tín hiệu SOS đã được gửi đến bác sĩ của bạn!',
+      alert,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { analyzeOne, analyzeAll, getPatientAlerts, getDoctorAlertSummary, markRead, markAllRead, createSOS };
