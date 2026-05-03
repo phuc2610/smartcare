@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Animated, Platform, PermissionsAndroid } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Animated, Platform, PermissionsAndroid, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -38,6 +38,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [editingTask, setEditingTask] = useState<Reminder | HealthLog | null>(null);
   const [editingType, setEditingType] = useState<'medication' | 'health'>('medication');
   const [filter, setFilter] = useState<'all' | 'medication' | 'meal' | 'exercise' | 'appointment'>('all');
+  const [timeOfDay, setTimeOfDay] = useState<'all' | 'morning' | 'noon' | 'afternoon' | 'evening'>('all');
   const [missedReminderIds, setMissedReminderIds] = useState<Set<string>>(new Set());
   const [missedHealthLogIds, setMissedHealthLogIds] = useState<Set<string>>(new Set());
 
@@ -293,9 +294,38 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     return [];
   };
 
-  const filteredReminders = getFilteredReminders();
-  const filteredHealthLogs = getFilteredHealthLogs();
-  const filteredAppointments = getFilteredAppointments();
+  // Time-of-day filter helper
+  const getTimeOfDayForHour = (hour: number): 'morning' | 'noon' | 'afternoon' | 'evening' => {
+    if (hour >= 5 && hour < 11) return 'morning';
+    if (hour >= 11 && hour < 14) return 'noon';
+    if (hour >= 14 && hour < 18) return 'afternoon';
+    return 'evening';
+  };
+
+  const filterByTimeOfDay = <T extends any>(items: T[], getTime: (item: T) => Date | string | null): T[] => {
+    if (timeOfDay === 'all') return items;
+    return items.filter(item => {
+      const time = getTime(item);
+      if (!time) return true;
+      const date = typeof time === 'string' ? new Date(time) : time;
+      const hour = date.getHours();
+      return getTimeOfDayForHour(hour) === timeOfDay;
+    });
+  };
+
+  const preFilteredReminders = getFilteredReminders();
+  const preFilteredHealthLogs = getFilteredHealthLogs();
+  const preFilteredAppointments = getFilteredAppointments();
+
+  const filteredReminders = {
+    pending: filterByTimeOfDay(preFilteredReminders.pending, (r: any) => r.scheduledTime),
+    completed: filterByTimeOfDay(preFilteredReminders.completed, (r: any) => r.scheduledTime),
+  };
+  const filteredHealthLogs = {
+    pending: filterByTimeOfDay(preFilteredHealthLogs.pending, (h: any) => h.scheduledTime),
+    completed: filterByTimeOfDay(preFilteredHealthLogs.completed, (h: any) => h.scheduledTime),
+  };
+  const filteredAppointments = filterByTimeOfDay(preFilteredAppointments, (a: any) => a.appointmentTime ? `2000-01-01T${a.appointmentTime}` : null);
 
   const hasAnyTasks = () => {
     return (
@@ -360,12 +390,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                     }
                   );
                   if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-                    const Geolocation = require('react-native-geolocation-service').default;
+                    const Geolocation = require('@react-native-community/geolocation');
                     const pos = await new Promise<any>((resolve, reject) => {
                       Geolocation.getCurrentPosition(
                         (position: any) => resolve(position),
                         (error: any) => reject(error),
-                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
                       );
                     });
                     location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
@@ -400,108 +430,69 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   return (
     <Screen scrollable scrollViewProps={{ refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} /> }}>
-      {/* Personalized Header */}
+      {/* Hero Banner */}
       {!readOnly && (
         <>
-          <View style={styles.hero}>
-            <View style={styles.heroTop}>
-              <Avatar name={user?.name || 'U'} size={56} avatarUrl={user?.avatar} />
-              <View style={styles.heroInfo}>
-                <Text variant="body" color="surface" style={styles.heroLabel}>
-                  Hôm nay
-                </Text>
-                <Text variant="display" color="surface" style={styles.heroName}>
-                  {user?.name || 'Bệnh nhân'}
-                </Text>
-                {user?.medicalCondition && user.medicalCondition !== 'Normal' && (
-                  <View style={styles.conditionBadge}>
-                    <Text style={styles.conditionText}>{user.medicalCondition}</Text>
-                  </View>
-                )}
+          <View style={styles.heroBanner}>
+            <View style={styles.bannerContent}>
+              <View style={styles.bannerTextArea}>
+                <Text variant="caption" style={styles.bannerLabel}>SmartCare</Text>
+                <Text variant="title" style={styles.bannerTitle}>Lịch uống thuốc</Text>
+                <Text variant="caption" style={styles.bannerSub}>Quản lý sức khỏe mỗi ngày</Text>
               </View>
+              <Image
+                source={require('../../assets/doctor_banner.png')}
+                style={styles.bannerImage}
+                resizeMode="contain"
+              />
             </View>
-
-            <View style={styles.heroStats}>
-              <View style={styles.statBox}>
-                <Text variant="title" color="surface" semibold>
-                  {adherenceRate !== null ? `${adherenceRate}%` : '--'}
-                </Text>
-                <Text variant="caption" color="surface" style={styles.statLabel}>
-                  Tuân thủ thuốc
-                </Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text variant="title" color="surface" semibold>
-                  {pendingTasksCount}
-                </Text>
-                <Text variant="caption" color="surface" style={styles.statLabel}>
-                  Việc hôm nay
-                </Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text variant="title" color="surface" semibold>
-                  {appointmentCount}
-                </Text>
-                <Text variant="caption" color="surface" style={styles.statLabel}>
-                  Lịch hẹn
-                </Text>
-              </View>
-            </View>
+            {/* Decorative circles */}
+            <View style={styles.bannerCircle1} />
+            <View style={styles.bannerCircle2} />
           </View>
 
-          <View style={styles.statusChip}>
-            <TouchableOpacity onPress={() => setFilter('all')} activeOpacity={0.7}>
-              <Chip
-                label="Tất cả"
-                variant={filter === 'all' ? 'primary' : 'default'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFilter('medication')} activeOpacity={0.7}>
-              <Chip
-                label={`${medicationCount} thuốc`}
-                variant={filter === 'medication' ? 'primary' : 'default'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFilter('meal')} activeOpacity={0.7}>
-              <Chip
-                label={`${mealCount} bữa ăn`}
-                variant={filter === 'meal' ? 'primary' : 'default'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFilter('exercise')} activeOpacity={0.7}>
-              <Chip
-                label={`${exerciseCount} vận động`}
-                variant={filter === 'exercise' ? 'primary' : 'default'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setFilter('appointment')} activeOpacity={0.7}>
-              <Chip
-                label={`${appointmentCount} lịch hẹn`}
-                variant={filter === 'appointment' ? 'primary' : 'default'}
-              />
-            </TouchableOpacity>
+          {/* Pill Stats - overlapping banner bottom */}
+          <View style={styles.pillStatsRow}>
+            <View style={[styles.pillStat, { backgroundColor: COLORS.pillGreen }]}>
+              <Text style={[styles.pillStatValue, { color: COLORS.pillGreenText }]}>
+                {adherenceRate !== null ? `${adherenceRate}%` : '--'}
+              </Text>
+              <Text style={[styles.pillStatLabel, { color: COLORS.pillGreenText }]}>Tuân thủ</Text>
+            </View>
+            <View style={[styles.pillStat, { backgroundColor: COLORS.pillYellow }]}>
+              <Text style={[styles.pillStatValue, { color: COLORS.pillYellowText }]}>
+                {pendingTasksCount}
+              </Text>
+              <Text style={[styles.pillStatLabel, { color: COLORS.pillYellowText }]}>Việc hôm nay</Text>
+            </View>
+            <View style={[styles.pillStat, { backgroundColor: COLORS.pillGray }]}>
+              <Text style={[styles.pillStatValue, { color: COLORS.pillGrayText }]}>
+                {appointmentCount}
+              </Text>
+              <Text style={[styles.pillStatLabel, { color: COLORS.pillGrayText }]}>Lịch hẹn</Text>
+            </View>
           </View>
         </>
       )}
 
-      {/* SOS Emergency Button (M10) */}
+      {/* SOS Emergency Button */}
       {!readOnly && (
         <View style={styles.sosContainer}>
           <Animated.View style={{ transform: [{ scale: sosPulseAnim }] }}>
             <TouchableOpacity
               onPress={handleSOS}
               disabled={sosLoading || sosSent}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
               style={[
                 styles.sosButton,
                 sosSent && styles.sosButtonSent,
                 sosLoading && styles.sosButtonLoading,
               ]}
             >
-              <Text variant="title" style={styles.sosIcon}>
-                {sosSent ? '✅' : sosLoading ? '⏳' : '🆘'}
-              </Text>
-              <View>
+              <View style={styles.sosIconWrap}>
+                <Text style={styles.sosIconText}>SOS</Text>
+              </View>
+              <View style={styles.sosTextWrap}>
                 <Text variant="body" style={styles.sosTitle}>
                   {sosSent ? 'Đã gửi SOS' : sosLoading ? 'Đang gửi...' : 'SOS Khẩn Cấp'}
                 </Text>
@@ -509,8 +500,51 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
                   {sosSent ? 'Bác sĩ đã nhận được tín hiệu' : 'Nhấn để gửi cảnh báo đến bác sĩ'}
                 </Text>
               </View>
+              <Icon name="chevron-right" size={24} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </Animated.View>
+        </View>
+      )}
+
+      {/* Filter Chips */}
+      {!readOnly && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterScrollContent}>
+          {([
+            { key: 'all' as const, label: 'Tất cả' },
+            { key: 'medication' as const, label: `${medicationCount} thuốc` },
+            { key: 'meal' as const, label: `${mealCount} bữa ăn` },
+            { key: 'exercise' as const, label: `${exerciseCount} vận động` },
+            { key: 'appointment' as const, label: `${appointmentCount} lịch hẹn` },
+          ]).map(chip => (
+            <TouchableOpacity key={chip.key} onPress={() => setFilter(chip.key)} activeOpacity={0.7}>
+              <Chip label={chip.label} variant={filter === chip.key ? 'primary' : 'default'} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Time of Day Tabs */}
+      {!readOnly && (
+        <View style={styles.timeTabsContainer}>
+          {([
+            { key: 'all' as const, label: 'Tất cả', icon: '📋' },
+            { key: 'morning' as const, label: 'Sáng', icon: '☀️' },
+            { key: 'noon' as const, label: 'Trưa', icon: '🌤️' },
+            { key: 'afternoon' as const, label: 'Chiều', icon: '⛅' },
+            { key: 'evening' as const, label: 'Tối', icon: '🌙' },
+          ]).map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setTimeOfDay(tab.key)}
+              activeOpacity={0.7}
+              style={[styles.timeTab, timeOfDay === tab.key && styles.timeTabActive]}
+            >
+              <Text style={styles.timeTabIcon}>{tab.icon}</Text>
+              <Text style={[styles.timeTabLabel, timeOfDay === tab.key && styles.timeTabLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -887,74 +921,205 @@ const TaskItem: React.FC<TaskItemProps> = ({
 };
 
 const styles = StyleSheet.create({
-  hero: {
+  // ===== Hero Banner =====
+  heroBanner: {
     backgroundColor: COLORS.primary,
-    marginHorizontal: 0,
-    marginTop: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    padding: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING['2xl'],
+    paddingHorizontal: SPACING.xl,
+    overflow: 'hidden',
+    minHeight: 160,
     ...SHADOWS.md,
   },
-  heroTop: {
+  bannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-  },
-  heroInfo: {
-    flex: 1,
-  },
-  heroLabel: {
-    opacity: 0.85,
-  },
-  heroName: {
-    marginTop: 2,
-  },
-  heroStats: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SPACING.lg,
-    gap: 12,
+    zIndex: 2,
   },
-  statBox: {
+  bannerTextArea: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    padding: SPACING.md,
-    borderRadius: 14,
+    paddingRight: SPACING.md,
   },
-  statLabel: {
+  bannerLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  bannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 6,
+    lineHeight: 30,
+  },
+  bannerSub: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
     marginTop: 4,
   },
-  conditionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 6,
+  bannerImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 16,
   },
-  conditionText: {
-    color: '#fff',
+  bannerCircle1: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    top: -20,
+    right: -20,
+  },
+  bannerCircle2: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    bottom: -10,
+    left: 30,
+  },
+
+  // ===== Pill Stats =====
+  pillStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: SPACING['2xl'],
+    marginTop: -20,
+    gap: SPACING.sm,
+    zIndex: 10,
+  },
+  pillStat: {
+    flex: 1,
+    borderRadius: RADIUS.xl,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    alignItems: 'center',
+    ...SHADOWS.card,
+  },
+  pillStatValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  pillStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  // ===== SOS Button =====
+  sosContainer: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+  },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.card,
+  },
+  sosButtonSent: {
+    backgroundColor: '#22C55E',
+  },
+  sosButtonLoading: {
+    backgroundColor: '#9CA3AF',
+  },
+  sosIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  sosIconText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  sosTextWrap: {
+    flex: 1,
+  },
+  sosTitle: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  sosSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
+    marginTop: 2,
+  },
+
+  // ===== Filter Chips =====
+  filterScroll: {
+    marginTop: SPACING.lg,
+  },
+  filterScrollContent: {
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.sm,
+  },
+
+  // ===== Time Tabs =====
+  timeTabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xs,
+  },
+  timeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    gap: 4,
+  },
+  timeTabActive: {
+    backgroundColor: COLORS.surface,
+    ...SHADOWS.soft,
+  },
+  timeTabIcon: {
+    fontSize: 14,
+  },
+  timeTabLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+  },
+  timeTabLabelActive: {
+    color: COLORS.text,
     fontWeight: '600',
   },
-  statusChip: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    flexWrap: 'wrap',
-    marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
-  },
+
+  // ===== Plan Card =====
   planCard: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
     marginBottom: SPACING.md,
+    borderRadius: RADIUS.xl,
   },
   planTitle: {
     marginBottom: SPACING.lg,
+    fontSize: 18,
+    fontWeight: '700',
   },
+
+  // ===== Task Items =====
   taskSection: {
     gap: SPACING.sm,
   },
@@ -978,7 +1143,7 @@ const styles = StyleSheet.create({
   taskIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: RADIUS.md,
     backgroundColor: COLORS.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -993,9 +1158,7 @@ const styles = StyleSheet.create({
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
   },
-  taskSubtitle: {
-    // Typography handled by Text component
-  },
+  taskSubtitle: {},
   taskTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1009,6 +1172,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: COLORS.error,
     backgroundColor: COLORS.error + '08',
+    paddingLeft: SPACING.sm,
+    borderRadius: RADIUS.sm,
   },
   taskActions: {
     flexDirection: 'row',
@@ -1020,6 +1185,8 @@ const styles = StyleSheet.create({
   taskCheck: {
     marginLeft: SPACING.sm,
   },
+
+  // ===== Sections =====
   section: {
     marginTop: SPACING.md,
   },
@@ -1061,42 +1228,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     fontStyle: 'italic',
   },
-  // SOS Emergency Styles (M10)
-  sosContainer: {
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-  },
-  sosButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    backgroundColor: '#DC2626',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.md,
-    shadowColor: '#DC2626',
-    elevation: 8,
-  },
-  sosButtonSent: {
-    backgroundColor: '#16A34A',
-    shadowColor: '#16A34A',
-  },
-  sosButtonLoading: {
-    backgroundColor: '#9CA3AF',
-    shadowColor: '#9CA3AF',
-  },
-  sosIcon: {
-    fontSize: 32,
-  },
-  sosTitle: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-  sosSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    marginTop: 2,
-  },
 });
+

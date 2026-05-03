@@ -13,7 +13,7 @@ interface AvatarProps {
 export const Avatar: React.FC<AvatarProps> = ({ 
   name = 'U', 
   size = 48,
-  backgroundColor = COLORS.primaryLight,
+  backgroundColor = COLORS.primary,
   avatarUrl,
   style
 }) => {
@@ -65,15 +65,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.primary + '30',
   },
   image: {
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.primary + '30',
   },
   text: {
-    fontWeight: 'bold',
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 

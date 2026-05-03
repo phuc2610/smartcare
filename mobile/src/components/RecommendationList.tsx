@@ -178,7 +178,7 @@ export const RecommendationList = () => {
               <Text style={styles.cardDescription}>{item.description}</Text>
             </View>
             <TouchableOpacity style={styles.addButton} onPress={() => handleAddToPlan(item)}>
-              <Icon name="add-circle-outline" size={16} color={COLORS.primary} />
+              <Icon name="add-circle-outline" size={16} color="#FFFFFF" />
               <Text style={styles.addButtonText}>Thêm vào kế hoạch</Text>
             </TouchableOpacity>
           </View>
@@ -200,57 +200,60 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6B7280',
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   reloadButton: {
-    padding: 4,
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   scroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
   card: {
-    width: 220,
+    width: 200,
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1C1C1E',
     marginBottom: 8,
   },
   cardDescription: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#8E8E93',
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
     marginTop: 'auto',
   },
   addButtonText: {
     fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -261,9 +264,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#8E8E93',
   },
 });
+
 
 
 

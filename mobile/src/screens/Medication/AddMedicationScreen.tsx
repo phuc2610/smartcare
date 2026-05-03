@@ -1,259 +1,273 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ScrollView } from 'react-native';
-import { launchImageLibrary, launchCamera, ImagePickerResponse } from 'react-native-image-picker';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
-import { createMedication } from '../../services/medication.service';
 import { uploadImage } from '../../services/upload.service';
 import { parseMedicationFromImage } from '../../services/ai.service';
+import { createMedication } from '../../services/medication.service';
 import { FrequencyType } from '../../types';
-import { COLORS } from '../../utils/constants';
 import { requestCameraPermission, requestStoragePermission } from '../../utils/permissions';
-import { TimePicker } from '../../components/TimePicker';
-import { DatePicker } from '../../components/DatePicker';
-import { AppHeader } from '../../components/AppHeader';
 import { showInfo, showError } from '../../utils/alert';
+import { MedicalDisclaimer } from '../../components/MedicalDisclaimer';
+
+const TEAL = '#458B81';
 
 export const AddMedicationScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [time, setTime] = useState('08:00');
-  const [startDate, setStartDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
-  const [isScanning, setIsScanning] = useState(false);
-  const [scannedImage, setScannedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleImageSelect = async () => {
-    showInfo(
-      'Tính năng đang phát triển',
-      'Chức năng quét đơn thuốc / vỏ hộp sẽ được phát triển sớm. Vui lòng nhập thông tin thuốc thủ công.'
-    );
-  };
-
-  const handleImageResult = async (response: ImagePickerResponse) => {
-    if (response.didCancel || !response.assets?.[0]) return;
-
-    const uri = response.assets[0].uri!;
-    setScannedImage(uri);
-    setIsScanning(true);
-
-    try {
-      const uploadResult = await uploadImage(uri);
-      const result = await parseMedicationFromImage(uploadResult.url);
-      
-      if (result.medication.name) setName(result.medication.name);
-      if (result.medication.dosage) setDosage(result.medication.dosage);
-    } catch (error) {
-      showError('Lỗi', 'Không thể phân tích ảnh. Vui lòng nhập thủ công.');
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!name.trim() || !time) {
-      showError('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+  const handleOpenCamera = async () => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      showError('Quyền truy cập', 'Cần quyền truy cập máy ảnh để chụp đơn thuốc.');
       return;
     }
 
-    if (!user) return;
+    launchCamera(
+      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 },
+      async (response) => {
+        if (response.didCancel || !response.assets?.[0]) return;
+        await processImage(response.assets[0].uri!);
+      }
+    );
+  };
 
+  const handlePickImage = async () => {
+    const hasPermission = await requestStoragePermission();
+    if (!hasPermission) {
+      showError('Quyền truy cập', 'Cần quyền truy cập thư viện ảnh.');
+      return;
+    }
+
+    launchImageLibrary(
+      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 },
+      async (response) => {
+        if (response.didCancel || !response.assets?.[0]) return;
+        await processImage(response.assets[0].uri!);
+      }
+    );
+  };
+
+  const processImage = async (uri: string) => {
+    setIsProcessing(true);
     try {
-      await createMedication({
-        name,
-        dosage,
-        unit: 'mg',
-        frequency: FrequencyType.DAILY,
-        times: [time],
-        startDate: new Date(startDate).toISOString(),
-      });
-      
-      const { showSuccess } = require('../../utils/alert');
-      showSuccess('Thành công', 'Đã thêm thuốc mới', () => {
-        setTimeout(() => navigation.goBack(), 300);
-      });
-    } catch (error: any) {
-      const { showError } = require('../../utils/alert');
-      showError('Lỗi', error.response?.data?.error || 'Không thể thêm thuốc');
+      const uploadResult = await uploadImage(uri);
+      const result = await parseMedicationFromImage(uploadResult.url);
+
+      if (result.medication?.name) {
+        // Auto-create medication from scan result
+        await createMedication({
+          name: result.medication.name,
+          dosage: result.medication.dosage || '',
+          unit: result.medication.unit || 'mg',
+          frequency: FrequencyType.DAILY,
+          times: ['08:00'],
+          startDate: new Date().toISOString(),
+        });
+
+        const { showSuccess } = require('../../utils/alert');
+        showSuccess('Quét thành công', `Đã lưu đơn thuốc "${result.medication.name}"`, () => {
+          navigation.goBack();
+        });
+      } else {
+        showInfo('Không nhận diện được', 'Không thể nhận diện đơn thuốc từ ảnh. Vui lòng thử lại với ảnh rõ hơn.');
+      }
+    } catch (error) {
+      showError('Lỗi', 'Không thể phân tích ảnh đơn thuốc. Vui lòng thử lại.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
+  const handleClose = () => {
+    navigation.goBack();
+  };
+
   return (
-    <View style={styles.container}>
-      <AppHeader title="Thêm thuốc mới" />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quét đơn thuốc / Vỏ hộp</Text>
-        {!scannedImage ? (
-          <TouchableOpacity style={styles.scanButton} onPress={handleImageSelect}>
-            <Text style={styles.scanButtonText}>📷 Quét ảnh</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: scannedImage }} style={styles.image} />
-            {isScanning && (
-              <View style={styles.scanningOverlay}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.scanningText}>Đang quét AI...</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.removeImage}
-              onPress={() => {
-                setScannedImage(null);
-                setName('');
-                setDosage('');
-              }}
-            >
-              <Text style={styles.removeImageText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Tên thuốc *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ví dụ: Panadol, Insulin..."
-          value={name}
-          onChangeText={setName}
-        />
-
-        <Text style={styles.label}>Liều lượng</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ví dụ: 500mg, 1 viên"
-          value={dosage}
-          onChangeText={setDosage}
-        />
-
-        <TimePicker
-          label="Giờ uống thuốc *"
-          value={time}
-          onChange={setTime}
-        />
-
-        <DatePicker
-          label="Ngày bắt đầu"
-          value={startDate}
-          onChange={setStartDate}
-        />
-
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Lưu & Đặt lịch</Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerPlaceholder} />
+        <Text style={styles.headerTitle}>Quét đơn thuốc</Text>
+        <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={styles.headerClose}>
+          <Text style={styles.headerCloseText}>Đóng</Text>
         </TouchableOpacity>
       </View>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Body - Center Content */}
+        <View style={styles.body}>
+          {isProcessing ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color={TEAL} />
+              <Text style={styles.processingTitle}>Đang phân tích đơn thuốc...</Text>
+              <Text style={styles.processingSubtitle}>AI đang nhận diện thông tin từ ảnh của bạn</Text>
+            </View>
+          ) : (
+            <>
+              {/* Camera Icon */}
+              <View style={styles.iconContainer}>
+                <Icon name="photo-camera" size={64} color={TEAL} />
+              </View>
+
+              {/* Heading */}
+              <Text style={styles.heading}>Chụp ảnh đơn thuốc của bạn</Text>
+
+              {/* Subtitle */}
+              <Text style={styles.subtitle}>
+                Đảm bảo đơn thuốc rõ ràng, không bị mờ hoặc lóa sáng.
+              </Text>
+
+              {/* Action Buttons */}
+              <View style={styles.buttonsContainer}>
+                <TouchableOpacity style={styles.btnPrimary} onPress={handleOpenCamera} activeOpacity={0.8}>
+                  <Icon name="photo-camera" size={20} color="#FFFFFF" />
+                  <Text style={styles.btnPrimaryText}>Mở máy ảnh</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.btnSecondary} onPress={handlePickImage} activeOpacity={0.8}>
+                  <Icon name="photo-library" size={20} color="#6B7280" />
+                  <Text style={styles.btnSecondaryText}>Chọn từ thư viện</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Footer - Medical Disclaimer */}
+        <MedicalDisclaimer />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F8F9FA',
   },
+  // Header
+  header: {
+    backgroundColor: TEAL,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minHeight: 52,
+  },
+  headerPlaceholder: {
+    width: 50,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  headerClose: {
+    width: 50,
+    alignItems: 'flex-end',
+  },
+  headerCloseText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  // Scroll
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    flexGrow: 1,
   },
-  section: {
+  // Body
+  body: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 40,
+  },
+  iconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: TEAL + '12',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 12,
+  heading: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  scanButton: {
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderStyle: 'dashed',
-  },
-  scanButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  imageContainer: {
-    position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  scanningOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scanningText: {
-    color: '#fff',
-    marginTop: 8,
-    fontWeight: 'bold',
-  },
-  removeImage: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#fff',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeImageText: {
-    fontSize: 18,
-    color: COLORS.text,
-  },
-  form: {
-    flex: 1,
-  },
-  label: {
+  subtitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: 36,
+    paddingHorizontal: 16,
   },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  // Buttons
+  buttonsContainer: {
+    width: '100%',
+    gap: 12,
   },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 16,
+  btnPrimary: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: TEAL,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: TEAL,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  saveButtonText: {
-    color: '#fff',
+  btnPrimaryText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  btnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  btnSecondaryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  // Processing
+  processingContainer: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  processingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  processingSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });
-

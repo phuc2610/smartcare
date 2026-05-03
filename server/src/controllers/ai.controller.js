@@ -337,26 +337,52 @@ const getHealthRecommendationsSchema = z.object({
 
 const getHealthRecommendations = async (req, res) => {
   try {
-    if (!openai) {
-      return res.status(503).json({ error: 'AI service disabled: missing OPENAI_API_KEY' });
-    }
-    
     const medicalCondition = req.body.medicalCondition || req.user?.medicalCondition || 'Normal';
 
+    // ─── DEMO RECOMMENDATIONS by condition ───
+    const demoRecommendations = {
+      'tiểu đường': [
+        { id: 'd1', type: 'DIET', title: 'Kiểm soát carb', description: 'Thay cơm trắng bằng gạo lứt, yến mạch. Chia nhỏ bữa ăn (5-6 bữa/ngày) để ổn định đường huyết.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+        { id: 'd2', type: 'EXERCISE', title: 'Đi bộ sau ăn 30 phút', description: 'Đi bộ nhẹ 15-20 phút sau bữa ăn giúp giảm đường huyết sau ăn hiệu quả hơn thuốc.', iconName: 'Footprints', color: 'bg-orange-100 text-orange-600' },
+        { id: 'd3', type: 'LIFESTYLE', title: 'Theo dõi đường huyết', description: 'Đo đường huyết lúc đói (trước ăn sáng) và sau ăn 2h. Mục tiêu: 4.4-7.2 mmol/L lúc đói.', iconName: 'Activity', color: 'bg-blue-100 text-blue-600' },
+      ],
+      'huyết áp': [
+        { id: 'h1', type: 'DIET', title: 'Giảm muối', description: 'Hạn chế dưới 5g muối/ngày. Tránh mì gói, đồ hộp, nước mắm. Thay bằng gia vị thảo mộc.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+        { id: 'h2', type: 'EXERCISE', title: 'Vận động đều đặn', description: 'Đi bộ nhanh hoặc bơi 150 phút/tuần. Tránh nâng tạ nặng vì tăng huyết áp đột ngột.', iconName: 'Heart', color: 'bg-red-100 text-red-600' },
+        { id: 'h3', type: 'LIFESTYLE', title: 'Đo huyết áp tại nhà', description: 'Đo huyết áp 2 lần/ngày (sáng-tối). Mục tiêu: dưới 140/90 mmHg. Ghi sổ theo dõi.', iconName: 'Activity', color: 'bg-blue-100 text-blue-600' },
+      ],
+      'tim mạch': [
+        { id: 't1', type: 'DIET', title: 'Chế độ ăn DASH', description: 'Ăn nhiều rau xanh, cá, hạt. Hạn chế mỡ động vật, đồ chiên rán. Bổ sung omega-3.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+        { id: 't2', type: 'EXERCISE', title: 'Cardio nhẹ nhàng', description: 'Đi bộ, đạp xe, bơi 30 phút/ngày, 5 ngày/tuần. Tránh gắng sức quá mức.', iconName: 'Heart', color: 'bg-red-100 text-red-600' },
+      ],
+      'dạ dày': [
+        { id: 'g1', type: 'DIET', title: 'Ăn chậm, nhai kỹ', description: 'Chia nhỏ 5-6 bữa/ngày. Tránh đồ cay, chua, rượu bia, cà phê. Không ăn trước ngủ 3h.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+        { id: 'g2', type: 'LIFESTYLE', title: 'Giảm stress', description: 'Stress là nguyên nhân chính gây viêm loét. Tập thiền, yoga hoặc hít thở sâu 10 phút/ngày.', iconName: 'Brain', color: 'bg-purple-100 text-purple-600' },
+      ],
+      'gout': [
+        { id: 'go1', type: 'DIET', title: 'Kiêng purine', description: 'Tránh nội tạng, hải sản, thịt đỏ, bia rượu. Ăn nhiều cherry, dâu tây giúp giảm acid uric.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+        { id: 'go2', type: 'LIFESTYLE', title: 'Uống nhiều nước', description: 'Uống 2.5-3 lít nước/ngày để đào thải acid uric qua thận. Tránh nước ngọt có đường.', iconName: 'GlassWater', color: 'bg-blue-100 text-blue-600' },
+      ],
+    };
+
+    const defaultRecs = [
+      { id: 'n1', type: 'LIFESTYLE', title: 'Uống đủ nước', description: 'Cố gắng uống đủ 2 lít nước mỗi ngày để duy trì sức khỏe tổng thể.', iconName: 'GlassWater', color: 'bg-blue-50 text-blue-500' },
+      { id: 'n2', type: 'EXERCISE', title: 'Vận động 30 phút/ngày', description: 'Đi bộ, chạy nhẹ hoặc yoga mỗi ngày giúp tăng cường hệ miễn dịch và tinh thần.', iconName: 'Footprints', color: 'bg-orange-100 text-orange-600' },
+      { id: 'n3', type: 'DIET', title: 'Ăn đa dạng rau củ', description: 'Bổ sung ít nhất 5 loại rau củ quả khác màu mỗi ngày để đủ vitamin và khoáng chất.', iconName: 'Utensils', color: 'bg-green-100 text-green-600' },
+    ];
+
+    if (!openai) {
+      // ── DEMO MODE ──
+      const condLower = (medicalCondition || '').toLowerCase();
+      let recs = defaultRecs;
+      for (const [key, val] of Object.entries(demoRecommendations)) {
+        if (condLower.includes(key)) { recs = val; break; }
+      }
+      return res.json({ recommendations: recs, _demo: true });
+    }
+
     if (medicalCondition === 'Normal' || !medicalCondition) {
-      // Return default recommendations for normal health
-      return res.json({
-        recommendations: [
-          {
-            id: 'n1',
-            type: 'LIFESTYLE',
-            title: 'Uống đủ nước',
-            description: 'Cố gắng uống đủ 2 lít nước mỗi ngày.',
-            iconName: 'GlassWater',
-            color: 'bg-blue-50 text-blue-500',
-          },
-        ],
-      });
+      return res.json({ recommendations: defaultRecs });
     }
 
     const prompt = `You are a health expert. Generate 2-3 personalized health recommendations for a Vietnamese patient with medical condition: "${medicalCondition}".

@@ -12,6 +12,7 @@ import { SHADOWS } from '../theme/shadows';
 import { SPRING } from '../theme/motion';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AddMedicationScreen } from '../screens/Medication/AddMedicationScreen';
+import { SavedPrescriptionsScreen } from '../screens/Medication/SavedPrescriptionsScreen';
 import { HealthTrackingScreen } from '../screens/Health/HealthTrackingScreen';
 import { ReportScreen } from '../screens/Report/ReportScreen';
 import { CaregiverDashboardScreen } from '../screens/Caregiver/CaregiverDashboardScreen';
@@ -88,7 +89,7 @@ const AnimatedAddButton = React.memo(({ focused }: { focused: boolean }) => {
   
   return (
     <Animated.View style={[styles.addButton, animatedStyle]}>
-      <Icon name="add" size={32} color="#fff" />
+      <Icon name="photo-camera" size={28} color="#fff" />
     </Animated.View>
   );
 });
@@ -97,7 +98,7 @@ const DashboardStack = React.memo(() => {
   return (
     <Stack.Navigator
       screenOptions={{
-        header: () => <AppHeader title="Lịch uống thuốc" />,
+        header: () => <AppHeader title="Lịch uống thuốc" variant="dashboard" />,
       }}
     >
       <Stack.Screen
@@ -117,8 +118,8 @@ const MainTabs = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#fff',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.7)',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIconStyle: styles.tabBarIcon,
@@ -131,7 +132,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Trang chủ',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="list" size={size || 24} color={color} focused={focused} />
+            <AnimatedTabIcon name="home" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
@@ -141,9 +142,9 @@ const MainTabs = () => {
             name="Tracking"
             component={HealthTrackingScreen}
             options={{
-              tabBarLabel: 'Theo dõi',
+              tabBarLabel: 'Lịch thuốc',
               tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="favorite" size={size || 24} color={color} focused={focused} />
+                <AnimatedTabIcon name="schedule" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -165,12 +166,12 @@ const MainTabs = () => {
             }}
           />
           <Tab.Screen
-            name="Report"
-            component={ReportScreen}
+            name="Prescriptions"
+            component={SavedPrescriptionsScreen}
             options={{
-              tabBarLabel: 'Báo cáo',
+              tabBarLabel: 'Đơn thuốc',
               tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="bar-chart" size={size || 24} color={color} focused={focused} />
+                <AnimatedTabIcon name="description" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -180,9 +181,9 @@ const MainTabs = () => {
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Hồ sơ',
+          tabBarLabel: 'Cá nhân',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="account-circle" size={size || 24} color={color} focused={focused} />
+            <AnimatedTabIcon name="person" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
@@ -391,17 +392,18 @@ export const TabsNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: COLORS.primary,
-    borderTopWidth: 0,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
     height: 64,
     paddingBottom: SPACING.sm,
     paddingTop: SPACING.sm,
+    ...SHADOWS.tabBar,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: SPACING.xs,
-    color: '#fff',
   },
   tabBarIcon: {
     marginTop: SPACING.xs,
@@ -415,12 +417,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -28,
     borderWidth: 4,
-    borderColor: COLORS.primaryLight,
+    borderColor: COLORS.surface,
+    ...SHADOWS.floating,
   },
   addButtonContainer: {
     top: -10,
   },
 });
+
 
 
 
