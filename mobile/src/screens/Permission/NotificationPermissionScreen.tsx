@@ -114,6 +114,12 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
           loading={isRequesting}
           style={styles.button}
         />
+        <Button
+          title="Bỏ qua"
+          onPress={onPermissionGranted}
+          variant="outline"
+          style={styles.skipButton}
+        />
       </View>
     </Screen>
   );
@@ -163,6 +169,10 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     marginTop: 16,
+  },
+  skipButton: {
+    width: '100%',
+    marginTop: 12,
   },
 });
 
