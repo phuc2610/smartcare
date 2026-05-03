@@ -42,6 +42,9 @@ import { CaregiverRequestsScreen } from '../screens/CaregiverRequests/CaregiverR
 import { NotificationsScreen } from '../screens/Notifications/NotificationsScreen';
 import { ConversationListScreen } from '../screens/Chat/ConversationListScreen';
 import { ChatDetailScreen } from '../screens/Chat/ChatDetailScreen';
+import { PrescriptionViewScreen } from '../screens/Prescription/PrescriptionViewScreen';
+import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEditScreen';
+import { DependentsScreen } from '../screens/Profile/DependentsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -139,12 +142,12 @@ const MainTabs = () => {
       {!isCaregiver && (
         <>
           <Tab.Screen
-            name="Tracking"
-            component={HealthTrackingScreen}
+            name="Prescriptions"
+            component={SavedPrescriptionsScreen}
             options={{
-              tabBarLabel: 'Lịch thuốc',
+              tabBarLabel: 'Đơn thuốc',
               tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="schedule" size={size || 24} color={color} focused={focused} />
+                <AnimatedTabIcon name="description" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -166,12 +169,12 @@ const MainTabs = () => {
             }}
           />
           <Tab.Screen
-            name="Prescriptions"
-            component={SavedPrescriptionsScreen}
+            name="Report"
+            component={ReportScreen}
             options={{
-              tabBarLabel: 'Đơn thuốc',
+              tabBarLabel: 'Báo cáo',
               tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="description" size={size || 24} color={color} focused={focused} />
+                <AnimatedTabIcon name="bar-chart" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -382,6 +385,34 @@ export const TabsNavigator = () => {
       <Stack.Screen 
         name="Notifications" 
         component={NotificationsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PrescriptionView" 
+        component={PrescriptionViewScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PrescriptionEdit" 
+        component={PrescriptionEditScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Dependents" 
+        component={DependentsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="HealthTracking" 
+        component={HealthTrackingScreen} 
         options={{ 
           headerShown: false,
         }} 

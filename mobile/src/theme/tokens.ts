@@ -5,10 +5,10 @@
  */
 
 export const COLORS = {
-  // Primary palette - Teal Blue
-  primary: '#4A90E2',
-  primaryLight: '#EBF3FC',
-  primaryDark: '#357ABD',
+  // Primary palette - Teal Green
+  primary: '#458B81',
+  primaryLight: '#E8F5F2',
+  primaryDark: '#367068',
   
   // Secondary palette
   secondary: '#6366f1',

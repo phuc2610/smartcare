@@ -506,6 +506,24 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         </View>
       )}
 
+      {/* Health Tracking Shortcut */}
+      {!readOnly && (
+        <TouchableOpacity
+          style={styles.healthShortcut}
+          onPress={() => navigation.navigate('HealthTracking')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.healthShortcutIcon}>
+            <Icon name="monitor-heart" size={22} color={COLORS.primary} />
+          </View>
+          <View style={styles.healthShortcutText}>
+            <Text variant="body" semibold color="text">Theo dõi sức khỏe</Text>
+            <Text variant="caption" color="textSecondary">Nhập vận động, ăn uống hôm nay</Text>
+          </View>
+          <Icon name="chevron-right" size={22} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      )}
+
       {/* Filter Chips */}
       {!readOnly && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterScrollContent}>
@@ -1227,6 +1245,29 @@ const styles = StyleSheet.create({
   taskNotes: {
     marginTop: SPACING.xs,
     fontStyle: 'italic',
+  },
+  healthShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.card,
+  },
+  healthShortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  healthShortcutText: {
+    flex: 1,
   },
 });
 

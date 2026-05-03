@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType, PhotoQuality } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile as updateProfileAPI } from '../../services/user.service';
 import { uploadImage } from '../../services/upload.service';
 import { identifyDisease } from '../../services/ai.service';
-import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
-import { linkDoctor, getMyDoctors, revokeDoctor } from '../../services/doctor.service';
 import { UserRole } from '../../types';
-import { COLORS } from '../../utils/constants';
+import { COLORS } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
-import { Badge } from '../../components/Badge';
 import { showInfo } from '../../utils/alert';
+
+const TEAL = COLORS.primary;
 
 export const ProfileScreen = ({ navigation, route }: any) => {
   const { user, updateProfile, signOut } = useAuth();
@@ -22,759 +23,229 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  
-  // Link account states
-  const [linkLoading, setLinkLoading] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [inputCode, setInputCode] = useState('');
-  const [linkSuccessMsg, setLinkSuccessMsg] = useState('');
-  
-  // Doctor link states
-  const [doctorCode, setDoctorCode] = useState('');
-  const [linkDoctorLoading, setLinkDoctorLoading] = useState(false);
-  const [doctorLinkMsg, setDoctorLinkMsg] = useState('');
-  const [myDoctors, setMyDoctors] = useState<any[]>([]);
-
-  const fetchMyDoctors = async () => {
-    try {
-      if (user?.role === UserRole.PATIENT) {
-        const res = await getMyDoctors();
-        setMyDoctors(res.doctors || []);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch doctors', err);
-    }
-  };
 
   useEffect(() => {
     if (user) {
-      // Load height from database
       setHeight(user.height?.toString() || '');
-      
-      // Load weight from database
       setWeight(user.weight?.toString() || '');
-      
-      // Load medicalCondition from database (only for PATIENT)
-      // If medicalCondition exists and is not 'Normal' or 'Bình thường', display it
       if (user.role === UserRole.PATIENT) {
-        if (user.medicalCondition && 
-            user.medicalCondition !== 'Normal' && 
-            user.medicalCondition !== 'Bình thường' &&
-            user.medicalCondition !== 'Other' &&
-            user.medicalCondition !== 'Khác') {
+        if (user.medicalCondition && user.medicalCondition !== 'Normal' && user.medicalCondition !== 'Bình thường' && user.medicalCondition !== 'Other' && user.medicalCondition !== 'Khác') {
           setConditionInput(user.medicalCondition);
-        } else {
-          setConditionInput('');
-        }
-      } else {
-        // Caregiver should not have medical condition
-        setConditionInput('');
-      }
-      
-      fetchMyDoctors();
+        } else { setConditionInput(''); }
+      } else { setConditionInput(''); }
     }
   }, [user]);
 
   const handleChangeAvatar = () => {
     if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [
-            'Hủy',
-            'Chụp ảnh',
-            'Chọn từ thư viện',
-          ],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            handleImagePicker('camera');
-          } else if (buttonIndex === 2) {
-            handleImagePicker('library');
-          }
-        }
-      );
+      ActionSheetIOS.showActionSheetWithOptions({ options: ['Hủy', 'Chụp ảnh', 'Chọn từ thư viện'], cancelButtonIndex: 0 }, (i) => { if (i === 1) handleImagePicker('camera'); else if (i === 2) handleImagePicker('library'); });
     } else {
-      Alert.alert(
-        'Đổi ảnh đại diện',
-        '',
-        [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Chụp ảnh', onPress: () => handleImagePicker('camera') },
-          { text: 'Chọn từ thư viện', onPress: () => handleImagePicker('library') },
-        ]
-      );
+      Alert.alert('Đổi ảnh đại diện', '', [{ text: 'Hủy', style: 'cancel' }, { text: 'Chụp ảnh', onPress: () => handleImagePicker('camera') }, { text: 'Chọn từ thư viện', onPress: () => handleImagePicker('library') }]);
     }
   };
 
   const handleImagePicker = async (source: 'camera' | 'library') => {
-    const options = {
-      mediaType: 'photo' as MediaType,
-      quality: 0.8 as PhotoQuality,
-      maxWidth: 1024,
-      maxHeight: 1024,
-    };
-
+    const options = { mediaType: 'photo' as MediaType, quality: 0.8 as PhotoQuality, maxWidth: 1024, maxHeight: 1024 };
     try {
-      const response: ImagePickerResponse = source === 'camera'
-        ? await launchCamera(options)
-        : await launchImageLibrary(options);
-
-      if (response.didCancel || !response.assets || response.assets.length === 0) {
-        return;
-      }
-
-      const asset = response.assets[0];
-      if (!asset.uri) return;
-
+      const response: ImagePickerResponse = source === 'camera' ? await launchCamera(options) : await launchImageLibrary(options);
+      if (response.didCancel || !response.assets?.[0]?.uri) return;
       setUploadingAvatar(true);
-      
-      // Upload to Cloudinary
-      const uploadResult = await uploadImage(asset.uri);
-      
-      // Update user profile with avatar URL
-      const updatedUser = await updateProfileAPI({
-        avatar: uploadResult.url,
-      });
-
+      const uploadResult = await uploadImage(response.assets[0].uri);
+      const updatedUser = await updateProfileAPI({ avatar: uploadResult.url });
       updateProfile(updatedUser.user);
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', 'Đã cập nhật ảnh đại diện');
     } catch (error: any) {
-      console.error('[Profile] Avatar upload error:', error);
       Alert.alert('Lỗi', 'Không thể tải ảnh lên');
-    } finally {
-      setUploadingAvatar(false);
-    }
+    } finally { setUploadingAvatar(false); }
   };
 
   const handleSave = async () => {
     if (!user) return;
-    setLoading(true);
-    setAnalyzing(true);
-
+    setLoading(true); setAnalyzing(true);
     try {
-      const updateData: any = {
-        height: Number(height) || undefined,
-        weight: Number(weight) || undefined,
-      };
-
-      // Only process medical condition for PATIENT
+      const updateData: any = { height: Number(height) || undefined, weight: Number(weight) || undefined };
       if (user.role === UserRole.PATIENT) {
-        let finalCondition = user.medicalCondition || 'Normal'; // Keep existing condition by default
-        
-        // Only identify disease if user has entered new input
-        if (conditionInput.trim()) {
-          const result = await identifyDisease(conditionInput);
-          finalCondition = result.condition || finalCondition; // Use identified condition or keep existing
-        }
-        // If no input and no existing condition, keep as Normal
-        if (!conditionInput.trim() && !user.medicalCondition) {
-          finalCondition = 'Normal';
-        }
-
+        let finalCondition = user.medicalCondition || 'Normal';
+        if (conditionInput.trim()) { const result = await identifyDisease(conditionInput); finalCondition = result.condition || finalCondition; }
+        if (!conditionInput.trim() && !user.medicalCondition) finalCondition = 'Normal';
         updateData.medicalCondition = finalCondition;
       }
-      // Caregiver should not have medicalCondition - don't include it in update
-
       const updatedUser = await updateProfileAPI(updateData);
-
       updateProfile(updatedUser.user);
-      if (user.role === UserRole.PATIENT && updateData.medicalCondition) {
-        Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${updateData.medicalCondition}`);
-      } else {
-        Alert.alert('Thành công', 'Đã lưu hồ sơ!');
-      }
+      if (user.role === UserRole.PATIENT && updateData.medicalCondition) Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${updateData.medicalCondition}`);
+      else Alert.alert('Thành công', 'Đã lưu hồ sơ!');
     } catch (error: any) {
-      console.error('[Profile] Save error:', error);
-      // If AI fails, still save other fields but keep existing medicalCondition
       try {
-        const updateData: any = {
-          height: Number(height) || undefined,
-          weight: Number(weight) || undefined,
-        };
-        // Only include medicalCondition for PATIENT if it exists
-        if (user.role === UserRole.PATIENT && user.medicalCondition) {
-          updateData.medicalCondition = user.medicalCondition;
-        }
+        const updateData: any = { height: Number(height) || undefined, weight: Number(weight) || undefined };
+        if (user.role === UserRole.PATIENT && user.medicalCondition) updateData.medicalCondition = user.medicalCondition;
         const updatedUser = await updateProfileAPI(updateData);
         updateProfile(updatedUser.user);
         Alert.alert('Thành công', 'Đã lưu thông tin');
-      } catch (saveError: any) {
-        Alert.alert('Lỗi', saveError.response?.data?.error || 'Không thể lưu');
-      }
-    } finally {
-      setAnalyzing(false);
-      setLoading(false);
-    }
+      } catch (saveError: any) { Alert.alert('Lỗi', saveError.response?.data?.error || 'Không thể lưu'); }
+    } finally { setAnalyzing(false); setLoading(false); }
   };
 
-  const handleGenerateCode = async () => {
-    if (!user) return;
-    setLinkLoading(true);
-    try {
-      const data = await generateLinkCode();
-      setGeneratedCode(data.code);
-    } catch (error: any) {
-      const status = error?.response?.status;
-      const message =
-        error?.response?.data?.error ||
-        error?.message ||
-        'Không thể tạo mã';
-      const friendly =
-        status === 429
-          ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.'
-          : message;
-      Alert.alert('Lỗi', friendly);
-    } finally {
-      setLinkLoading(false);
-    }
-  };
-
-  const handleSubmitCode = async () => {
-    if (!user || !inputCode) return;
-    setLinkLoading(true);
-    try {
-      const res = await submitLinkCode(inputCode);
-      setLinkSuccessMsg(`Đã liên kết thành công với bệnh nhân: ${res.patientName}`);
-      setInputCode('');
-      // Refresh user data
-      setTimeout(() => {
-        setLinkSuccessMsg('');
-        // Navigation will be handled by context update
-      }, 3000);
-    } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể liên kết');
-    } finally {
-      setLinkLoading(false);
-    }
-  };
-
-  const handleLinkDoctor = async () => {
-    if (!user || !doctorCode) return;
-    setLinkDoctorLoading(true);
-    try {
-      const res = await linkDoctor(doctorCode);
-      showInfo('Kết nối thành công', `Đã liên kết với bác sĩ ${res.doctor.name}`);
-      setDoctorCode('');
-      fetchMyDoctors();
-    } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể liên kết bác sĩ');
-    } finally {
-      setLinkDoctorLoading(false);
-    }
-  };
-
-  const handleRevokeDoctor = async (doctorId: string) => {
-    Alert.alert('Thu hồi quyền', 'Bạn có chắc chắn muốn ngừng chia sẻ hồ sơ với bác sĩ này?', [
+  const handleSignOut = () => {
+    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
       { text: 'Hủy', style: 'cancel' },
-      { 
-        text: 'Đồng ý',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await revokeDoctor(doctorId);
-            showInfo('Thành công', 'Đã thu hồi quyền truy cập của bác sĩ này');
-            fetchMyDoctors();
-          } catch (e: any) {
-             Alert.alert('Lỗi', e.message || 'Không thể thu hồi quyền');
-          }
-        }
-      }
+      { text: 'Đăng xuất', style: 'destructive', onPress: () => signOut() },
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert('Xóa tài khoản', 'Tính năng này đang được phát triển. Vui lòng liên hệ hỗ trợ để xóa tài khoản.', [{ text: 'OK' }]);
+  };
+
+  const menuItems = [
+    { icon: 'people-outline', label: 'Người thân & phụ thuộc', onPress: () => navigation?.navigate('Dependents'), color: '#1C1C1E' },
+    { icon: 'settings', label: 'Cài đặt', onPress: () => navigation?.navigate('Settings'), color: '#1C1C1E' },
+    { icon: 'lock-outline', label: 'Đổi mật khẩu', onPress: () => navigation?.navigate('ChangePassword'), color: '#1C1C1E' },
+    { icon: 'info-outline', label: 'Giới thiệu ứng dụng', onPress: () => showInfo('SmartCare', 'Phiên bản 1.0.0\nỨng dụng chăm sóc sức khỏe thông minh'), color: '#1C1C1E' },
+    { icon: 'delete-outline', label: 'Xóa tài khoản', onPress: handleDeleteAccount, color: '#9CA3AF' },
+    { icon: 'logout', label: 'Đăng xuất', onPress: handleSignOut, color: '#EF4444' },
+  ];
+
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleChangeAvatar}
-          disabled={uploadingAvatar}
-          activeOpacity={0.7}
-        >
-          <View style={styles.avatarContainer}>
-            <Avatar 
-              name={user?.name || 'U'} 
-              size={96} 
-              avatarUrl={user?.avatar}
-            />
-            {uploadingAvatar && (
-              <View style={styles.uploadingOverlay}>
-                <Text style={styles.uploadingText}>Đang tải lên...</Text>
-              </View>
-            )}
-            <View style={styles.editAvatarBadge}>
-              <Text style={styles.editAvatarText}>✏️</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.phone}>{user?.phone}</Text>
-        <View style={styles.badges}>
-          <Badge 
-            text={user?.role === UserRole.PATIENT ? 'Người bệnh' : 'Người thân'} 
-            variant="primary"
-          />
-          {user?.role === UserRole.PATIENT && user?.medicalCondition && user.medicalCondition !== 'Normal' && (
-            <Badge text={user.medicalCondition} variant="warning" />
-          )}
-        </View>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Hồ sơ cá nhân</Text>
       </View>
 
-      {/* Fall Detection Settings (Only for Patient) */}
-      {user?.role === UserRole.PATIENT && (
-        <TouchableOpacity
-          style={styles.fallDetectionCard}
-          onPress={() => {
-            showInfo(
-              'Tính năng đang phát triển',
-              'Chức năng cảnh báo té ngã sẽ được phát triển sớm. Vui lòng chờ cập nhật.'
-            );
-          }}
-          activeOpacity={0.7}
-        >
-          <View style={styles.fallDetectionHeader}>
-            <Text style={styles.fallDetectionTitle}>⚠️ Cảnh báo té ngã</Text>
-            <Switch
-              value={isMonitoring}
-              onValueChange={(value) => {
-                showInfo(
-                  'Tính năng đang phát triển',
-                  'Chức năng cảnh báo té ngã sẽ được phát triển sớm. Vui lòng chờ cập nhật.'
-                );
-              }}
-              trackColor={{ false: '#e5e7eb', true: COLORS.error }}
-              thumbColor={isMonitoring ? '#fff' : '#f4f3f4'}
-            />
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Hero Profile Card */}
+        <View style={s.heroCard}>
+          <TouchableOpacity onPress={handleChangeAvatar} disabled={uploadingAvatar} activeOpacity={0.7}>
+            <View style={s.avatarWrap}>
+              <Avatar name={user?.name || 'U'} size={88} avatarUrl={user?.avatar} backgroundColor={TEAL} />
+              {uploadingAvatar && (
+                <View style={s.avatarOverlay}><Text style={s.avatarOverlayText}>Đang tải...</Text></View>
+              )}
+              <View style={s.avatarBadge}><Icon name="camera-alt" size={14} color={TEAL} /></View>
+            </View>
+          </TouchableOpacity>
+          <Text style={s.heroName}>{user?.name}</Text>
+          <Text style={s.heroPhone}>{user?.phone}</Text>
+          <View style={s.tagsRow}>
+            <View style={s.tagRole}><Text style={s.tagRoleText}>{user?.role === UserRole.PATIENT ? 'Người bệnh' : 'Người thân'}</Text></View>
+            {user?.role === UserRole.PATIENT && user?.medicalCondition && user.medicalCondition !== 'Normal' && user.medicalCondition !== 'Bình thường' && (
+              <View style={s.tagCondition}><Text style={s.tagConditionText}>{user.medicalCondition}</Text></View>
+            )}
           </View>
-          <Text style={styles.fallDetectionText}>
-            {isMonitoring ? 'Đang theo dõi cảm biến chuyển động.' : 'Đã tắt giám sát.'}
-          </Text>
-        </TouchableOpacity>
-      )}
+          <TouchableOpacity style={s.editProfileBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
+            <Icon name="edit" size={16} color={TEAL} />
+            <Text style={s.editProfileText}>{loading ? 'Đang lưu...' : 'Chỉnh sửa'}</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Chiều cao (cm)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="170"
-          value={height}
-          onChangeText={setHeight}
-          keyboardType="numeric"
-        />
-
-        <Text style={styles.label}>Cân nặng (kg)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="70"
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-        />
-
+        {/* Fall Detection */}
         {user?.role === UserRole.PATIENT && (
-          <>
-            <Text style={styles.label}>
-              Tình trạng bệnh lý {analyzing && <Text style={styles.analyzing}>AI đang phân tích...</Text>}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: Tôi bị tiểu đường và mỡ máu..."
-              value={conditionInput}
-              onChangeText={setConditionInput}
-            />
-            <Text style={styles.helpText}>
-              * Nhập mô tả bệnh, AI sẽ tự động nhận diện nhóm bệnh
-            </Text>
-          </>
+          <TouchableOpacity style={s.fallCard} onPress={() => showInfo('Tính năng đang phát triển', 'Chức năng cảnh báo té ngã sẽ được phát triển sớm.')} activeOpacity={0.7}>
+            <View style={s.fallRow}>
+              <View style={s.fallLeft}>
+                <Text style={s.fallIcon}>⚠️</Text>
+                <View>
+                  <Text style={s.fallTitle}>Cảnh báo té ngã</Text>
+                  <Text style={s.fallSub}>{isMonitoring ? 'Đang theo dõi cảm biến' : 'Đã tắt giám sát'}</Text>
+                </View>
+              </View>
+              <Switch value={isMonitoring} onValueChange={() => showInfo('Tính năng đang phát triển', 'Chức năng cảnh báo té ngã sẽ được phát triển sớm.')} trackColor={{ false: '#E5E5EA', true: '#EF4444' }} thumbColor="#fff" />
+            </View>
+          </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={loading}>
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Đang lưu...' : 'Lưu & Phân tích'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Body Metrics Card */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>Chỉ số cơ thể</Text>
+          <View style={s.fieldRow}>
+            <View style={s.fieldHalf}>
+              <Text style={s.fieldLabel}>Chiều cao (cm)</Text>
+              <TextInput style={s.fieldInput} placeholder="155" value={height} onChangeText={setHeight} keyboardType="numeric" placeholderTextColor="#C7C7CC" />
+            </View>
+            <View style={s.fieldHalf}>
+              <Text style={s.fieldLabel}>Cân nặng (kg)</Text>
+              <TextInput style={s.fieldInput} placeholder="50" value={weight} onChangeText={setWeight} keyboardType="numeric" placeholderTextColor="#C7C7CC" />
+            </View>
+          </View>
+          {user?.role === UserRole.PATIENT && (
+            <>
+              <Text style={s.fieldLabel}>Tình trạng bệnh lý {analyzing && <Text style={s.analyzingText}>AI đang phân tích...</Text>}</Text>
+              <TextInput style={s.fieldInput} placeholder="VD: Tôi bị tiểu đường và mỡ máu..." value={conditionInput} onChangeText={setConditionInput} placeholderTextColor="#C7C7CC" />
+              <Text style={s.helpText}>* Nhập mô tả bệnh, AI sẽ tự động nhận diện nhóm bệnh</Text>
+            </>
+          )}
+          <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
+            <Text style={s.saveBtnText}>{loading ? 'Đang lưu...' : 'Lưu & Phân tích'}</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Link Account Section */}
-      <View style={styles.linkSection}>
-        {user?.role === UserRole.PATIENT ? (
-          <View style={styles.linkCard}>
-            <Text style={styles.linkTitle}>🔗 Liên kết người thân</Text>
-            <Text style={styles.linkSubtitle}>
-              Chia sẻ mã bên dưới cho người thân để họ có thể theo dõi sức khỏe của bạn.
-            </Text>
 
-            {!generatedCode ? (
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={handleGenerateCode}
-                disabled={linkLoading}
-              >
-                <Text style={styles.linkButtonText}>
-                  {linkLoading ? 'Đang tạo...' : 'Tạo mã liên kết'}
-                </Text>
+
+        {/* Settings Menu */}
+        <View style={s.card}>
+          {menuItems.map((item, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <View style={s.divider} />}
+              <TouchableOpacity style={s.menuItem} onPress={item.onPress} activeOpacity={0.6}>
+                <Icon name={item.icon} size={22} color={item.color} />
+                <Text style={[s.menuLabel, { color: item.color }]}>{item.label}</Text>
+                <Icon name="chevron-right" size={20} color="#D1D5DB" />
               </TouchableOpacity>
-            ) : (
-              <View style={styles.codeContainer}>
-                <Text style={styles.codeLabel}>MÃ CỦA BẠN (Mã cố định)</Text>
-                <Text style={styles.code}>{generatedCode}</Text>
-                <Text style={styles.codeHelp}>
-                  Chia sẻ mã này cho người thân. Mã này không thay đổi.
-                </Text>
-                <TouchableOpacity
-                  style={styles.requestsButton}
-                  onPress={() => navigation.navigate('CaregiverRequests')}
-                >
-                  <Text style={styles.requestsButtonText}>
-                    📬 Xem yêu cầu liên kết
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        ) : null}
+            </React.Fragment>
+          ))}
+        </View>
 
-        {user?.role === UserRole.PATIENT ? (
-          <View style={styles.linkCard}>
-            <Text style={styles.linkTitle}>🩺 Bác sĩ của tôi</Text>
-            <Text style={styles.linkSubtitle}>
-              Nhập mã định danh của bác sĩ chuyên khoa hoặc phòng khám để liên kết số liệu y tế.
-            </Text>
-            
-            <TextInput
-              style={styles.linkInput}
-              placeholder="Mã bác sĩ (VD: ABCD123)"
-              value={doctorCode}
-              onChangeText={setDoctorCode}
-              autoCapitalize="characters"
-              textAlign="center"
-            />
-
-            <TouchableOpacity
-              style={[styles.linkButton, (!doctorCode) && styles.linkButtonDisabled]}
-              onPress={handleLinkDoctor}
-              disabled={linkDoctorLoading || !doctorCode}
-            >
-              <Text style={styles.linkButtonText}>
-                {linkDoctorLoading ? 'Đang kết nối...' : 'Trao quyền truy cập'}
-              </Text>
-            </TouchableOpacity>
-
-            {myDoctors.length > 0 && (
-              <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 16 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 }}>Danh sách Bác sĩ Đang kết nối</Text>
-                {myDoctors.map((doc: any, index: number) => (
-                  <View key={index} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 8, marginBottom: 8 }}>
-                    <View>
-                      <Text style={{ fontWeight: '600', color: COLORS.text, fontSize: 16 }}>BS. {doc.name}</Text>
-                      <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>{doc.specialty}</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => handleRevokeDoctor(doc.doctorId)} style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
-                      <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '500' }}>Huỷ</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : user?.role === UserRole.CAREGIVER ? (
-          <View style={styles.linkCard}>
-            <Text style={styles.linkTitle}>🔗 Kết nối người bệnh</Text>
-            <Text style={styles.linkSubtitle}>
-              Nhập mã 6 chữ số từ ứng dụng của người bệnh để bắt đầu theo dõi.
-            </Text>
-
-            {linkSuccessMsg ? (
-              <View style={styles.success}>
-                <Text style={styles.successText}>{linkSuccessMsg}</Text>
-              </View>
-            ) : (
-              <>
-                <TextInput
-                  style={styles.linkInput}
-                  placeholder="Nhập mã 6 số..."
-                  value={inputCode}
-                  onChangeText={(text) => setInputCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  textAlign="center"
-                />
-
-                <TouchableOpacity
-                  style={[styles.linkButton, inputCode.length !== 6 && styles.linkButtonDisabled]}
-                  onPress={handleSubmitCode}
-                  disabled={linkLoading || inputCode.length !== 6}
-                >
-                  <Text style={styles.linkButtonText}>
-                    {linkLoading ? 'Đang kết nối...' : 'Kết nối ngay'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        ) : null}
-      </View>
-
-      <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => navigation?.navigate('Settings')}
-      >
-        <Text style={styles.settingsButtonText}>⚙️ Cài đặt</Text>
-      </TouchableOpacity>
+        <View style={{ height: 32 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#fff',
-    marginBottom: 16,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginBottom: 8,
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  editAvatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  editAvatarText: {
-    fontSize: 16,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginTop: 16,
-    marginBottom: 4,
-  },
-  phone: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  badges: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  fallDetectionCard: {
-    backgroundColor: '#fee2e2',
-    padding: 16,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  fallDetectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  fallDetectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.error,
-  },
-  fallDetectionText: {
-    fontSize: 12,
-    color: COLORS.error,
-    opacity: 0.8,
-  },
-  form: {
-    padding: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  analyzing: {
-    fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: 'normal',
-  },
-  helpText: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  settingsButton: {
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    margin: 16,
-    marginTop: 24,
-  },
-  settingsButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkSection: {
-    padding: 16,
-    marginTop: 8,
-  },
-  linkCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  linkTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  linkSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  linkButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    padding: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  linkButtonDisabled: {
-    backgroundColor: '#e5e7eb',
-  },
-  linkButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  codeContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  codeLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  code: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    letterSpacing: 8,
-    marginBottom: 8,
-  },
-  codeHelp: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 16,
-  },
-  newCodeLink: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  requestsButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: 12,
-    alignItems: 'center',
-    width: '100%',
-  },
-  requestsButtonText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  linkInput: {
-    width: '100%',
-    fontSize: 24,
-    fontWeight: 'bold',
-    letterSpacing: 8,
-    padding: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: '#e5e7eb',
-    marginBottom: 24,
-    textAlign: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-  },
-  success: {
-    backgroundColor: COLORS.success + '20',
-    padding: 16,
-    borderRadius: 12,
-    width: '100%',
-  },
-  successText: {
-    color: COLORS.success,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#F8F9FA' },
+  header: { backgroundColor: TEAL, paddingVertical: 14, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 16 },
+  // Hero Card
+  heroCard: { backgroundColor: TEAL, borderRadius: 20, padding: 28, alignItems: 'center', marginTop: 16 },
+  avatarWrap: { position: 'relative', marginBottom: 12 },
+  avatarOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 44, justifyContent: 'center', alignItems: 'center' },
+  avatarOverlayText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: TEAL },
+  heroName: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  heroPhone: { fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 12 },
+  tagsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tagRole: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20 },
+  tagRoleText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  tagCondition: { backgroundColor: '#FEF3C7', paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20 },
+  tagConditionText: { fontSize: 12, fontWeight: '600', color: '#D97706' },
+  editProfileBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24 },
+  editProfileText: { fontSize: 14, fontWeight: '600', color: TEAL },
+  // Fall Detection
+  fallCard: { backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, marginTop: 16, borderWidth: 1, borderColor: '#FECACA' },
+  fallRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fallLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  fallIcon: { fontSize: 20 },
+  fallTitle: { fontSize: 15, fontWeight: '700', color: '#DC2626' },
+  fallSub: { fontSize: 12, color: '#EF4444', opacity: 0.7, marginTop: 2 },
+  // Cards
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 20, marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E', marginBottom: 6 },
+  cardSub: { fontSize: 13, color: '#8E8E93', marginBottom: 16, lineHeight: 19 },
+  // Fields
+  fieldRow: { flexDirection: 'row', gap: 12 },
+  fieldHalf: { flex: 1 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 6, marginTop: 12 },
+  fieldInput: { backgroundColor: '#F5F5F5', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1C1C1E', borderWidth: 1, borderColor: '#ECECEC' },
+  analyzingText: { fontSize: 11, color: TEAL, fontWeight: '400' },
+  helpText: { fontSize: 11, color: '#9CA3AF', marginTop: 4, marginBottom: 8 },
+  // Buttons
+  saveBtn: { backgroundColor: TEAL, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  // Menu
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: '#F3F4F6' },
 });
-

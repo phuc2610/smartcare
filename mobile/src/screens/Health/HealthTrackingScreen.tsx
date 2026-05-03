@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, PanResponder, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { createHealthLog } from '../../services/health.service';
 import { estimateCalories } from '../../services/ai.service';
@@ -12,7 +14,7 @@ import { scheduleAppointmentReminder } from '../../services/notification.service
 
 type Tab = 'meal' | 'exercise' | 'symptom' | 'appointment';
 
-export const HealthTrackingScreen = () => {
+export const HealthTrackingScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('meal');
   const [isEstimating, setIsEstimating] = useState(false);
@@ -275,7 +277,14 @@ export const HealthTrackingScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Icon name="arrow-back-ios" size={20} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Theo dõi sức khỏe</Text>
+        <View style={styles.headerBtn} />
+      </View>
       <ScrollView style={styles.scrollView}>
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -554,14 +563,31 @@ export const HealthTrackingScreen = () => {
         </TouchableOpacity>
       </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  header: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  headerBtn: {
+    width: 36,
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { COLORS } from '../theme/tokens';
 
-const TEAL = '#458B81';
+const TEAL = COLORS.primary;
 
 export interface PrescriptionData {
   id: string;
