@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder } from '../../services/medication.service';
+import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder, deleteMedication } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
 import { scheduleReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
 import { getAppointments, Appointment } from '../../services/appointment.service';
@@ -174,19 +174,44 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const handleDeleteReminder = async (id: string) => {
     if (readOnly) return;
-    const { showConfirm, showError } = require('../../utils/alert');
-    showConfirm(
-      'Xác nhận',
-      'Bạn có chắc muốn xóa mục này?',
-      async () => {
-        try {
-          await deleteReminder(id);
-          fetchData();
-        } catch (error) {
-          console.error('Failed to delete reminder:', error);
-          showError('Lỗi', 'Không thể xóa');
-        }
-      }
+    const reminder = reminders.find(r => r._id === id);
+    const { showError } = require('../../utils/alert');
+
+    Alert.alert(
+      'Xóa thuốc',
+      `Bạn muốn xóa "${reminder?.medicationName || 'mục này'}"?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa lịch hôm nay',
+          onPress: async () => {
+            try {
+              await deleteReminder(id);
+              fetchData();
+            } catch (error) {
+              console.error('Failed to delete reminder:', error);
+              showError('Lỗi', 'Không thể xóa');
+            }
+          },
+        },
+        {
+          text: 'Xóa toàn bộ thuốc này',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (reminder?.medicationId) {
+                await deleteMedication(reminder.medicationId);
+              } else {
+                await deleteReminder(id);
+              }
+              fetchData();
+            } catch (error) {
+              console.error('Failed to delete medication:', error);
+              showError('Lỗi', 'Không thể xóa');
+            }
+          },
+        },
+      ]
     );
   };
 

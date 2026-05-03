@@ -64,14 +64,29 @@ const getTodayReminders = async (req, res) => {
     // Cho phép caregiver xem reminders của patient (truyền userId trong query)
     const targetUserId = req.query.userId || req.user._id.toString();
 
-    // Lấy tất cả medications của user (hoặc patient)
-    const medications = await Medication.find({ userId: targetUserId });
+    // Lấy tất cả medications đang active của user
+    const medications = await Medication.find({ userId: targetUserId, isActive: true });
     const medicationIds = medications.map(m => m._id);
 
     // Tính thời gian bắt đầu và kết thúc của ngày hôm nay
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    // Auto-generate reminders cho medications chưa có reminder hôm nay
+    for (const med of medications) {
+      const existingCount = await Reminder.countDocuments({
+        medicationId: med._id,
+        scheduledTime: { $gte: startOfDay, $lte: endOfDay },
+      });
+      if (existingCount === 0) {
+        try {
+          await generateRemindersForMedication(med);
+        } catch (genErr) {
+          console.error('Auto-gen reminders failed for', med.name, genErr.message);
+        }
+      }
+    }
 
     // Tìm tất cả reminders trong ngày, sắp xếp theo giờ tăng dần
     const reminders = await Reminder.find({
@@ -84,6 +99,7 @@ const getTodayReminders = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 /**
  * Cập nhật trạng thái reminder (TAKEN/SKIPPED/PENDING)

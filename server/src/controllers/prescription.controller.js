@@ -6,6 +6,7 @@
 const Prescription = require('../models/Prescription');
 const Medication = require('../models/Medication');
 const openai = require('../config/openai');
+const { generateRemindersForMedication } = require('./medication.controller');
 
 // Demo data khi OpenAI không khả dụng
 const DEMO_PRESCRIPTION = {
@@ -27,11 +28,16 @@ const DEMO_PRESCRIPTION = {
  */
 const scanPrescription = async (req, res) => {
   try {
-    const { imageUrl } = req.body;
+    const { imageUrl, imageBase64 } = req.body;
     const userId = req.user._id;
 
-    if (!imageUrl) {
-      return res.status(400).json({ error: 'imageUrl is required' });
+    // Accept either a URL or base64-encoded image
+    const imageInput = imageBase64
+      ? `data:image/jpeg;base64,${imageBase64.replace(/^data:image\/\w+;base64,/, '')}`
+      : imageUrl;
+
+    if (!imageInput) {
+      return res.status(400).json({ error: 'imageUrl or imageBase64 is required' });
     }
 
     let prescriptionData;
@@ -79,7 +85,7 @@ Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.`;
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: imageUrl } },
+              { type: 'image_url', image_url: { url: imageInput } },
             ],
           }],
           response_format: { type: 'json_object' },
@@ -114,7 +120,7 @@ Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.`;
     // Save as draft
     const prescription = await Prescription.create({
       userId,
-      imageUrl,
+      imageUrl: imageUrl || null,
       ...prescriptionData,
       status: 'draft',
     });
@@ -199,7 +205,7 @@ const updatePrescription = async (req, res) => {
       const times = (med.sessions || ['MORNING']).map(s => sessionToTime[s] || '08:00');
 
       try {
-        await Medication.create({
+        const newMedication = await Medication.create({
           userId,
           name: med.name,
           dosage: med.dosage || '1 viên/lần',
@@ -213,6 +219,9 @@ const updatePrescription = async (req, res) => {
           prescribedBy: null,
           isActive: true,
         });
+
+        // Auto-generate today's reminders so they appear on Dashboard
+        await generateRemindersForMedication(newMedication);
       } catch (medErr) {
         console.error('Auto-create medication failed:', med.name, medErr.message);
       }

@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { uploadImage } from '../../services/upload.service';
-import { scanPrescription } from '../../services/prescription.service';
+import { scanPrescriptionBase64 } from '../../services/prescription.service';
 import { requestCameraPermission, requestStoragePermission } from '../../utils/permissions';
 import { showError } from '../../utils/alert';
 import { COLORS } from '../../theme/tokens';
@@ -15,20 +14,16 @@ const TEAL = COLORS.primary;
 export const AddMedicationScreen = ({ navigation }: any) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const processImage = async (uri: string) => {
+  const processImage = async (base64: string) => {
     setIsProcessing(true);
     try {
-      // 1. Upload image
-      const uploadResult = await uploadImage(uri);
-      const imageUrl = uploadResult.url;
-
-      // 2. Navigate to View screen with loading
+      // Navigate to View screen with loading
       navigation.navigate('PrescriptionView', { loading: true });
 
-      // 3. Scan with AI/OCR
-      const { prescription } = await scanPrescription(imageUrl);
+      // Scan with AI/OCR (send base64 directly, no Cloudinary needed)
+      const { prescription } = await scanPrescriptionBase64(base64);
 
-      // 4. Navigate to View screen with result (replace current)
+      // Navigate to View screen with result
       navigation.navigate('PrescriptionView', { prescription, loading: false });
     } catch (error) {
       showError('Lỗi', 'Không thể phân tích ảnh đơn thuốc. Vui lòng thử lại.');
@@ -45,10 +40,10 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       return;
     }
     launchCamera(
-      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 },
+      { mediaType: 'photo', quality: 0.7, maxWidth: 1200, maxHeight: 1200, includeBase64: true },
       async (response) => {
-        if (response.didCancel || !response.assets?.[0]) return;
-        await processImage(response.assets[0].uri!);
+        if (response.didCancel || !response.assets?.[0]?.base64) return;
+        await processImage(response.assets[0].base64);
       }
     );
   };
@@ -60,10 +55,10 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       return;
     }
     launchImageLibrary(
-      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600 },
+      { mediaType: 'photo', quality: 0.7, maxWidth: 1200, maxHeight: 1200, includeBase64: true },
       async (response) => {
-        if (response.didCancel || !response.assets?.[0]) return;
-        await processImage(response.assets[0].uri!);
+        if (response.didCancel || !response.assets?.[0]?.base64) return;
+        await processImage(response.assets[0].base64);
       }
     );
   };

@@ -36,6 +36,13 @@ export const scanPrescription = async (imageUrl: string): Promise<{ prescription
   return result.data;
 };
 
+export const scanPrescriptionBase64 = async (imageBase64: string): Promise<{ prescription: Prescription }> => {
+  const result = await api.post<{ prescription: Prescription }>('/api/prescriptions/scan', { imageBase64 });
+  if (!result.ok) throw new Error(result.error || 'Scan prescription failed');
+  logger.api('Scan prescription (base64) SUCCESS');
+  return result.data;
+};
+
 export const createPrescription = async (data: Partial<Prescription>): Promise<{ prescription: Prescription }> => {
   const result = await api.post<{ prescription: Prescription }>('/api/prescriptions', data);
   if (!result.ok) throw new Error(result.error || 'Create prescription failed');
