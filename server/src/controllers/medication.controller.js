@@ -134,6 +134,41 @@ const updateReminderStatus = async (req, res) => {
   }
 };
 
+/**
+ * Uống ngay hàng loạt - đánh dấu TAKEN cho nhiều reminders
+ */
+const takeAllNow = async (req, res) => {
+  try {
+    const { reminderIds } = req.body;
+    
+    if (!reminderIds || !Array.isArray(reminderIds) || reminderIds.length === 0) {
+      return res.status(400).json({ error: 'reminderIds array is required' });
+    }
+
+    const now = new Date();
+    
+    // Validate ownership: user must own the medications of these reminders
+    const reminders = await Reminder.find({ _id: { $in: reminderIds }, status: 'PENDING' });
+    const validReminderIds = [];
+    
+    for (const reminder of reminders) {
+      const medication = await Medication.findById(reminder.medicationId);
+      if (medication && medication.userId.toString() === req.user._id.toString()) {
+        validReminderIds.push(reminder._id);
+      }
+    }
+
+    const result = await Reminder.updateMany(
+      { _id: { $in: validReminderIds } },
+      { status: 'TAKEN', takenAt: now, lastUpdated: now }
+    );
+    
+    res.json({ updated: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const updateReminderSchema = z.object({
   body: z.object({
     scheduledTime: z.string().datetime().optional(),
@@ -172,7 +207,13 @@ const updateReminder = async (req, res) => {
 
 const getMedications = async (req, res) => {
   try {
-    const medications = await Medication.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const filter = { userId: req.user._id };
+    if (req.query.prescriptionId) {
+      filter.prescriptionId = req.query.prescriptionId;
+    }
+    const medications = await Medication.find(filter)
+      .populate('prescriptionId', 'diagnosis doctorName startDate')
+      .sort({ createdAt: -1 });
     res.json({ medications });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -185,6 +226,25 @@ const deleteMedication = async (req, res) => {
     await Medication.findByIdAndDelete(id);
     await Reminder.deleteMany({ medicationId: id });
     res.json({ message: 'Medication deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const batchDeleteMedications = async (req, res) => {
+  try {
+    const { medicationIds } = req.body;
+    if (!medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
+      return res.status(400).json({ error: 'medicationIds array is required' });
+    }
+
+    // Xóa reminders liên quan
+    await Reminder.deleteMany({ medicationId: { $in: medicationIds } });
+    
+    // Xóa medications (ensure they belong to user)
+    await Medication.deleteMany({ _id: { $in: medicationIds }, userId: req.user._id });
+    
+    res.json({ deleted: medicationIds.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -332,8 +392,10 @@ module.exports = {
   updateReminder,
   getMedications,
   deleteMedication,
+  batchDeleteMedications,
   deleteReminder,
   getMissedMedications,
+  takeAllNow,
   createMedicationSchema,
   updateReminderSchema,
   generateRemindersForMedication,

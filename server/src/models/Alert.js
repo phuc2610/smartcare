@@ -4,7 +4,7 @@ const alertSchema = new mongoose.Schema({
   patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   type: { 
     type: String, 
-    enum: ['medication', 'symptom', 'appointment', 'sos', 'fall'], 
+    enum: ['medication', 'symptom', 'appointment', 'sos', 'fall', 'medication_missed'], 
     required: true 
   },
   severity: { 

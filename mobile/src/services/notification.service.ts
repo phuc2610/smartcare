@@ -54,6 +54,16 @@ export const scheduleMedicationReminder = async (
             pressAction: {
               id: 'default',
             },
+            actions: [
+              {
+                title: 'Đã uống',
+                pressAction: { id: 'mark_taken' }
+              },
+              {
+                title: 'Nhắc sau 15p',
+                pressAction: { id: 'snooze_15' }
+              }
+            ],
             showChronometer: false,
             autoCancel: true,
             ongoing: false,

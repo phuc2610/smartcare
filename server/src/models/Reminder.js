@@ -13,6 +13,7 @@ const reminderSchema = new mongoose.Schema({
   isSynced: { type: Boolean, default: true },
   lastUpdated: { type: Date, default: Date.now },
   notificationIds: { type: [String], default: [] }, // Array of notification IDs for multiple reminders
+  escalationLevel: { type: Number, default: 0 }, // 0: Not escalated, 1: 5m, 2: 15m, 3: 30m, 4: 60m
 }, {
   timestamps: true,
 });

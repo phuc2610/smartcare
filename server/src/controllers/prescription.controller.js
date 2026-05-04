@@ -488,6 +488,7 @@ const updatePrescription = async (req, res) => {
       try {
         const newMedication = await Medication.create({
           userId,
+          prescriptionId: prescription._id,
           name: med.name,
           dosage: med.dosage || '1 viên/lần',
           unit: med.unit || 'Viên',
@@ -517,16 +518,34 @@ const updatePrescription = async (req, res) => {
 
 /**
  * DELETE /api/prescriptions/:id
+ * Hard delete prescription, along with associated medications and reminders
  */
 const deletePrescription = async (req, res) => {
   try {
-    const result = await Prescription.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id },
-      { status: 'archived' },
-      { new: true }
-    );
-    if (!result) return res.status(404).json({ error: 'Prescription not found' });
-    res.json({ message: 'Prescription archived' });
+    const prescriptionId = req.params.id;
+    const userId = req.user._id;
+
+    // Verify ownership
+    const prescription = await Prescription.findOne({ _id: prescriptionId, userId });
+    if (!prescription) {
+      return res.status(404).json({ error: 'Prescription not found' });
+    }
+
+    // Find medications linked to this prescription
+    const medications = await Medication.find({ prescriptionId });
+    const medicationIds = medications.map(m => m._id);
+
+    // Delete reminders for these medications
+    const Reminder = require('../models/Reminder');
+    await Reminder.deleteMany({ medicationId: { $in: medicationIds } });
+
+    // Delete the medications
+    await Medication.deleteMany({ prescriptionId });
+
+    // Delete the prescription itself
+    await Prescription.findByIdAndDelete(prescriptionId);
+
+    res.json({ message: 'Prescription and associated medications deleted completely' });
   } catch (error) {
     console.error('Delete Prescription Error:', error);
     res.status(500).json({ error: 'Failed to delete prescription' });

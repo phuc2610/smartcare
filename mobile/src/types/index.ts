@@ -54,6 +54,7 @@ export interface Reminder {
   isSynced: boolean;
   lastUpdated: string;
   notificationIds?: string[]; // Array of notification IDs for multiple reminders
+  session?: 'MORNING' | 'NOON' | 'EVENING' | 'CUSTOM';
 }
 
 export type HealthLogType = 'meal' | 'exercise' | 'symptom';

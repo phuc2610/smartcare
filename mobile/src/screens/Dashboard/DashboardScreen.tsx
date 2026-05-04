@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder, deleteMedication } from '../../services/medication.service';
+import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder, deleteMedication, takeAllNow } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
 import { scheduleReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
 import { getAppointments, Appointment } from '../../services/appointment.service';
@@ -281,6 +281,51 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const mealCount = healthLogs.filter(h => h.type === 'meal').length;
   const exerciseCount = healthLogs.filter(h => h.type === 'exercise').length;
   const appointmentCount = appointments.length;
+
+  // Group pending reminders by session
+  const groupRemindersBySession = () => {
+    const groups: { [key: string]: Reminder[] } = {
+      MORNING: [],
+      NOON: [],
+      EVENING: [],
+      CUSTOM: [],
+    };
+    
+    pendingReminders.forEach(r => {
+      if (r.session && groups[r.session]) {
+        groups[r.session].push(r);
+      } else {
+        // Fallback or custom
+        groups['CUSTOM'].push(r);
+      }
+    });
+
+    return [
+      { session: 'MORNING', label: 'Sáng', icon: '☀️', reminders: groups['MORNING'] },
+      { session: 'NOON', label: 'Trưa', icon: '🌤️', reminders: groups['NOON'] },
+      { session: 'EVENING', label: 'Tối', icon: '🌙', reminders: groups['EVENING'] },
+    ].filter(g => g.reminders.length >= 2); // Only show group if there are 2 or more medications
+  };
+
+  const pendingRemindersBySession = groupRemindersBySession();
+
+  const handleTakeAll = async (reminderIds: string[]) => {
+    if (readOnly) return;
+    try {
+      // Cancel notifications for all these reminders
+      for (const id of reminderIds) {
+        const reminder = reminders.find(r => r._id === id);
+        if (reminder?.notificationIds && reminder.notificationIds.length > 0) {
+          await cancelNotifications(reminder.notificationIds);
+        }
+      }
+      await takeAllNow(reminderIds);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to take all reminders:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái');
+    }
+  };
 
   // Filter tasks based on selected filter
   const getFilteredReminders = () => {
@@ -600,6 +645,32 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           <Text variant="section" color="text" style={styles.planTitle}>
             Kế hoạch hôm nay
           </Text>
+
+          {/* Take All Now Banners */}
+          {!readOnly && (filter === 'all' || filter === 'medication') && pendingRemindersBySession.map(group => (
+            <Card key={group.session} style={styles.takeAllCard}>
+              <View style={styles.takeAllContent}>
+                <View style={styles.takeAllInfo}>
+                  <Text style={styles.takeAllIcon}>{group.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="body" semibold>
+                      {group.reminders.length} thuốc buổi {group.label}
+                    </Text>
+                    <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                      {group.reminders.map(r => r.medicationName).join(', ')}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.takeAllButton}
+                  onPress={() => handleTakeAll(group.reminders.map(r => r._id))}
+                >
+                  <Icon name="check-circle" size={20} color="#fff" />
+                  <Text style={styles.takeAllButtonText}>Uống ngay</Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          ))}
           
           {/* Medication Tasks */}
           {(filter === 'all' || filter === 'medication') && (
@@ -1158,6 +1229,7 @@ const styles = StyleSheet.create({
   },
   planTitle: {
     marginBottom: SPACING.lg,
+    paddingHorizontal: 4,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -1235,7 +1307,14 @@ const styles = StyleSheet.create({
   // ===== Sections =====
   section: {
     marginTop: SPACING.md,
+    marginBottom: 24,
   },
+  takeAllCard: { marginBottom: 16, backgroundColor: '#E0F2F1', borderColor: '#B2DFDB', borderWidth: 1 },
+  takeAllContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
+  takeAllInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
+  takeAllIcon: { fontSize: 24 },
+  takeAllButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+  takeAllButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   taskCard: {
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,

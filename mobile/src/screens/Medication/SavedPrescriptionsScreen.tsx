@@ -61,7 +61,14 @@ export const SavedPrescriptionsScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
+        <View style={styles.headerLeft} />
         <Text style={styles.headerTitle}>Tất cả đơn thuốc</Text>
+        <TouchableOpacity 
+          style={styles.headerRight}
+          onPress={() => navigation.navigate('MedicationManage')}
+        >
+          <Icon name="medication" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -101,8 +108,10 @@ export const SavedPrescriptionsScreen = () => {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
-  header: { backgroundColor: TEAL, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, minHeight: 52 },
-  headerTitle: { fontSize: 17, fontWeight: '600', color: '#FFFFFF' },
+  header: { backgroundColor: TEAL, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, minHeight: 52 },
+  headerLeft: { width: 30 },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: '#FFFFFF', textAlign: 'center', flex: 1 },
+  headerRight: { width: 30, alignItems: 'flex-end' },
   scrollView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 24 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 40 },

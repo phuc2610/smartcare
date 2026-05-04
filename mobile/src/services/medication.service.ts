@@ -61,14 +61,29 @@ export const updateReminderStatus = async (
   throw new Error(result.error || 'Update reminder failed, queued for sync');
 };
 
-export const getMedications = async (): Promise<{ medications: Medication[] }> => {
-  const result = await api.get<{ medications: Medication[] }>('/api/medications');
+export const takeAllNow = async (reminderIds: string[]): Promise<{ updated: number }> => {
+  const result = await api.post<{ updated: number }>('/api/medications/take-all-now', { reminderIds });
+  if (!result.ok) {
+    throw new Error(result.error || 'Take all failed');
+  }
+  return result.data;
+};
+
+export const getMedications = async (prescriptionId?: string): Promise<{ medications: Medication[] }> => {
+  const params = prescriptionId ? { prescriptionId } : {};
+  const result = await api.get<{ medications: Medication[] }>('/api/medications', { params });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Get medications failed');
+    throw new Error(result.error || 'Failed to fetch medications');
   }
-
   return result.data;
+};
+
+export const batchDeleteMedications = async (medicationIds: string[]): Promise<void> => {
+  const result = await api.delete('/api/medications/batch', { body: { medicationIds } });
+  if (!result.ok) {
+    throw new Error(result.error || 'Batch delete failed');
+  }
 };
 
 export const deleteMedication = async (id: string): Promise<void> => {

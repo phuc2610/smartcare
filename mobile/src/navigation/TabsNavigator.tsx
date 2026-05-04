@@ -45,6 +45,7 @@ import { ChatDetailScreen } from '../screens/Chat/ChatDetailScreen';
 import { PrescriptionViewScreen } from '../screens/Prescription/PrescriptionViewScreen';
 import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEditScreen';
 import { DependentsScreen } from '../screens/Profile/DependentsScreen';
+import { MedicationManageScreen } from '../screens/Medication/MedicationManageScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -413,6 +414,13 @@ export const TabsNavigator = () => {
       <Stack.Screen 
         name="HealthTracking" 
         component={HealthTrackingScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="MedicationManage" 
+        component={MedicationManageScreen} 
         options={{ 
           headerShown: false,
         }} 

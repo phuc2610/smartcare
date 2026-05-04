@@ -11,6 +11,9 @@ import { syncPendingOperations } from './src/services/sync.service';
 import { healthCheck } from './src/utils/api-wrapper';
 import { API_BASE_URL, USE_MOCK_API } from './src/utils/constants';
 import { logger } from './src/utils/logger';
+import { updateReminderStatus } from './src/services/medication.service';
+import { scheduleMedicationReminder } from './src/services/notification.service';
+import { ReminderStatus } from './src/types';
 
 // Suppress warnings (không ảnh hưởng chức năng)
 if (__DEV__) {
@@ -81,6 +84,34 @@ const App = () => {
         // User pressed the notification
         // You can navigate to specific screen based on notification data
         logger.log('NAV', 'Notification pressed', detail.notification?.data);
+      } else if (type === EventType.ACTION_PRESS && detail.pressAction?.id) {
+        const pressAction = detail.pressAction;
+        const notification = detail.notification;
+        logger.log('NOTIF', `Action pressed: ${pressAction.id}`);
+        
+        const reminderId = notification?.data?.reminderId as string;
+        
+        if (pressAction.id === 'mark_taken' && reminderId) {
+          try {
+            await updateReminderStatus(reminderId, ReminderStatus.TAKEN);
+            if (notification?.id) await notifee.cancelNotification(notification.id);
+          } catch (err) {
+            logger.error('Failed to mark as taken from foreground action', err);
+          }
+        } else if (pressAction.id === 'snooze_15' && reminderId) {
+          const snoozeTime = new Date();
+          snoozeTime.setMinutes(snoozeTime.getMinutes() + 15);
+          
+          const title = notification?.title || 'Nhắc nhở uống thuốc (Báo lại)';
+          const body = notification?.body || 'Đến giờ uống thuốc';
+          
+          try {
+            await scheduleMedicationReminder(title, body, snoozeTime, reminderId);
+            if (notification?.id) await notifee.cancelNotification(notification.id);
+          } catch (err) {
+            logger.error('Failed to snooze from foreground action', err);
+          }
+        }
       }
     });
 
