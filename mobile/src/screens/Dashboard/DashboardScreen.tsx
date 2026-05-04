@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder, deleteMedication, takeAllNow } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
-import { scheduleReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
+import { scheduleGroupedReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
 import { getAppointments, Appointment } from '../../services/appointment.service';
 import { Reminder, ReminderStatus, HealthLog } from '../../types';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -68,15 +68,27 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       setReminders(remindersData.reminders);
       setHealthLogs(healthLogsData.healthLogs);
       
-      // Schedule notifications for pending reminders
-      for (const reminder of remindersData.reminders) {
-        if (reminder.status === 'PENDING') {
-          try {
-            const notificationIds = await scheduleReminderNotifications(reminder);
-            // Note: In a real app, you might want to save notificationIds to backend
-          } catch (err) {
-            console.error('Failed to schedule reminder notifications:', err);
-          }
+      // Group pending reminders by session and time to avoid notification spam
+      const pendingRems = remindersData.reminders.filter((r: any) => r.status === 'PENDING');
+      const groupedReminders: Record<string, any[]> = {};
+      
+      pendingRems.forEach((r: any) => {
+        const key = `${r.session || 'CUSTOM'}_${r.scheduledTime}`;
+        if (!groupedReminders[key]) groupedReminders[key] = [];
+        groupedReminders[key].push(r);
+      });
+
+      // Schedule grouped notifications
+      for (const key of Object.keys(groupedReminders)) {
+        try {
+          const group = groupedReminders[key];
+          await scheduleGroupedReminderNotifications(
+            group[0].session || 'CUSTOM',
+            group[0].scheduledTime,
+            group
+          );
+        } catch (err) {
+          console.error('Failed to schedule grouped notifications:', err);
         }
       }
       

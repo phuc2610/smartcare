@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, AppState, AppStateStatus, LogBox } from 'react-native';
+import { StatusBar, AppState, AppStateStatus, LogBox, Platform, PermissionsAndroid } from 'react-native';
 import notifee, { EventType } from '@notifee/react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AlertProvider } from './src/contexts/AlertContext';
@@ -35,7 +35,16 @@ const App = () => {
   useEffect(() => {
     const checkPermission = async () => {
       try {
-        const settings = await notifee.getNotificationSettings();
+        let settings = await notifee.getNotificationSettings();
+        
+        // If not determined or denied, request permission directly from OS
+        if (settings.authorizationStatus === 0) {
+          if (Platform.OS === 'android' && Platform.Version >= 33) {
+            await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+          }
+          settings = await notifee.requestPermission();
+        }
+
         const granted = settings.authorizationStatus >= 1; // 1 = AUTHORIZED, 2 = PROVISIONAL
         setHasNotificationPermission(granted);
       } catch (error) {
@@ -93,7 +102,13 @@ const App = () => {
         
         if (pressAction.id === 'mark_taken' && reminderId) {
           try {
-            await updateReminderStatus(reminderId, ReminderStatus.TAKEN);
+            const ids = reminderId.split(',');
+            if (ids.length > 1) {
+              const { takeAllNow } = require('./src/services/medication.service');
+              await takeAllNow(ids);
+            } else {
+              await updateReminderStatus(reminderId, ReminderStatus.TAKEN);
+            }
             if (notification?.id) await notifee.cancelNotification(notification.id);
           } catch (err) {
             logger.error('Failed to mark as taken from foreground action', err);
