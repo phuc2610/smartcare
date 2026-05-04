@@ -9,6 +9,8 @@ const Medication = require('../models/Medication');
 const openai = require('../config/openai');
 const genAI = require('../config/gemini');
 const { generateRemindersForMedication } = require('./medication.controller');
+const { findBestDrugMatch } = require('../utils/fuzzy');
+const drugDatabase = require('../utils/drug_database.json');
 
 // Demo data khi AI không khả dụng
 const DEMO_PRESCRIPTION = {
@@ -29,16 +31,20 @@ const DEMO_PRESCRIPTION = {
 // ─────────────────────────────────────────────────────────────
 // PASS 1: OCR EXTRACTION PROMPT
 // ─────────────────────────────────────────────────────────────
-const OCR_EXTRACT_PROMPT = `Bạn là chuyên gia OCR y khoa với độ chính xác cực cao. Đây là ứng dụng y tế thực tế — sai tên thuốc hoặc liều dùng có thể gây nguy hiểm cho bệnh nhân.
+const OCR_EXTRACT_PROMPT = `Bạn là Dược sĩ lâm sàng và chuyên gia OCR y khoa với độ chính xác cực cao. Đây là ứng dụng y tế thực tế tại Việt Nam — sai tên thuốc hoặc liều dùng có thể gây nguy hiểm cho bệnh nhân.
 
-NHIỆM VỤ: Phân tích ảnh đơn thuốc và trích xuất CHÍNH XÁC thông tin.
+NHIỆM VỤ: Phân tích ảnh đơn thuốc (viết tay hoặc in) và trích xuất CHÍNH XÁC thông tin.
 
 QUY TẮC BẮT BUỘC:
-1. Đọc CHÍNH XÁC từng ký tự trên đơn thuốc. KHÔNG được đoán hoặc suy luận tên thuốc.
-2. Nếu không đọc rõ một từ, ghi lại chính xác những gì đọc được kèm dấu [?] (VD: "Amox[?]cillin")
-3. Phân biệt rõ: 500mg ≠ 50mg, 1 viên ≠ 1 gói, sáng ≠ chiều
-4. Trích xuất toàn bộ text thô đọc được vào trường "rawText"
-5. Đánh giá confidence (0.0 - 1.0) cho mỗi thuốc và cho toàn bộ đơn
+1. Nhận diện tên thuốc: Cố gắng đọc chính xác. Nếu chữ viết tay xấu, hãy kết hợp các ký tự nhìn thấy được với bối cảnh "Chẩn đoán" để suy luận ra tên thuốc hợp lý nhất (ví dụ: chẩn đoán viêm họng thì thường là kháng sinh, giảm ho). Chỉ khi hoàn toàn không thể dịch được mới dùng dấu [?] (VD: "Amox[?]cillin").
+2. Hiểu từ viết tắt tiếng Việt phổ biến:
+   - "v" hoặc "viên" -> Viên
+   - "S: 1, C: 1" hoặc "Sáng 1v, Chiều 1v" -> Ngày 2 lần, sáng 1 viên, chiều 1 viên.
+   - "u/ sau ăn" -> Uống sau ăn.
+   - "T", "V", "N" -> Sáng, Trưa, Tối/Chiều.
+3. Phân biệt cực kỳ cẩn thận hàm lượng: 500mg ≠ 50mg, 1 viên ≠ 1 gói.
+4. Trích xuất toàn bộ text thô đọc được vào trường "rawText".
+5. Đánh giá confidence (0.0 - 1.0) cho mỗi thuốc và cho toàn bộ đơn.
 
 VÍ DỤ OUTPUT:
 {
@@ -96,40 +102,34 @@ Nếu không đọc được trường nào, để chuỗi rỗng và confidence
 // ─────────────────────────────────────────────────────────────
 // PASS 2: VERIFICATION PROMPT
 // ─────────────────────────────────────────────────────────────
-const buildVerificationPrompt = (extractedJson) => `Bạn là dược sĩ lâm sàng kiểm tra kết quả OCR đơn thuốc. Đây là ứng dụng y tế — sai tên thuốc hoặc liều dùng CÓ THỂ GÂY NGUY HIỂM.
+const buildVerificationPrompt = (extractedJson) => `Bạn là Dược sĩ lâm sàng cấp cao đang kiểm tra chéo (cross-verify) kết quả AI OCR đọc đơn thuốc. Đây là bước cực kỳ quan trọng để bảo vệ an toàn cho bệnh nhân.
 
 KẾT QUẢ OCR CẦN KIỂM TRA:
 ${JSON.stringify(extractedJson, null, 2)}
 
-NHIỆM VỤ KIỂM TRA:
-1. TÊN THUỐC: Kiểm tra chính tả. Các lỗi OCR thường gặp:
-   - "Amoxicilin" → "Amoxicillin" (thiếu chữ l)
-   - "Paracetamoi" → "Paracetamol" (nhầm i/l)
-   - "Cetirizin" → "Cetirizine" (thiếu e cuối)
-   - "Omeprazol" → "Omeprazole" (thiếu e cuối)
-   - Kiểm tra hàm lượng có hợp lý không (VD: Paracetamol thường 500mg, không phải 5000mg)
+NHIỆM VỤ KIỂM TRA VÀ SỬA LỖI:
+1. TÊN THUỐC: Sửa ngay các lỗi chính tả OCR hoặc nhận diện nhầm do chữ viết tay xấu.
+   - Ví dụ OCR nhầm: "Amoxicilin" → "Amoxicillin", "Paracetamoi" → "Paracetamol", "Klavulanic" → "Clavulanic", "Alpha choay" → "Alpha Choay".
+   - Kiểm tra hàm lượng: Paracetamol thường 500mg/650mg, Ibuprofen 200mg/400mg... Nếu thấy "Paracetamol 5000mg", chắc chắn OCR nhầm số 0, hãy sửa lại thành 500mg.
+   - Đảm bảo tên thuốc có ý nghĩa y khoa hợp lệ tại thị trường Việt Nam.
 
-2. LIỀU DÙNG: Kiểm tra liều có hợp lý với loại thuốc không.
-   - Kháng sinh thường 2-3 lần/ngày
-   - Thuốc dạ dày thường 1-2 lần/ngày
-   - Vitamin thường 1 lần/ngày
+2. LIỀU DÙNG (Dosage) VÀ SESSIONS:
+   - Dựa vào phần "rawText" hoặc "instructions", nếu thấy dặn "Ngày uống 2 lần sáng tối", hãy đảm bảo sessions = ["MORNING", "EVENING"].
+   - "Sáng 1, Chiều 1" -> dosage: "1 viên/lần", sessions: ["MORNING", "AFTERNOON"].
 
-3. SỐ LƯỢNG: Kiểm tra số lượng có khớp với liều dùng × số ngày không.
+3. SỐ LƯỢNG (Quantity):
+   - Nếu AI trước đó không đọc được, hãy dùng thuật toán: Số lượng = (Liều 1 lần × Số lần 1 ngày) × Số ngày uống.
 
-4. SESSIONS: Kiểm tra thời điểm uống có hợp lý với loại thuốc không.
-
-5. MEAL TIMING: Kiểm tra thời điểm ăn có đúng với loại thuốc không.
-   - Kháng sinh thường uống sau ăn
-   - Thuốc dạ dày thường uống trước ăn
+4. MEAL TIMING:
+   - Tự động suy luận hợp lý nếu bác sĩ không ghi: Kháng sinh, thuốc giảm đau NSAID (Ibuprofen, Diclofenac) -> "AFTER_MEAL" (Sau ăn). Thuốc dạ dày (Omeprazole, Pantoprazole) -> "BEFORE_MEAL" (Trước ăn).
 
 CHỈ trả về JSON đã sửa (cùng format), với:
-- Sửa lỗi chính tả tên thuốc nếu phát hiện
-- Điều chỉnh confidence dựa trên mức độ chắc chắn
-- Thêm ghi chú sửa đổi vào field "verificationNotes" (string)
-- KHÔNG thêm thuốc mới, KHÔNG xóa thuốc
-- Nếu không chắc chắn, GIỮ NGUYÊN và giảm confidence
+- Đã SỬA CHỮA HOÀN THIỆN các lỗi sai.
+- Điều chỉnh confidence: Nếu bạn tự tin đã sửa đúng 1 loại thuốc viết tay xấu, hãy nâng confidence lên.
+- Thêm ghi chú ngắn gọn vào "verificationNotes" về những gì bạn đã sửa.
+- KHÔNG thêm thuốc mới (trừ khi thấy rõ trong rawText mà AI trước bỏ sót), KHÔNG xóa thuốc.
 
-CHỈ trả về JSON (không markdown, không code block).`;
+CHỈ trả về kết quả định dạng JSON chuẩn (không markdown, không code block).`;
 
 // ─────────────────────────────────────────────────────────────
 // QUALITY SCORE CALCULATION
@@ -330,10 +330,10 @@ const scanPrescription = async (req, res) => {
       }
     }
 
-    // Strategy 3: Demo data (last resort)
+    // Strategy 3: Handle AI exhaustion (No more demo data)
     if (!prescriptionData) {
-      console.warn('[SCAN] All AI engines failed, using DEMO data');
-      prescriptionData = { ...DEMO_PRESCRIPTION };
+      console.warn('[SCAN] All AI engines failed or quotas exceeded. Returning 429 Error.');
+      return res.status(429).json({ error: 'Tính năng Quét AI đang tạm dừng do vượt quá giới hạn lượt dùng của API Key miễn phí. Vui lòng thử lại sau hoặc nhập tay thông tin đơn thuốc.' });
     }
 
     // Ensure medications array
@@ -373,19 +373,38 @@ const scanPrescription = async (req, res) => {
       }
     }
 
-    // Normalize medications with confidence
-    prescriptionData.medications = prescriptionData.medications.map(med => ({
-      name: med.name || 'Không rõ',
-      dosage: med.dosage || '',
-      quantity: Number(med.quantity) || 0,
-      unit: med.unit || 'Viên',
-      sessions: Array.isArray(med.sessions) ? med.sessions : ['MORNING'],
-      mealTiming: med.mealTiming || 'AFTER_MEAL',
-      instructions: med.instructions || '',
-      usage: med.usage || '',
-      isActive: med.isActive !== false,
-      confidence: typeof med.confidence === 'number' ? med.confidence : 0.5,
-    }));
+    // Normalize medications with confidence & Fuzzy Matching
+    prescriptionData.medications = prescriptionData.medications.map(med => {
+      let finalName = med.name || 'Không rõ';
+      let confidence = typeof med.confidence === 'number' ? med.confidence : 0.5;
+
+      // Áp dụng Fuzzy Matching cho tên thuốc
+      if (finalName !== 'Không rõ') {
+        const matchResult = findBestDrugMatch(finalName, drugDatabase);
+        // Nếu score > 0.75 (khá giống) nhưng không phải 1.0 (hoàn toàn khớp)
+        // và độ lệch không quá lớn, thì tự động sửa
+        if (matchResult && matchResult.score > 0.75 && matchResult.distance > 0) {
+          console.log(`[FUZZY] Sửa lỗi tên thuốc: "${finalName}" -> "${matchResult.bestMatch}" (Score: ${matchResult.score.toFixed(2)})`);
+          finalName = matchResult.bestMatch;
+          confidence = Math.min(1.0, confidence + 0.1); // Tăng tự tin vì đã map được với DB cứng
+        } else if (matchResult && matchResult.score === 1) {
+          confidence = Math.min(1.0, confidence + 0.2); // Hoàn toàn khớp với DB
+        }
+      }
+
+      return {
+        name: finalName,
+        dosage: med.dosage || '',
+        quantity: Number(med.quantity) || 0,
+        unit: med.unit || 'Viên',
+        sessions: Array.isArray(med.sessions) ? med.sessions : ['MORNING'],
+        mealTiming: med.mealTiming || 'AFTER_MEAL',
+        instructions: med.instructions || '',
+        usage: med.usage || '',
+        isActive: med.isActive !== false,
+        confidence: confidence,
+      };
+    });
 
     // Recalculate final quality score
     const finalQualityScore = calculateQualityScore(prescriptionData);

@@ -142,8 +142,16 @@ export const PrescriptionEditScreen = ({ route, navigation }: any) => {
           {medications.map((med, idx) => {
             const disabled = !med.isActive;
             return (
-              <View key={idx} style={[styles.medCard, disabled && styles.medCardDisabled]}>
-                <Text style={styles.medTitle}>{med.name || `Thuốc ${idx + 1}`}</Text>
+              <View key={idx} style={[styles.medCard, disabled && styles.medCardDisabled, med.confidence < 0.8 && styles.medCardWarning]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <Text style={[styles.medTitle, { marginBottom: 0 }]}>{med.name || `Thuốc ${idx + 1}`}</Text>
+                  {med.confidence < 0.8 && (
+                    <View style={styles.warningBadge}>
+                      <Icon name="warning" size={14} color="#D97706" />
+                      <Text style={styles.warningText}>Cần xác nhận</Text>
+                    </View>
+                  )}
+                </View>
 
                 <View style={disabled ? styles.disabledOverlay : undefined} pointerEvents={disabled ? 'none' : 'auto'}>
                   <FormField label="Tên thuốc" value={med.name} onChange={v => updateMed(idx, 'name', v)} />
@@ -169,15 +177,14 @@ export const PrescriptionEditScreen = ({ route, navigation }: any) => {
                     })}
                   </View>
 
-                  {/* Quantity */}
-                  <Text style={styles.fieldLabel}>Số lượng/ngày</Text>
+                  {/* Dosage */}
+                  <Text style={styles.fieldLabel}>Liều uống/lần</Text>
                   <View style={styles.quantityRow}>
                     <TextInput
                       style={styles.quantityInput}
-                      value={String(med.quantity || '')}
-                      onChangeText={v => updateMed(idx, 'quantity', Number(v) || 0)}
-                      keyboardType="numeric"
-                      placeholder="0"
+                      value={med.dosage || ''}
+                      onChangeText={v => updateMed(idx, 'dosage', v)}
+                      placeholder="VD: 1, 0.5..."
                     />
                     <View style={styles.unitPicker}>
                       {['Viên', 'Gói', 'Chai'].map(u => (
@@ -265,8 +272,11 @@ const styles = StyleSheet.create({
   fieldInput: { borderBottomWidth: 1, borderBottomColor: '#E5E5EA', paddingVertical: 8, fontSize: 15, color: '#1C1C1E' },
   fieldMultiline: { minHeight: 60, textAlignVertical: 'top' },
   // Medication Card
-  medCard: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 16 },
+  medCard: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'transparent' },
   medCardDisabled: { opacity: 0.45 },
+  medCardWarning: { borderColor: '#FCD34D', backgroundColor: '#FEFCE8' },
+  warningBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  warningText: { fontSize: 12, color: '#D97706', fontWeight: '600' },
   medTitle: { fontSize: 16, fontWeight: '700', color: '#1C1C1E', marginBottom: 12 },
   disabledOverlay: { opacity: 0.4 },
   // Sessions

@@ -133,10 +133,6 @@ export const ProfileScreen = ({ navigation, route }: any) => {
               <View style={s.tagCondition}><Text style={s.tagConditionText}>{user.medicalCondition}</Text></View>
             )}
           </View>
-          <TouchableOpacity style={s.editProfileBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
-            <Icon name="edit" size={16} color={TEAL} />
-            <Text style={s.editProfileText}>{loading ? 'Đang lưu...' : 'Chỉnh sửa'}</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Fall Detection */}
