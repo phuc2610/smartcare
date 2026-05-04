@@ -1194,9 +1194,11 @@ const styles = StyleSheet.create({
   },
   taskContent: {
     flex: 1,
+    minWidth: 0,
   },
   taskTitle: {
     marginBottom: SPACING.xs / 2,
+    flexShrink: 1,
   },
   taskTitleCompleted: {
     textDecorationLine: 'line-through',
@@ -1205,6 +1207,7 @@ const styles = StyleSheet.create({
   taskTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
     marginBottom: SPACING.xs / 2,
   },

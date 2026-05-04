@@ -6,9 +6,10 @@
 const Prescription = require('../models/Prescription');
 const Medication = require('../models/Medication');
 const openai = require('../config/openai');
+const genAI = require('../config/gemini');
 const { generateRemindersForMedication } = require('./medication.controller');
 
-// Demo data khi OpenAI không khả dụng
+// Demo data khi AI không khả dụng
 const DEMO_PRESCRIPTION = {
   doctorName: 'BS. Nguyễn Văn An',
   patientName: 'Trần Thị Bích',
@@ -22,38 +23,13 @@ const DEMO_PRESCRIPTION = {
   ],
 };
 
-/**
- * POST /api/prescriptions/scan
- * Scan ảnh đơn thuốc bằng AI/OCR
- */
-const scanPrescription = async (req, res) => {
-  try {
-    const { imageUrl, imageBase64 } = req.body;
-    const userId = req.user._id;
-
-    // Accept either a URL or base64-encoded image
-    const imageInput = imageBase64
-      ? `data:image/jpeg;base64,${imageBase64.replace(/^data:image\/\w+;base64,/, '')}`
-      : imageUrl;
-
-    if (!imageInput) {
-      return res.status(400).json({ error: 'imageUrl or imageBase64 is required' });
-    }
-
-    let prescriptionData;
-
-    if (!openai) {
-      // Demo mode
-      prescriptionData = { ...DEMO_PRESCRIPTION };
-    } else {
-      // AI OCR mode
-      const prompt = `Bạn là chuyên gia OCR y khoa. Phân tích ảnh đơn thuốc sau và trích xuất thông tin theo cấu trúc JSON.
+const OCR_PROMPT = `Bạn là chuyên gia OCR y khoa. Phân tích ảnh đơn thuốc sau và trích xuất thông tin theo cấu trúc JSON.
 
 YÊU CẦU:
 1. Trích xuất thông tin chung: tên bác sĩ, tên bệnh nhân, chẩn đoán, ngày khám, ghi chú/lời dặn
 2. Trích xuất danh sách thuốc: tên thuốc, hàm lượng/liều dùng, số lượng, đơn vị, thời điểm uống, thời điểm so với bữa ăn, hướng dẫn sử dụng, công dụng tham khảo
 
-Trả về JSON với format:
+CHỈ trả về JSON (không kèm markdown, không code block), với format:
 {
   "doctorName": "Tên BS",
   "patientName": "Tên BN",
@@ -78,25 +54,99 @@ Trả về JSON với format:
 Nếu không đọc được trường nào, để chuỗi rỗng hoặc giá trị mặc định.
 Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.`;
 
-      try {
-        const completion = await openai.chat.completions.create({
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: imageInput } },
-            ],
-          }],
-          response_format: { type: 'json_object' },
-          max_tokens: 1500,
-        });
+/**
+ * Scan bằng Gemini Vision API
+ */
+const scanWithGemini = async (base64Data) => {
+  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
 
-        prescriptionData = JSON.parse(completion.choices[0].message.content);
-      } catch (aiError) {
-        console.error('AI OCR failed, using demo:', aiError.message);
-        prescriptionData = { ...DEMO_PRESCRIPTION };
+  // Strip data URI prefix if present
+  const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+
+  const result = await model.generateContent([
+    OCR_PROMPT,
+    {
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: cleanBase64,
+      },
+    },
+  ]);
+
+  const responseText = result.response.text();
+  // Clean up response - remove markdown code blocks if present
+  const jsonStr = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  return JSON.parse(jsonStr);
+};
+
+/**
+ * Scan bằng OpenAI Vision API (fallback)
+ */
+const scanWithOpenAI = async (imageInput) => {
+  const completion = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: OCR_PROMPT },
+        { type: 'image_url', image_url: { url: imageInput } },
+      ],
+    }],
+    response_format: { type: 'json_object' },
+    max_tokens: 1500,
+  });
+  return JSON.parse(completion.choices[0].message.content);
+};
+
+/**
+ * POST /api/prescriptions/scan
+ * Scan ảnh đơn thuốc bằng AI/OCR (Gemini primary, OpenAI fallback)
+ */
+const scanPrescription = async (req, res) => {
+  try {
+    const { imageUrl, imageBase64 } = req.body;
+    const userId = req.user._id;
+
+    // Accept either a URL or base64-encoded image
+    const rawBase64 = imageBase64
+      ? imageBase64.replace(/^data:image\/\w+;base64,/, '')
+      : null;
+    const imageInput = rawBase64
+      ? `data:image/jpeg;base64,${rawBase64}`
+      : imageUrl;
+
+    if (!imageInput && !rawBase64) {
+      return res.status(400).json({ error: 'imageUrl or imageBase64 is required' });
+    }
+
+    let prescriptionData;
+
+    // Strategy 1: Gemini (primary)
+    if (genAI && rawBase64) {
+      try {
+        console.log('[SCAN] Trying Gemini Vision...');
+        prescriptionData = await scanWithGemini(rawBase64);
+        console.log('[SCAN] Gemini Vision SUCCESS');
+      } catch (geminiError) {
+        console.error('[SCAN] Gemini failed:', geminiError.message);
       }
+    }
+
+    // Strategy 2: OpenAI (fallback)
+    if (!prescriptionData && openai && imageInput) {
+      try {
+        console.log('[SCAN] Trying OpenAI Vision...');
+        prescriptionData = await scanWithOpenAI(imageInput);
+        console.log('[SCAN] OpenAI Vision SUCCESS');
+      } catch (openaiError) {
+        console.error('[SCAN] OpenAI failed:', openaiError.message);
+      }
+    }
+
+    // Strategy 3: Demo data (last resort)
+    if (!prescriptionData) {
+      console.warn('[SCAN] All AI engines failed, using DEMO data');
+      prescriptionData = { ...DEMO_PRESCRIPTION };
     }
 
     // Ensure medications array
