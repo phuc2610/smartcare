@@ -12,6 +12,7 @@ export interface PrescriptionMedication {
   instructions: string;
   usage: string;
   isActive: boolean;
+  confidence: number; // 0.0 - 1.0, độ tin cậy AI cho mỗi thuốc
 }
 
 export interface Prescription {
@@ -25,6 +26,10 @@ export interface Prescription {
   notes: string;
   medications: PrescriptionMedication[];
   status: 'draft' | 'confirmed' | 'archived';
+  // ── Accuracy fields ──
+  rawText: string; // Toàn bộ text thô OCR đọc được
+  qualityScore: number; // 0.0 - 1.0
+  verificationNotes: string; // Ghi chú từ verification pass
   createdAt: string;
   updatedAt: string;
 }

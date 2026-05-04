@@ -10,6 +10,7 @@ const prescriptionMedicationSchema = new mongoose.Schema({
   instructions: { type: String, default: '' },
   usage: { type: String, default: '' }, // Công dụng tham khảo
   isActive: { type: Boolean, default: true },
+  confidence: { type: Number, default: 0.5, min: 0, max: 1 }, // Độ tin cậy AI cho mỗi thuốc
 });
 
 const prescriptionSchema = new mongoose.Schema({
@@ -22,6 +23,10 @@ const prescriptionSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   medications: [prescriptionMedicationSchema],
   status: { type: String, enum: ['draft', 'confirmed', 'archived'], default: 'draft' },
+  // ── Accuracy fields ──
+  rawText: { type: String, default: '' }, // Toàn bộ text thô OCR đọc được
+  qualityScore: { type: Number, default: 0, min: 0, max: 1 }, // Điểm chất lượng tổng
+  verificationNotes: { type: String, default: '' }, // Ghi chú từ pass 2 verification
 }, {
   timestamps: true,
 });

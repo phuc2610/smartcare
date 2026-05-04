@@ -1,6 +1,7 @@
 /**
  * Prescription Controller
- * Handles OCR scanning, CRUD, and auto-creation of medications/reminders
+ * Handles OCR scanning with DUAL-PASS AI VERIFICATION for maximum accuracy
+ * Healthcare app → wrong medication name or dosage = dangerous
  */
 
 const Prescription = require('../models/Prescription');
@@ -16,55 +17,171 @@ const DEMO_PRESCRIPTION = {
   diagnosis: 'Viêm họng cấp',
   startDate: new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
   notes: 'Tái khám sau 7 ngày. Uống nhiều nước ấm, nghỉ ngơi đầy đủ. Tránh đồ lạnh và cay.',
+  rawText: '[Demo data - không phải kết quả OCR thực tế]',
+  qualityScore: 0,
   medications: [
-    { name: 'Amoxicillin 500mg', dosage: '1 viên/lần', quantity: 21, unit: 'Viên', sessions: ['MORNING', 'NOON', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Uống sau ăn 30 phút', usage: 'Kháng sinh điều trị nhiễm khuẩn đường hô hấp', isActive: true },
-    { name: 'Paracetamol 500mg', dosage: '1-2 viên/lần', quantity: 20, unit: 'Viên', sessions: ['MORNING', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Uống khi sốt trên 38.5°C', usage: 'Hạ sốt, giảm đau', isActive: true },
-    { name: 'Strepsils', dosage: '1 viên ngậm', quantity: 24, unit: 'Viên', sessions: ['MORNING', 'NOON', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Ngậm tan từ từ, không nhai', usage: 'Sát khuẩn, giảm đau rát họng', isActive: true },
+    { name: 'Amoxicillin 500mg', dosage: '1 viên/lần', quantity: 21, unit: 'Viên', sessions: ['MORNING', 'NOON', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Uống sau ăn 30 phút', usage: 'Kháng sinh điều trị nhiễm khuẩn đường hô hấp', isActive: true, confidence: 0 },
+    { name: 'Paracetamol 500mg', dosage: '1-2 viên/lần', quantity: 20, unit: 'Viên', sessions: ['MORNING', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Uống khi sốt trên 38.5°C', usage: 'Hạ sốt, giảm đau', isActive: true, confidence: 0 },
+    { name: 'Strepsils', dosage: '1 viên ngậm', quantity: 24, unit: 'Viên', sessions: ['MORNING', 'NOON', 'EVENING'], mealTiming: 'AFTER_MEAL', instructions: 'Ngậm tan từ từ, không nhai', usage: 'Sát khuẩn, giảm đau rát họng', isActive: true, confidence: 0 },
   ],
 };
 
-const OCR_PROMPT = `Bạn là chuyên gia OCR y khoa. Phân tích ảnh đơn thuốc sau và trích xuất thông tin theo cấu trúc JSON.
+// ─────────────────────────────────────────────────────────────
+// PASS 1: OCR EXTRACTION PROMPT
+// ─────────────────────────────────────────────────────────────
+const OCR_EXTRACT_PROMPT = `Bạn là chuyên gia OCR y khoa với độ chính xác cực cao. Đây là ứng dụng y tế thực tế — sai tên thuốc hoặc liều dùng có thể gây nguy hiểm cho bệnh nhân.
 
-YÊU CẦU:
-1. Trích xuất thông tin chung: tên bác sĩ, tên bệnh nhân, chẩn đoán, ngày khám, ghi chú/lời dặn
-2. Trích xuất danh sách thuốc: tên thuốc, hàm lượng/liều dùng, số lượng, đơn vị, thời điểm uống, thời điểm so với bữa ăn, hướng dẫn sử dụng, công dụng tham khảo
+NHIỆM VỤ: Phân tích ảnh đơn thuốc và trích xuất CHÍNH XÁC thông tin.
 
-CHỈ trả về JSON (không kèm markdown, không code block), với format:
+QUY TẮC BẮT BUỘC:
+1. Đọc CHÍNH XÁC từng ký tự trên đơn thuốc. KHÔNG được đoán hoặc suy luận tên thuốc.
+2. Nếu không đọc rõ một từ, ghi lại chính xác những gì đọc được kèm dấu [?] (VD: "Amox[?]cillin")
+3. Phân biệt rõ: 500mg ≠ 50mg, 1 viên ≠ 1 gói, sáng ≠ chiều
+4. Trích xuất toàn bộ text thô đọc được vào trường "rawText"
+5. Đánh giá confidence (0.0 - 1.0) cho mỗi thuốc và cho toàn bộ đơn
+
+VÍ DỤ OUTPUT:
 {
-  "doctorName": "Tên BS",
-  "patientName": "Tên BN",
-  "diagnosis": "Chẩn đoán",
-  "startDate": "DD/MM/YYYY",
-  "notes": "Ghi chú/lời dặn",
+  "doctorName": "BS. Nguyễn Văn An",
+  "patientName": "Trần Văn Bình",
+  "diagnosis": "Viêm phế quản cấp",
+  "startDate": "15/03/2024",
+  "notes": "Tái khám sau 5 ngày. Uống nhiều nước.",
+  "rawText": "BS. NGUYỄN VĂN AN\\nPHÒNG KHÁM ĐA KHOA...\\nBệnh nhân: TRẦN VĂN BÌNH\\nChẩn đoán: Viêm phế quản cấp\\n1. Amoxicillin 500mg x 21 viên\\n   Ngày 3 lần, sau ăn\\n2. Bromhexin 8mg x 20 viên\\n   Ngày 2 lần sáng-chiều...",
+  "overallConfidence": 0.85,
   "medications": [
     {
-      "name": "Tên thuốc + hàm lượng",
-      "dosage": "Liều dùng (VD: 1 viên/lần)",
-      "quantity": 20,
-      "unit": "Viên|Gói|Chai|Ống",
-      "sessions": ["MORNING","NOON","AFTERNOON","EVENING"],
-      "mealTiming": "BEFORE_MEAL|AFTER_MEAL|DURING_MEAL|NONE",
-      "instructions": "Hướng dẫn chi tiết",
-      "usage": "Công dụng tham khảo",
-      "isActive": true
+      "name": "Amoxicillin 500mg",
+      "dosage": "1 viên/lần",
+      "quantity": 21,
+      "unit": "Viên",
+      "sessions": ["MORNING", "NOON", "EVENING"],
+      "mealTiming": "AFTER_MEAL",
+      "instructions": "Uống sau ăn, ngày 3 lần",
+      "usage": "Kháng sinh điều trị nhiễm khuẩn",
+      "isActive": true,
+      "confidence": 0.95
     }
   ]
 }
 
-Nếu không đọc được trường nào, để chuỗi rỗng hoặc giá trị mặc định.
-Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.`;
+CHỈ trả về JSON (không markdown, không code block). Format:
+{
+  "doctorName": "string",
+  "patientName": "string",
+  "diagnosis": "string",
+  "startDate": "DD/MM/YYYY",
+  "notes": "string - ghi chú/lời dặn của bác sĩ",
+  "rawText": "string - TOÀN BỘ text thô đọc được từ ảnh, giữ nguyên xuống dòng",
+  "overallConfidence": 0.0-1.0,
+  "medications": [
+    {
+      "name": "Tên thuốc CHÍNH XÁC + hàm lượng",
+      "dosage": "Liều dùng (VD: 1 viên/lần)",
+      "quantity": number,
+      "unit": "Viên|Gói|Chai|Ống|Tuýp|Lọ",
+      "sessions": ["MORNING"|"NOON"|"AFTERNOON"|"EVENING"],
+      "mealTiming": "BEFORE_MEAL|AFTER_MEAL|DURING_MEAL|NONE",
+      "instructions": "Hướng dẫn sử dụng chi tiết",
+      "usage": "Công dụng",
+      "isActive": true,
+      "confidence": 0.0-1.0
+    }
+  ]
+}
 
-/**
- * Scan bằng Gemini Vision API
- */
+Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.
+Nếu không đọc được trường nào, để chuỗi rỗng và confidence = 0.`;
+
+// ─────────────────────────────────────────────────────────────
+// PASS 2: VERIFICATION PROMPT
+// ─────────────────────────────────────────────────────────────
+const buildVerificationPrompt = (extractedJson) => `Bạn là dược sĩ lâm sàng kiểm tra kết quả OCR đơn thuốc. Đây là ứng dụng y tế — sai tên thuốc hoặc liều dùng CÓ THỂ GÂY NGUY HIỂM.
+
+KẾT QUẢ OCR CẦN KIỂM TRA:
+${JSON.stringify(extractedJson, null, 2)}
+
+NHIỆM VỤ KIỂM TRA:
+1. TÊN THUỐC: Kiểm tra chính tả. Các lỗi OCR thường gặp:
+   - "Amoxicilin" → "Amoxicillin" (thiếu chữ l)
+   - "Paracetamoi" → "Paracetamol" (nhầm i/l)
+   - "Cetirizin" → "Cetirizine" (thiếu e cuối)
+   - "Omeprazol" → "Omeprazole" (thiếu e cuối)
+   - Kiểm tra hàm lượng có hợp lý không (VD: Paracetamol thường 500mg, không phải 5000mg)
+
+2. LIỀU DÙNG: Kiểm tra liều có hợp lý với loại thuốc không.
+   - Kháng sinh thường 2-3 lần/ngày
+   - Thuốc dạ dày thường 1-2 lần/ngày
+   - Vitamin thường 1 lần/ngày
+
+3. SỐ LƯỢNG: Kiểm tra số lượng có khớp với liều dùng × số ngày không.
+
+4. SESSIONS: Kiểm tra thời điểm uống có hợp lý với loại thuốc không.
+
+5. MEAL TIMING: Kiểm tra thời điểm ăn có đúng với loại thuốc không.
+   - Kháng sinh thường uống sau ăn
+   - Thuốc dạ dày thường uống trước ăn
+
+CHỈ trả về JSON đã sửa (cùng format), với:
+- Sửa lỗi chính tả tên thuốc nếu phát hiện
+- Điều chỉnh confidence dựa trên mức độ chắc chắn
+- Thêm ghi chú sửa đổi vào field "verificationNotes" (string)
+- KHÔNG thêm thuốc mới, KHÔNG xóa thuốc
+- Nếu không chắc chắn, GIỮ NGUYÊN và giảm confidence
+
+CHỈ trả về JSON (không markdown, không code block).`;
+
+// ─────────────────────────────────────────────────────────────
+// QUALITY SCORE CALCULATION
+// ─────────────────────────────────────────────────────────────
+const calculateQualityScore = (data) => {
+  let score = 0;
+  let total = 0;
+
+  // General info scoring
+  const fields = ['doctorName', 'patientName', 'diagnosis', 'startDate', 'notes'];
+  for (const field of fields) {
+    total += 1;
+    if (data[field] && data[field].trim().length > 0) score += 1;
+  }
+
+  // Medications scoring (weighted higher — most important)
+  const meds = data.medications || [];
+  if (meds.length === 0) {
+    total += 5;
+    // no meds found = very low quality
+  } else {
+    for (const med of meds) {
+      total += 3; // name + dosage + quantity
+      if (med.name && med.name.trim().length > 2) score += 1;
+      if (med.dosage && med.dosage.trim().length > 0) score += 1;
+      if (med.quantity && med.quantity > 0) score += 1;
+    }
+  }
+
+  // Use AI's own confidence if available
+  const aiConfidence = data.overallConfidence || 0;
+  const fieldScore = total > 0 ? score / total : 0;
+
+  // Weighted average: 40% field completeness + 60% AI self-assessment
+  return aiConfidence > 0
+    ? Math.round((fieldScore * 0.4 + aiConfidence * 0.6) * 100) / 100
+    : Math.round(fieldScore * 100) / 100;
+};
+
+// ─────────────────────────────────────────────────────────────
+// GEMINI SCAN — DUAL PASS
+// ─────────────────────────────────────────────────────────────
 const scanWithGemini = async (base64Data) => {
   const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
 
   // Strip data URI prefix if present
   const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
 
-  const result = await model.generateContent([
-    OCR_PROMPT,
+  // ── PASS 1: Extract from image ──
+  console.log('[SCAN] Pass 1: Extracting from image...');
+  const pass1Result = await model.generateContent([
+    OCR_EXTRACT_PROMPT,
     {
       inlineData: {
         mimeType: 'image/jpeg',
@@ -73,10 +190,38 @@ const scanWithGemini = async (base64Data) => {
     },
   ]);
 
-  const responseText = result.response.text();
-  // Clean up response - remove markdown code blocks if present
-  const jsonStr = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(jsonStr);
+  const pass1Text = pass1Result.response.text();
+  const pass1Json = JSON.parse(
+    pass1Text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  );
+  console.log('[SCAN] Pass 1 complete. Medications found:', pass1Json.medications?.length || 0);
+
+  // ── PASS 2: Verify & correct with text-only prompt ──
+  let verifiedData = pass1Json;
+  try {
+    console.log('[SCAN] Pass 2: Verifying extraction...');
+    const pass2Result = await model.generateContent([
+      buildVerificationPrompt(pass1Json),
+    ]);
+
+    const pass2Text = pass2Result.response.text();
+    const pass2Json = JSON.parse(
+      pass2Text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    );
+
+    // Merge: keep pass2 corrections but preserve pass1 rawText
+    verifiedData = {
+      ...pass2Json,
+      rawText: pass1Json.rawText || pass2Json.rawText || '',
+      verificationNotes: pass2Json.verificationNotes || '',
+    };
+    console.log('[SCAN] Pass 2 complete. Verification notes:', verifiedData.verificationNotes || 'none');
+  } catch (verifyError) {
+    console.warn('[SCAN] Pass 2 verification failed (using Pass 1 result):', verifyError.message);
+    // Fall back to pass 1 result — still better than nothing
+  }
+
+  return verifiedData;
 };
 
 /**
@@ -88,19 +233,48 @@ const scanWithOpenAI = async (imageInput) => {
     messages: [{
       role: 'user',
       content: [
-        { type: 'text', text: OCR_PROMPT },
+        { type: 'text', text: OCR_EXTRACT_PROMPT },
         { type: 'image_url', image_url: { url: imageInput } },
       ],
     }],
     response_format: { type: 'json_object' },
-    max_tokens: 1500,
+    max_tokens: 2500,
   });
-  return JSON.parse(completion.choices[0].message.content);
+
+  const pass1Json = JSON.parse(completion.choices[0].message.content);
+
+  // Verification pass with OpenAI too
+  try {
+    console.log('[SCAN] OpenAI Pass 2: Verifying...');
+    const verifyResult = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages: [{
+        role: 'user',
+        content: buildVerificationPrompt(pass1Json),
+      }],
+      response_format: { type: 'json_object' },
+      max_tokens: 2500,
+    });
+    const pass2Json = JSON.parse(verifyResult.choices[0].message.content);
+    return {
+      ...pass2Json,
+      rawText: pass1Json.rawText || pass2Json.rawText || '',
+      verificationNotes: pass2Json.verificationNotes || '',
+    };
+  } catch (err) {
+    console.warn('[SCAN] OpenAI verification failed:', err.message);
+    return pass1Json;
+  }
 };
+
+// ─────────────────────────────────────────────────────────────
+// MAX BASE64 SIZE: ~5MB
+// ─────────────────────────────────────────────────────────────
+const MAX_BASE64_BYTES = 5 * 1024 * 1024;
 
 /**
  * POST /api/prescriptions/scan
- * Scan ảnh đơn thuốc bằng AI/OCR (Gemini primary, OpenAI fallback)
+ * Scan ảnh đơn thuốc bằng AI/OCR — DUAL-PASS VERIFICATION
  */
 const scanPrescription = async (req, res) => {
   try {
@@ -119,25 +293,38 @@ const scanPrescription = async (req, res) => {
       return res.status(400).json({ error: 'imageUrl or imageBase64 is required' });
     }
 
+    // Image size validation
+    if (rawBase64 && rawBase64.length > MAX_BASE64_BYTES) {
+      console.warn(`[SCAN] Image too large: ${(rawBase64.length / 1024 / 1024).toFixed(1)}MB`);
+      return res.status(400).json({
+        error: 'Ảnh quá lớn. Vui lòng chụp lại với chất lượng thấp hơn hoặc crop vùng đơn thuốc.',
+      });
+    }
+
+    // Log image size for monitoring
+    if (rawBase64) {
+      console.log(`[SCAN] Image size: ${(rawBase64.length / 1024).toFixed(0)}KB`);
+    }
+
     let prescriptionData;
 
-    // Strategy 1: Gemini (primary)
+    // Strategy 1: Gemini (primary) — with dual-pass verification
     if (genAI && rawBase64) {
       try {
-        console.log('[SCAN] Trying Gemini Vision...');
+        console.log('[SCAN] === Starting Gemini Dual-Pass Scan ===');
         prescriptionData = await scanWithGemini(rawBase64);
-        console.log('[SCAN] Gemini Vision SUCCESS');
+        console.log('[SCAN] Gemini Dual-Pass SUCCESS');
       } catch (geminiError) {
         console.error('[SCAN] Gemini failed:', geminiError.message);
       }
     }
 
-    // Strategy 2: OpenAI (fallback)
+    // Strategy 2: OpenAI (fallback) — also with dual-pass
     if (!prescriptionData && openai && imageInput) {
       try {
-        console.log('[SCAN] Trying OpenAI Vision...');
+        console.log('[SCAN] === Starting OpenAI Dual-Pass Scan ===');
         prescriptionData = await scanWithOpenAI(imageInput);
-        console.log('[SCAN] OpenAI Vision SUCCESS');
+        console.log('[SCAN] OpenAI Dual-Pass SUCCESS');
       } catch (openaiError) {
         console.error('[SCAN] OpenAI failed:', openaiError.message);
       }
@@ -154,7 +341,39 @@ const scanPrescription = async (req, res) => {
       prescriptionData.medications = [];
     }
 
-    // Normalize medications
+    // Calculate quality score
+    const qualityScore = calculateQualityScore(prescriptionData);
+    console.log(`[SCAN] Quality score: ${qualityScore}`);
+
+    // ── AUTO-RETRY on very low quality ──
+    if (qualityScore < 0.3 && genAI && rawBase64 && prescriptionData !== DEMO_PRESCRIPTION) {
+      console.log('[SCAN] Quality too low, attempting retry with enhanced prompt...');
+      try {
+        const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
+        const retryResult = await model.generateContent([
+          OCR_EXTRACT_PROMPT + '\n\nLƯU Ý THÊM: Ảnh có thể mờ hoặc nghiêng. Hãy cố gắng đọc từng ký tự một cách cẩn thận nhất. Phóng to từng vùng nếu cần. Nếu đọc được một phần, hãy ghi lại phần đó.',
+          {
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: rawBase64.replace(/^data:image\/\w+;base64,/, ''),
+            },
+          },
+        ]);
+        const retryText = retryResult.response.text();
+        const retryJson = JSON.parse(
+          retryText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        );
+        const retryScore = calculateQualityScore(retryJson);
+        if (retryScore > qualityScore) {
+          console.log(`[SCAN] Retry improved score: ${qualityScore} → ${retryScore}`);
+          prescriptionData = retryJson;
+        }
+      } catch (retryErr) {
+        console.warn('[SCAN] Retry failed:', retryErr.message);
+      }
+    }
+
+    // Normalize medications with confidence
     prescriptionData.medications = prescriptionData.medications.map(med => ({
       name: med.name || 'Không rõ',
       dosage: med.dosage || '',
@@ -165,13 +384,25 @@ const scanPrescription = async (req, res) => {
       instructions: med.instructions || '',
       usage: med.usage || '',
       isActive: med.isActive !== false,
+      confidence: typeof med.confidence === 'number' ? med.confidence : 0.5,
     }));
 
-    // Save as draft
+    // Recalculate final quality score
+    const finalQualityScore = calculateQualityScore(prescriptionData);
+
+    // Save as draft with quality metadata
     const prescription = await Prescription.create({
       userId,
       imageUrl: imageUrl || null,
-      ...prescriptionData,
+      doctorName: prescriptionData.doctorName || '',
+      patientName: prescriptionData.patientName || '',
+      diagnosis: prescriptionData.diagnosis || '',
+      startDate: prescriptionData.startDate || '',
+      notes: prescriptionData.notes || '',
+      medications: prescriptionData.medications,
+      rawText: prescriptionData.rawText || '',
+      qualityScore: finalQualityScore,
+      verificationNotes: prescriptionData.verificationNotes || '',
       status: 'draft',
     });
 
