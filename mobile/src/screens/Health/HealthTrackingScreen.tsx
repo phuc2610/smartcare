@@ -2,8 +2,9 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, PanResponder, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createHealthLog } from '../../services/health.service';
+import { createHealthLog, updateHealthLog } from '../../services/health.service';
 import { estimateCalories } from '../../services/ai.service';
 import { HealthLogType } from '../../types';
 import { COLORS } from '../../utils/constants';
@@ -20,29 +21,28 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
   const [isEstimating, setIsEstimating] = useState(false);
 
   // Date and time for meal and exercise
-  const [mealDate, setMealDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
-  const [mealTime, setMealTime] = useState(() => {
-    const today = new Date();
-    return `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
-  });
+  const [mealDate, setMealDate] = useState('');
+  const [mealTime, setMealTime] = useState('');
   
-  const [exerciseDate, setExerciseDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
-  const [exerciseTime, setExerciseTime] = useState(() => {
-    const today = new Date();
-    return `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
-  });
+  const [exerciseDate, setExerciseDate] = useState('');
+  const [exerciseTime, setExerciseTime] = useState('');
 
   // For symptom: only date
-  const [symptomDate, setSymptomDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
+  const [symptomDate, setSymptomDate] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date();
+      const currentDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const currentTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+      
+      setMealDate(currentDate);
+      setMealTime(currentTime);
+      setExerciseDate(currentDate);
+      setExerciseTime(currentTime);
+      setSymptomDate(currentDate);
+    }, [])
+  );
 
   // Meal
   const [foodName, setFoodName] = useState('');
@@ -264,7 +264,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         isCompletedToUse = true; // Exercises are logged after doing
       }
       
-      await createHealthLog(
+      const response = await createHealthLog(
         activeTab, 
         details,
         dateToUse, // date field (only for symptom)
@@ -272,6 +272,17 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         scheduledTimeToUse, // scheduledTime (for meal and exercise)
         isCompletedToUse // isCompleted
       );
+
+      // Workaround: Since the Render backend might not support setting isCompleted on creation yet,
+      // we immediately update it if it's meant to be completed.
+      if (isCompletedToUse && response?.healthLog?._id) {
+        try {
+          await updateHealthLog(response.healthLog._id, { isCompleted: true });
+        } catch (e) {
+          console.log('Failed to auto-complete health log', e);
+        }
+      }
+
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', 'Đã ghi nhận');
       // Reset form
