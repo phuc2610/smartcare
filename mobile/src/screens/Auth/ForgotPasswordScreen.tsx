@@ -403,6 +403,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     marginBottom: 16,
+    color: COLORS.text,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -417,6 +418,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     fontSize: 16,
+    color: COLORS.text,
   },
   eyeIcon: {
     padding: 16,
@@ -441,6 +443,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     letterSpacing: 4,
+    color: COLORS.text,
   },
   otpButton: {
     padding: 16,
