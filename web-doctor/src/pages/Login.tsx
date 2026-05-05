@@ -9,7 +9,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:4000/api/auth/login', { phone, password });
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/login', { phone, password });
       if (res.data.user.role !== 'DOCTOR') {
         alert('Tài khoản này không phải là Bác sĩ!');
         return;

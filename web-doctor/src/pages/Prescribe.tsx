@@ -183,7 +183,7 @@ export default function Prescribe() {
 
   const fetchPatientInfo = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/profile`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/profile`);
       setPatientInfo(res.data.patient);
     } catch { /* silent */ }
   };
@@ -191,7 +191,7 @@ export default function Prescribe() {
   // M4: fetch old MedicalRecord and pre-fill form
   const fetchReprescribeData = async (recordId: string) => {
     try {
-      const res = await axios.get(`http://localhost:4000/api/medical-records/${patientId}/${recordId}`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}/${recordId}`);
       const rec = res.data.record;
       if (!rec) return;
 
@@ -258,7 +258,7 @@ export default function Prescribe() {
       // 1. Tìm catalog trước (nhanh, ưu tiên)
       setCatalogLoading(true); setShowCatalog(true);
       try {
-        const catRes = await axios.get('http://localhost:4000/api/drug-catalog/search', { params: { q: val } });
+        const catRes = await axios.get('https://smartcare-uqgi.onrender.com/api/drug-catalog/search', { params: { q: val } });
         setCatalogResults(catRes.data.drugs || []);
       } catch { setCatalogResults([]); }
       finally { setCatalogLoading(false); }
@@ -337,7 +337,7 @@ export default function Prescribe() {
     if (drugs.length < 2) { setInteractions(null); return; }
     setInteractionLoading(true);
     try {
-      const res = await axios.post('http://localhost:4000/api/ai/medication/interactions', { drugs });
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/ai/medication/interactions', { drugs });
       setInteractions(res.data);
     } catch { setInteractions(null); }
     finally { setInteractionLoading(false); }
@@ -367,7 +367,7 @@ export default function Prescribe() {
     }
     setSubmitting(true);
     try {
-      await axios.post(`http://localhost:4000/api/medical-records/${patientId}`, {
+      await axios.post(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}`, {
         diagnosis: diagnosis.trim(),
         icdCode: icdCode.trim(),
         note: visitNote.trim(),
@@ -823,7 +823,7 @@ export default function Prescribe() {
                   setSuggestions([]);
                   setShowSuggestions(true);   // mở panel ngay lập tức
                   try {
-                    const res = await axios.post('http://localhost:4000/api/ai/medication/suggest', {
+                    const res = await axios.post('https://smartcare-uqgi.onrender.com/api/ai/medication/suggest', {
                       medicalCondition: patientInfo?.medicalCondition || '',
                       symptoms,
                       partialDrugName: rows[0]?.name || '',

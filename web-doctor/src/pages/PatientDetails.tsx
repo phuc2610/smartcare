@@ -89,7 +89,7 @@ export default function PatientDetails() {
 
   const fetchProfile = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/profile`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/profile`);
       setPatient(res.data.patient);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Không thể lấy thông tin bệnh nhân');
@@ -102,7 +102,7 @@ export default function PatientDetails() {
     const diffDays = Math.ceil(Math.abs(eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays > 31) { alert('Chỉ được phép xuất dữ liệu tối đa 30 ngày!'); return; }
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/vitals`, { params: { startDate, endDate } });
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/vitals`, { params: { startDate, endDate } });
       setLogs(res.data.logs);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Lỗi khi tải dữ liệu');
@@ -112,7 +112,7 @@ export default function PatientDetails() {
   const fetchMedRecords = async () => {
     setRecordsLoading(true);
     try {
-      const res = await axios.get(`http://localhost:4000/api/medical-records/${patientId}?limit=20`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}?limit=20`);
       setMedRecords(res.data.records || []);
     } catch {
       setMedRecords([]);
@@ -124,7 +124,7 @@ export default function PatientDetails() {
   const fetchAdherence = async () => {
     setAdherenceLoading(true);
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/adherence`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/adherence`);
       setAdherence(res.data);
     } catch {
       setAdherence(null);
@@ -135,7 +135,7 @@ export default function PatientDetails() {
 
   const fetchPatientAlerts = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/api/alerts/patient/${patientId}`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/alerts/patient/${patientId}`);
       setPatientAlerts(res.data.alerts || []);
     } catch {
       setPatientAlerts([]);
@@ -146,7 +146,7 @@ export default function PatientDetails() {
   const fetchPrescriptionHistory = async () => {
     setPrescHistoryLoading(true);
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/prescription-history`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/prescription-history`);
       setPrescriptionHistory(res.data);
     } catch {
       setPrescriptionHistory(null);
@@ -159,7 +159,7 @@ export default function PatientDetails() {
   const fetchSymptomTrend = async () => {
     setSymptomTrendLoading(true);
     try {
-      const res = await axios.get(`http://localhost:4000/api/doctors/patients/${patientId}/symptom-trend?days=30`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/doctors/patients/${patientId}/symptom-trend?days=30`);
       setSymptomTrend(res.data);
     } catch {
       setSymptomTrend(null);
@@ -171,7 +171,7 @@ export default function PatientDetails() {
   const runPatientAnalysis = async () => {
     setAlertRunning(true);
     try {
-      await axios.post(`http://localhost:4000/api/alerts/analyze/${patientId}`);
+      await axios.post(`https://smartcare-uqgi.onrender.com/api/alerts/analyze/${patientId}`);
       await fetchPatientAlerts();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Lỗi phân tích');
@@ -182,14 +182,14 @@ export default function PatientDetails() {
 
   const markAlertRead = async (alertId: string) => {
     try {
-      await axios.patch(`http://localhost:4000/api/alerts/${alertId}/read`);
+      await axios.patch(`https://smartcare-uqgi.onrender.com/api/alerts/${alertId}/read`);
       setPatientAlerts(prev => prev.map(a => a._id === alertId ? { ...a, isRead: true } : a));
     } catch {}
   };
 
   const fetchMessages = async () => {
     try {
-      const res = await axios.get(`http://localhost:4000/api/chat/messages/${patientId}`);
+      const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/chat/messages/${patientId}`);
       setMessages(res.data.messages || []);
     } catch {
       setMessages([]);
@@ -200,7 +200,7 @@ export default function PatientDetails() {
     if (!chatInput.trim()) return;
     setChatLoading(true);
     try {
-      const res = await axios.post('http://localhost:4000/api/chat/send', { receiverId: patientId, content: chatInput });
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/chat/send', { receiverId: patientId, content: chatInput });
       setMessages(prev => [...prev, res.data.message]);
       setChatInput('');
     } catch (err: any) {
@@ -215,7 +215,7 @@ export default function PatientDetails() {
     setApptLoading(true);
     try {
       const doctorProfile = JSON.parse(localStorage.getItem('doctorProfile') || '{}');
-      await axios.post('http://localhost:4000/api/appointments', {
+      await axios.post('https://smartcare-uqgi.onrender.com/api/appointments', {
         userId: patientId,
         doctorName: doctorProfile.name || 'Bác sĩ SmartCare',
         doctorSpecialty: doctorProfile.doctorProfile?.specialty || '',
@@ -674,7 +674,7 @@ export default function PatientDetails() {
                             btn.disabled = true;
                             btn.textContent = '⏳ Đang tạo PDF...';
                             try {
-                              const res = await axios.get(`http://localhost:4000/api/medical-records/${patientId}/${rec._id}/pdf`, { responseType: 'blob' });
+                              const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}/${rec._id}/pdf`, { responseType: 'blob' });
                               const blob = new Blob([res.data], { type: 'application/pdf' });
                               const url = window.URL.createObjectURL(blob);
                               const a = document.createElement('a');

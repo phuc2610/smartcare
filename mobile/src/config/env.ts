@@ -19,7 +19,7 @@ try {
 
 // Fallback values (CHỈ DÙNG KHI react-native-config KHÔNG HOẠT ĐỘNG)
 const FALLBACK_CONFIG: Record<string, string> = {
-  API_BASE_URL: Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://localhost:4000',
+  API_BASE_URL: 'https://smartcare-uqgi.onrender.com',
   USE_MOCK_API: 'false',
   DEBUG_LOGS: __DEV__ ? 'true' : 'false',
   MAP_PROVIDER: 'osm',

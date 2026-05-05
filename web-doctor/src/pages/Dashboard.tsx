@@ -21,8 +21,8 @@ export default function Dashboard() {
   const fetchDashboard = async () => {
     try {
       const [profileRes, patientsRes] = await Promise.all([
-        axios.get('http://localhost:4000/api/doctors/profile'),
-        axios.get('http://localhost:4000/api/doctors/patients'),
+        axios.get('https://smartcare-uqgi.onrender.com/api/doctors/profile'),
+        axios.get('https://smartcare-uqgi.onrender.com/api/doctors/patients'),
       ]);
       setDoctorProfile(profileRes.data.user);
       setPatients(patientsRes.data.patients);
@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   const loadAlerts = async () => {
     try {
-      const res = await axios.get('http://localhost:4000/api/alerts/doctor/summary');
+      const res = await axios.get('https://smartcare-uqgi.onrender.com/api/alerts/doctor/summary');
       setAlertSummary(res.data);
     } catch {
       setAlertSummary(null);
@@ -49,7 +49,7 @@ export default function Dashboard() {
   const runAnalysis = async () => {
     setAlertLoading(true);
     try {
-      await axios.post('http://localhost:4000/api/alerts/analyze-all');
+      await axios.post('https://smartcare-uqgi.onrender.com/api/alerts/analyze-all');
       await loadAlerts();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Lỗi khi phân tích');

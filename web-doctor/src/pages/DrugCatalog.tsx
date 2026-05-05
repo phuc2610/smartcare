@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, Edit3, Trash2, Package, ChevronDown, X, Save, Beaker, Utensils, CheckCircle } from 'lucide-react';
 
-const API = 'http://localhost:4000/api/drug-catalog';
+const API = 'https://smartcare-uqgi.onrender.com/api/drug-catalog';
 
 const CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
   ANALGESIC:        { label: 'Giảm đau / Hạ sốt',       color: '#F59E0B', bg: '#FFFBEB' },

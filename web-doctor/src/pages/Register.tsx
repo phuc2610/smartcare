@@ -12,7 +12,7 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:4000/api/auth/register', { 
+      await axios.post('https://smartcare-uqgi.onrender.com/api/auth/register', { 
         name, phone, password, role: 'DOCTOR' 
       });
       alert('Đăng ký bước 1 thành công. Vui lòng xem mã OTP trong tab chạy Server (mô phỏng SMS).');
@@ -25,7 +25,7 @@ export default function Register() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:4000/api/auth/otp/verify', {
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/otp/verify', {
         phone, otp
       });
       localStorage.setItem('token', res.data.token);
