@@ -46,6 +46,7 @@ import { PrescriptionViewScreen } from '../screens/Prescription/PrescriptionView
 import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEditScreen';
 import { DependentsScreen } from '../screens/Profile/DependentsScreen';
 import { MedicationManageScreen } from '../screens/Medication/MedicationManageScreen';
+import { ManualMedicationAddScreen } from '../screens/Medication/ManualMedicationAddScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -421,6 +422,13 @@ export const TabsNavigator = () => {
       <Stack.Screen 
         name="MedicationManage" 
         component={MedicationManageScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ManualMedicationAdd" 
+        component={ManualMedicationAddScreen} 
         options={{ 
           headerShown: false,
         }} 

@@ -9,7 +9,9 @@ export const createMedication = async (data: {
   unit?: string;
   notes?: string;
   frequency: 'DAILY' | 'EVERY_OTHER_DAY';
-  times: string[];
+  sessions?: ('MORNING' | 'NOON' | 'EVENING')[];
+  mealTiming?: 'BEFORE_MEAL' | 'AFTER_MEAL' | 'NONE';
+  times?: string[];
   startDate: string;
 }): Promise<{ medication: Medication }> => {
   const result = await api.post<{ medication: Medication }>('/api/medications', data);

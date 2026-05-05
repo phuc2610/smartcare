@@ -339,6 +339,14 @@ export const AddMedicationScreen = ({ navigation }: any) => {
               <Icon name="photo-library" size={20} color="#6B7280" />
               <Text style={styles.btnSecondaryText}>Chọn từ thư viện</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.btnTertiary} 
+              onPress={() => navigation.navigate('ManualMedicationAdd')} 
+              activeOpacity={0.8}
+            >
+              <Icon name="edit-note" size={20} color={TEAL} />
+              <Text style={styles.btnTertiaryText}>Nhập thuốc thủ công</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -412,6 +420,8 @@ const styles = StyleSheet.create({
   btnPrimaryText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   btnSecondary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E5E5EA' },
   btnSecondaryText: { fontSize: 16, fontWeight: '500', color: '#6B7280' },
+  btnTertiary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#E0F2F1', paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: '#B2DFDB' },
+  btnTertiaryText: { fontSize: 16, fontWeight: '600', color: '#00796B' },
 
   // ── Processing ──
   processingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
