@@ -24,13 +24,19 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  const [mealTime, setMealTime] = useState('08:00');
+  const [mealTime, setMealTime] = useState(() => {
+    const today = new Date();
+    return `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+  });
   
   const [exerciseDate, setExerciseDate] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   });
-  const [exerciseTime, setExerciseTime] = useState('08:00');
+  const [exerciseTime, setExerciseTime] = useState(() => {
+    const today = new Date();
+    return `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+  });
 
   // For symptom: only date
   const [symptomDate, setSymptomDate] = useState(() => {
@@ -240,17 +246,22 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
       let scheduledDateToUse: string | undefined;
       let scheduledTimeToUse: string | undefined;
       
+      let isCompletedToUse: boolean | undefined;
+      
       if (activeTab === 'symptom') {
         // For symptom: use symptomDate as the date field
         dateToUse = symptomDate;
+        isCompletedToUse = true; // Symptoms are inherently completed
       } else if (activeTab === 'meal') {
         // For meal: use mealDate and mealTime
         scheduledDateToUse = mealDate;
         scheduledTimeToUse = mealTime;
+        isCompletedToUse = true; // Meals are logged after eating
       } else if (activeTab === 'exercise') {
         // For exercise: use exerciseDate and exerciseTime
         scheduledDateToUse = exerciseDate;
         scheduledTimeToUse = exerciseTime;
+        isCompletedToUse = true; // Exercises are logged after doing
       }
       
       await createHealthLog(
@@ -258,7 +269,8 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         details,
         dateToUse, // date field (only for symptom)
         scheduledDateToUse, // scheduledDate (for meal and exercise)
-        scheduledTimeToUse // scheduledTime (for meal and exercise)
+        scheduledTimeToUse, // scheduledTime (for meal and exercise)
+        isCompletedToUse // isCompleted
       );
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', 'Đã ghi nhận');
