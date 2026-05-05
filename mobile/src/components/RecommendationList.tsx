@@ -34,30 +34,7 @@ export const RecommendationList = () => {
     setReloadTrigger(prev => prev + 1);
   };
 
-  const handleAddToPlan = async (rec: Recommendation) => {
-    try {
-      let type: HealthLogType = 'exercise';
-      const details: any = {};
-      
-      const today = new Date().toISOString().split('T')[0];
 
-      if (rec.type === 'DIET') {
-        type = 'meal';
-        details.foodName = rec.title;
-        details.calories = 0;
-      } else {
-        type = 'exercise';
-        details.exerciseType = rec.title;
-        details.durationMinutes = 15;
-      }
-
-      await createHealthLog(type, details, today, today);
-      Alert.alert('Thành công', `Đã thêm "${rec.title}" vào kế hoạch kết quả theo dõi sức khoẻ hôm nay!`);
-    } catch (error) {
-      console.error('Add to plan error:', error);
-      Alert.alert('Lỗi', 'Không thể thêm vào kế hoạch. Vui lòng thử lại.');
-    }
-  };
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -167,7 +144,8 @@ export const RecommendationList = () => {
       <View style={styles.headerRow}>
         <Text style={styles.title}>Gợi ý sức khỏe</Text>
         <TouchableOpacity onPress={handleReload} style={styles.reloadButton}>
-          <Icon name="refresh" size={20} color={COLORS.primary} />
+          <Icon name="refresh" size={16} color={COLORS.primary} />
+          <Text style={styles.reloadText}>Đổi gợi ý</Text>
         </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
@@ -177,10 +155,6 @@ export const RecommendationList = () => {
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardDescription}>{item.description}</Text>
             </View>
-            <TouchableOpacity style={styles.addButton} onPress={() => handleAddToPlan(item)}>
-              <Icon name="add-circle-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.addButtonText}>Thêm vào kế hoạch</Text>
-            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
@@ -207,9 +181,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   reloadButton: {
-    padding: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.primary + '15',
+  },
+  reloadText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   scroll: {
     marginHorizontal: -16,
@@ -238,22 +221,6 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     lineHeight: 18,
     marginBottom: 14,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    marginTop: 'auto',
-  },
-  addButtonText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   loadingContainer: {
     flexDirection: 'row',
