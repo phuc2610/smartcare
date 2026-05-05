@@ -94,7 +94,7 @@ const AnimatedAddButton = React.memo(({ focused }: { focused: boolean }) => {
   
   return (
     <Animated.View style={[styles.addButton, animatedStyle]}>
-      <Icon name="photo-camera" size={28} color="#fff" />
+      <Icon name="add" size={32} color="#fff" />
     </Animated.View>
   );
 });
