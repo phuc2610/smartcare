@@ -4,6 +4,13 @@
  */
 
 const User = require('../models/User');
+const Prescription = require('../models/Prescription');
+const Medication = require('../models/Medication');
+const Reminder = require('../models/Reminder');
+const HealthLog = require('../models/HealthLog');
+const MedicalRecord = require('../models/MedicalRecord');
+const Appointment = require('../models/Appointment');
+const Alert = require('../models/Alert');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
 const { z } = require('zod');
@@ -293,17 +300,71 @@ const changePassword = async (req, res) => {
   }
 };
 
+const deleteAccountSchema = z.object({
+  body: z.object({
+    password: z.string().min(1),
+  }),
+});
+
+/**
+ * Xoá tài khoản vĩnh viễn
+ * Luồng: Xác nhận mật khẩu -> Xoá tất cả dữ liệu liên quan -> Xoá user
+ */
+const deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const userId = req.user._id;
+
+    // Tìm user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại.' });
+    }
+
+    // Xác nhận mật khẩu
+    const isPasswordValid = await comparePassword(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(400).json({ error: 'Mật khẩu không đúng.' });
+    }
+
+    // Xoá tất cả dữ liệu liên quan
+    console.log(`[DELETE ACCOUNT] Deleting all data for user: ${userId}`);
+    
+    await Promise.all([
+      Prescription.deleteMany({ $or: [{ patient: userId }, { doctor: userId }] }),
+      Medication.deleteMany({ userId }),
+      Reminder.deleteMany({ userId }),
+      HealthLog.deleteMany({ userId }),
+      MedicalRecord.deleteMany({ patientId: userId }),
+      Appointment.deleteMany({ $or: [{ patientId: userId }, { doctorId: userId }] }),
+      Alert.deleteMany({ userId }),
+    ]);
+
+    // Xoá user
+    await User.findByIdAndDelete(userId);
+
+    console.log(`[DELETE ACCOUNT] Successfully deleted account: ${userId} (${user.phone})`);
+
+    res.json({ message: 'Tài khoản đã được xoá vĩnh viễn.' });
+  } catch (error) {
+    console.error('[DELETE ACCOUNT] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
   forgotPassword,
   resetPassword,
   changePassword,
+  deleteAccount,
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  deleteAccountSchema,
 };
 
 

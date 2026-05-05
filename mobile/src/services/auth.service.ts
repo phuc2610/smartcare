@@ -175,7 +175,21 @@ export const changePassword = async (currentPassword: string, newPassword: strin
   return result.data;
 };
 
-
-
-
+export const deleteAccount = async (password: string): Promise<{ message: string }> => {
+  const result = await api.post<{ message: string }>('/api/auth/delete-account', { password });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Delete account failed');
+  }
+  
+  // Xoá dữ liệu local
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN);
+    await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+  } catch (error) {
+    logger.error('Failed to clear auth storage after account deletion', error);
+  }
+  
+  return result.data;
+};
 
