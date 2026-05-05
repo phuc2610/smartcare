@@ -62,18 +62,26 @@ const register = async (req, res) => {
     let decodedToken;
     try {
       decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+      console.log(`[REGISTER] Firebase token verified for phone: ${decodedToken.phone_number}`);
     } catch (e) {
-      console.error('Firebase token verification failed:', e);
+      console.error('[REGISTER] Firebase token verification failed:', e.message);
       return res.status(401).json({ error: 'Xác thực số điện thoại thất bại hoặc token đã hết hạn.' });
     }
 
     // Đảm bảo số điện thoại xác thực khớp với số truyền vào
     // Firebase phone number format is like +84...
-    // We can normalize or just trust the backend. For simplicity, we assume the frontend ensures they match,
-    // or we can use decodedToken.phone_number directly.
     const verifiedPhone = decodedToken.phone_number;
-    if (!verifiedPhone || !verifiedPhone.endsWith(phone.slice(-9))) { // So sánh 9 số cuối
-      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực.' });
+    
+    // Normalize both numbers to compare (remove +, 84, 0 at start)
+    const normalize = (p) => p.replace(/\D/g, '').replace(/^(84|0)/, '');
+    const normalizedVerified = normalize(verifiedPhone || '');
+    const normalizedInput = normalize(phone || '');
+
+    console.log(`[REGISTER] Comparing phones - Verified: ${verifiedPhone} (${normalizedVerified}), Input: ${phone} (${normalizedInput})`);
+
+    if (!verifiedPhone || normalizedVerified !== normalizedInput) {
+      console.error(`[REGISTER] Phone mismatch! Verified: ${normalizedVerified}, Input: ${normalizedInput}`);
+      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực Firebase.' });
     }
 
     // Hash mật khẩu

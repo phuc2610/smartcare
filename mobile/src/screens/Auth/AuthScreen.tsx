@@ -54,7 +54,7 @@ const PasswordInput = React.memo(({
 ));
 
 export const AuthScreen = ({ navigation }: any) => {
-  const { signIn, signUp, verify } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [screen, setScreen] = useState<Screen>('LOGIN');
 
   // Form state
@@ -227,6 +227,7 @@ export const AuthScreen = ({ navigation }: any) => {
     
     try {
       // Step 2: Verify OTP with Firebase
+      console.log('Verifying OTP with Firebase...');
       await confirmObj.confirm(otp);
       
       // Get the Firebase ID Token
@@ -236,13 +237,24 @@ export const AuthScreen = ({ navigation }: any) => {
       const firebaseIdToken = await currentUser.getIdToken();
       
       // Step 3: Call our backend to register and get JWT
+      console.log('Calling backend to register...');
       const formattedPhone = formatPhoneForFirebase(phone);
       await signUp({ name, phone: formattedPhone, password, role, firebaseIdToken });
+      console.log('Registration successful!');
     } catch (err: any) {
-      console.log('Verify error:', err);
-      const errorMessage = err?.code === 'auth/invalid-verification-code' 
-        ? 'Mã xác thực không đúng' 
-        : err?.message || err?.response?.data?.error || 'Xác thực thất bại';
+      console.log('Verify error details:', err);
+      let errorMessage = 'Xác thực thất bại';
+      
+      if (err?.code === 'auth/invalid-verification-code') {
+        errorMessage = 'Mã OTP không chính xác. Vui lòng thử lại.';
+      } else if (err?.code === 'auth/code-expired') {
+        errorMessage = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.';
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -252,7 +264,7 @@ export const AuthScreen = ({ navigation }: any) => {
 
   const otpInputRef = useRef<TextInput>(null);
 
-  const OTPInput = () => (
+  const renderOTPInput = () => (
     <View style={styles.otpWrapper}>
       <View style={styles.otpContainer}>
         <TextInput
@@ -456,10 +468,10 @@ export const AuthScreen = ({ navigation }: any) => {
               Mã OTP đã được gửi đến số điện thoại {phone}
             </Text>
             <Text style={styles.subtitleSmall}>
-              Vui lòng kiểm tra log console để xem mã OTP
+              Nếu không nhận được mã, vui lòng nhấn Gửi lại
             </Text>
 
-            <OTPInput />
+            {renderOTPInput()}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
