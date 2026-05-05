@@ -19,17 +19,17 @@ const { z } = require('zod');
 const registerSchema = z.object({
   body: z.object({
     name: z.string().min(1),
-    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
+    phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
     password: z.string().min(6),
     role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
-    firebaseIdToken: z.string(), // Added firebaseIdToken
+    firebaseIdToken: z.string(),
   }),
 });
 
 // Schema validation cho đăng nhập: phone và password
 const loginSchema = z.object({
   body: z.object({
-    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
+    phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
     password: z.string(),
   }),
 });
@@ -172,7 +172,7 @@ const login = async (req, res) => {
 };
 const forgotPasswordSchema = z.object({
   body: z.object({
-    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
+    phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
   }),
 });
 

@@ -202,13 +202,14 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
 
   const otpInputRef = useRef<TextInput>(null);
 
-  const OTPInput = () => (
+  const renderOTPInput = () => (
     <View style={styles.otpWrapper}>
       <View style={styles.otpContainer}>
         <TextInput
           ref={otpInputRef}
           style={styles.otpInput}
           placeholder="Nhập mã OTP"
+          placeholderTextColor={COLORS.textSecondary}
           value={otp}
           onChangeText={(text) => {
             const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
@@ -256,6 +257,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
       <TextInput
         style={styles.passwordInput}
         placeholder={placeholder}
+        placeholderTextColor={COLORS.textSecondary}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={!showPasswordValue}
@@ -296,6 +298,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
               <TextInput
                 style={styles.input}
                 placeholder="Số điện thoại"
+                placeholderTextColor={COLORS.textSecondary}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -330,10 +333,10 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
                 Mã OTP đã được gửi đến số điện thoại {phone}
               </Text>
               <Text style={styles.subtitleSmall}>
-                Vui lòng kiểm tra log console để xem mã OTP
+                Nếu không nhận được mã, vui lòng nhấn Gửi lại
               </Text>
 
-              <OTPInput />
+              {renderOTPInput()}
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 

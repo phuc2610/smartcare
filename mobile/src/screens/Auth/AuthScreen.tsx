@@ -37,6 +37,7 @@ const PasswordInput = React.memo(({
     <TextInput
       style={styles.passwordInput}
       placeholder={placeholder}
+      placeholderTextColor={COLORS.textSecondary}
       value={value}
       onChangeText={onChangeText}
       secureTextEntry={!showPassword}
@@ -271,6 +272,7 @@ export const AuthScreen = ({ navigation }: any) => {
           ref={otpInputRef}
           style={styles.otpInput}
           placeholder="Nhập mã OTP"
+          placeholderTextColor={COLORS.textSecondary}
           value={otp}
           onChangeText={(text) => {
             const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
@@ -322,6 +324,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Số điện thoại"
+              placeholderTextColor={COLORS.textSecondary}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -379,6 +382,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Họ và tên"
+              placeholderTextColor={COLORS.textSecondary}
               value={name}
               onChangeText={setName}
             />
@@ -386,6 +390,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Số điện thoại"
+              placeholderTextColor={COLORS.textSecondary}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
