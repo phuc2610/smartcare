@@ -246,9 +246,9 @@ export const AuthScreen = ({ navigation }: any) => {
       let errorMessage = 'Xác thực thất bại';
       
       if (err?.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Mã OTP không chính xác. Vui lòng thử lại.';
-      } else if (err?.code === 'auth/code-expired') {
-        errorMessage = 'Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.';
+        errorMessage = 'Mã OTP không chính xác. Vui lòng kiểm tra lại.';
+      } else if (err?.code === 'auth/code-expired' || err?.code === 'auth/session-expired') {
+        errorMessage = 'Phiên làm việc hoặc mã OTP đã hết hạn. Vui lòng nhấn "Gửi lại" để nhận mã mới.';
       } else if (err?.message) {
         errorMessage = err.message;
       } else if (err?.response?.data?.error) {
