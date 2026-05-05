@@ -45,7 +45,6 @@ Thumbs.db
 *.pem
 coverage/
 
-
-
-
-
+# Firebase
+serviceAccountKey.json
+google-services.json

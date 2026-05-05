@@ -12,25 +12,18 @@ const { z } = require('zod');
 const registerSchema = z.object({
   body: z.object({
     name: z.string().min(1),
-    phone: z.string().regex(/^(84|0[3|5|7|8|9])+([0-9]{8})\b/),
+    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
     password: z.string().min(6),
     role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
+    firebaseIdToken: z.string(), // Added firebaseIdToken
   }),
 });
 
 // Schema validation cho đăng nhập: phone và password
 const loginSchema = z.object({
   body: z.object({
-    phone: z.string(),
+    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
     password: z.string(),
-  }),
-});
-
-// Schema validation cho xác thực OTP: phone và mã OTP 4 số
-const otpVerifySchema = z.object({
-  body: z.object({
-    phone: z.string(),
-    otp: z.string().length(4),
   }),
 });
 
@@ -42,13 +35,15 @@ const generateOTP = () => {
   return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
+const admin = require('../config/firebase');
+
 /**
- * Đăng ký tài khoản mới
- * Luồng: Kiểm tra số điện thoại đã tồn tại -> Hash mật khẩu -> Tạo OTP -> Tạo user (chưa verify) -> Trả về yêu cầu OTP
+ * Đăng ký tài khoản mới với Firebase Phone Auth
+ * Luồng: Nhận thông tin + firebaseIdToken -> Kiểm tra SĐT chưa tồn tại -> Xác minh token Firebase -> Hash mật khẩu -> Tạo user -> Trả JWT
  */
 const register = async (req, res) => {
   try {
-    const { name, phone, password, role } = req.body;
+    const { name, phone, password, role, firebaseIdToken } = req.body;
 
     // Kiểm tra số điện thoại đã được đăng ký chưa
     const existingUser = await User.findOne({ phone });
@@ -56,139 +51,52 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Số điện thoại đã được đăng ký.' });
     }
 
-    // Hash mật khẩu trước khi lưu vào database
+    // Xác minh Firebase ID Token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+    } catch (e) {
+      console.error('Firebase token verification failed:', e);
+      return res.status(401).json({ error: 'Xác thực số điện thoại thất bại hoặc token đã hết hạn.' });
+    }
+
+    // Đảm bảo số điện thoại xác thực khớp với số truyền vào
+    // Firebase phone number format is like +84...
+    // We can normalize or just trust the backend. For simplicity, we assume the frontend ensures they match,
+    // or we can use decodedToken.phone_number directly.
+    const verifiedPhone = decodedToken.phone_number;
+    if (!verifiedPhone || !verifiedPhone.endsWith(phone.slice(-9))) { // So sánh 9 số cuối
+      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực.' });
+    }
+
+    // Hash mật khẩu
     const passwordHash = await hashPassword(password);
 
-    // Tạo mã OTP 4 số và thời gian hết hạn (5 phút)
-    const otpCode = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Tạo user nhưng chưa verify (isVerified = false), cần nhập OTP để kích hoạt
+    // Tạo user (đã verify)
     const userData = {
       name,
-      phone,
+      phone, // We use the user-provided phone format for consistency in DB
       passwordHash,
       role,
-      isVerified: false, // Chưa verify, cần OTP
-      otpCode,
-      otpExpiresAt,
+      isVerified: true, // Firebase handled verification
     };
 
-    // Chỉ set medicalCondition cho PATIENT, mặc định là null
     if (role === 'PATIENT') {
       userData.medicalCondition = null;
     }
 
-    // Lưu user vào database
     const user = await User.create(userData);
 
-    // Log OTP ra console để demo (không gửi SMS thật)
-    console.log('========================================');
-    console.log(`[OTP DEMO] Mã xác thực cho ${phone}:`);
-    console.log(`         OTP: ${otpCode}`);
-    console.log(`         Hết hạn sau: 5 phút`);
-    console.log('========================================');
-
-    // Trả về thông báo yêu cầu nhập OTP
-    res.status(201).json({
-      message: 'Đăng ký thành công. Vui lòng nhập mã OTP để xác thực.',
-      phone: user.phone,
-      requiresOTP: true,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-/**
- * Yêu cầu mã OTP mới (dùng khi đăng ký hoặc quên mật khẩu)
- * Luồng: Tìm user theo phone -> Tạo OTP mới -> Lưu vào user -> Log ra console
- */
-const requestOTP = async (req, res) => {
-  try {
-    const { phone } = req.body;
-    
-    // Tìm user theo số điện thoại
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
-    }
-
-    // Tạo mã OTP mới 4 số và thời gian hết hạn (5 phút)
-    const otpCode = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Cập nhật OTP vào user
-    user.otpCode = otpCode;
-    user.otpExpiresAt = otpExpiresAt;
-    await user.save();
-
-    // Log OTP ra console để demo (không gửi SMS thật)
-    console.log('========================================');
-    console.log(`[OTP DEMO] Mã xác thực mới cho ${phone}:`);
-    console.log(`         OTP: ${otpCode}`);
-    console.log(`         Hết hạn sau: 5 phút`);
-    console.log('========================================');
-
-    res.json({ message: 'Mã OTP đã được gửi. Vui lòng kiểm tra log console.', phone });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-/**
- * Xác thực mã OTP và kích hoạt tài khoản
- * Luồng: Tìm user -> Kiểm tra OTP tồn tại -> Kiểm tra OTP đúng -> Kiểm tra OTP chưa hết hạn -> Kích hoạt user -> Tạo JWT token -> Trả về user + token
- */
-const verifyOTP = async (req, res) => {
-  try {
-    const { phone, otp } = req.body;
-
-    // Tìm user theo số điện thoại
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
-    }
-
-    // Kiểm tra OTP có tồn tại không
-    if (!user.otpCode) {
-      return res.status(400).json({ error: 'Mã OTP không tồn tại. Vui lòng yêu cầu mã mới.' });
-    }
-
-    // Kiểm tra OTP có khớp không
-    if (user.otpCode !== otp) {
-      console.log(`[OTP VERIFY] Failed attempt for ${phone}: entered "${otp}", expected "${user.otpCode}"`);
-      return res.status(400).json({ error: 'Mã xác thực không đúng.' });
-    }
-
-    // Kiểm tra OTP đã hết hạn chưa
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.' });
-    }
-
-    // Kích hoạt tài khoản: đánh dấu đã verify và xóa OTP
-    user.isVerified = true;
-    user.otpCode = null;
-    user.otpExpiresAt = null;
-    await user.save();
-
-    console.log(`[OTP VERIFY] Successfully verified user: ${phone}`);
-
-    // Tạo JWT token để đăng nhập tự động
+    // Tạo JWT token
     const token = generateToken(user._id);
 
-    // Trả về thông tin user và token
-    res.json({
+    res.status(201).json({
+      message: 'Đăng ký thành công.',
       user: {
         _id: user._id,
         name: user.name,
         phone: user.phone,
         role: user.role,
-        medicalCondition: user.medicalCondition,
-        height: user.height,
-        weight: user.weight,
-        caregiverId: user.caregiverId,
-        caregiverPhone: user.caregiverPhone,
         isVerified: user.isVerified,
       },
       token,
@@ -197,7 +105,6 @@ const verifyOTP = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 /**
  * Đăng nhập bằng số điện thoại và mật khẩu
  * Luồng: Tìm user -> Kiểm tra mật khẩu -> Kiểm tra đã verify -> Tạo JWT token -> Trả về user + token
@@ -218,11 +125,10 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Sai số điện thoại hoặc mật khẩu.' });
     }
 
-    // Kiểm tra tài khoản đã được xác thực chưa (phải verify OTP trước)
+    // Kiểm tra tài khoản đã được xác thực chưa
     if (!user.isVerified) {
       return res.status(403).json({ 
-        error: 'Tài khoản chưa được xác thực. Vui lòng xác thực bằng mã OTP.',
-        requiresOTP: true,
+        error: 'Tài khoản chưa được xác thực. Vui lòng liên hệ hỗ trợ.',
       });
     }
 
@@ -249,24 +155,14 @@ const login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 const forgotPasswordSchema = z.object({
   body: z.object({
-    phone: z.string(),
-  }),
-});
-
-const resetPasswordSchema = z.object({
-  body: z.object({
-    phone: z.string(),
-    otp: z.string().length(4),
-    newPassword: z.string().min(6),
+    phone: z.string().regex(/^(\+84|84|0[3|5|7|8|9])+([0-9]{8})\b/),
   }),
 });
 
 /**
- * Quên mật khẩu - Yêu cầu OTP để đặt lại mật khẩu
- * Luồng: Tìm user -> Tạo OTP mới -> Lưu vào user -> Log ra console
+ * Kiểm tra xem số điện thoại có tồn tại không trước khi gửi OTP quên mật khẩu
  */
 const forgotPassword = async (req, res) => {
   try {
@@ -278,35 +174,41 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
     }
 
-    // Tạo mã OTP mới và thời gian hết hạn (5 phút)
-    const otpCode = generateOTP();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Lưu OTP vào user
-    user.otpCode = otpCode;
-    user.otpExpiresAt = otpExpiresAt;
-    await user.save();
-
-    // Log OTP ra console để demo
-    console.log('========================================');
-    console.log(`[FORGOT PASSWORD] Mã xác thực cho ${phone}:`);
-    console.log(`         OTP: ${otpCode}`);
-    console.log(`         Hết hạn sau: 5 phút`);
-    console.log('========================================');
-
-    res.json({ message: 'Mã OTP đã được gửi. Vui lòng kiểm tra log console.', phone });
+    res.json({ message: 'Số điện thoại hợp lệ.', phone });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
+const resetPasswordSchema = z.object({
+  body: z.object({
+    phone: z.string(),
+    firebaseIdToken: z.string(),
+    newPassword: z.string().min(6),
+  }),
+});
+
 /**
- * Đặt lại mật khẩu bằng OTP (sau khi quên mật khẩu)
- * Luồng: Tìm user -> Kiểm tra OTP -> Hash mật khẩu mới -> Cập nhật -> Tự động đăng nhập -> Trả về user + token
+ * Đặt lại mật khẩu bằng Firebase Token (sau khi quên mật khẩu)
+ * Luồng: Nhận token -> Xác minh với Firebase -> Tìm user -> Cập nhật pass -> Trả về JWT
  */
 const resetPassword = async (req, res) => {
   try {
-    const { phone, otp, newPassword } = req.body;
+    const { phone, firebaseIdToken, newPassword } = req.body;
+
+    // Xác minh Firebase ID Token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+    } catch (e) {
+      console.error('Firebase token verification failed:', e);
+      return res.status(401).json({ error: 'Xác thực số điện thoại thất bại.' });
+    }
+
+    const verifiedPhone = decodedToken.phone_number;
+    if (!verifiedPhone || !verifiedPhone.endsWith(phone.slice(-9))) {
+      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực.' });
+    }
 
     // Tìm user theo số điện thoại
     const user = await User.findOne({ phone });
@@ -314,21 +216,9 @@ const resetPassword = async (req, res) => {
       return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
     }
 
-    // Kiểm tra OTP có đúng không
-    if (!user.otpCode || user.otpCode !== otp) {
-      return res.status(400).json({ error: 'Mã xác thực không đúng.' });
-    }
-
-    // Kiểm tra OTP đã hết hạn chưa
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ error: 'Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.' });
-    }
-
     // Hash mật khẩu mới và cập nhật vào database
     const passwordHash = await hashPassword(newPassword);
     user.passwordHash = passwordHash;
-    user.otpCode = null; // Xóa OTP sau khi dùng
-    user.otpExpiresAt = null;
     await user.save();
 
     console.log(`[RESET PASSWORD] Successfully reset password for: ${phone}`);
@@ -344,11 +234,6 @@ const resetPassword = async (req, res) => {
         name: user.name,
         phone: user.phone,
         role: user.role,
-        medicalCondition: user.medicalCondition,
-        height: user.height,
-        weight: user.weight,
-        caregiverId: user.caregiverId,
-        caregiverPhone: user.caregiverPhone,
         isVerified: user.isVerified,
       },
       token,
@@ -411,14 +296,11 @@ const changePassword = async (req, res) => {
 module.exports = {
   register,
   login,
-  requestOTP,
-  verifyOTP,
   forgotPassword,
   resetPassword,
   changePassword,
   registerSchema,
   loginSchema,
-  otpVerifySchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,

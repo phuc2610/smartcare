@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import auth from '@react-native-firebase/auth';
 import { COLORS } from '../../utils/constants';
 import { forgotPassword, resetPassword } from '../../services/auth.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,6 +35,8 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // OTP state
+  const [confirmObj, setConfirmObj] = useState<any>(null);
+  const [firebaseIdToken, setFirebaseIdToken] = useState('');
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [otpLoading, setOtpLoading] = useState(false);
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
@@ -80,6 +83,16 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatPhoneForFirebase = (p: string) => {
+    let cleaned = p.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '84' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('84')) {
+      cleaned = '84' + cleaned;
+    }
+    return '+' + cleaned;
+  };
+
   const handleRequestOTP = async () => {
     if (!phone) {
       setError('Vui lòng nhập số điện thoại');
@@ -89,24 +102,58 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     setOtpLoading(true);
     setError('');
     try {
+      // Validate phone number exists in our database
       await forgotPassword(phone);
+      
+      // Request Firebase OTP
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
+      setConfirmObj(confirmation);
+      
       setOtpCountdown(300); // 5 minutes
       setStep('OTP');
     } catch (err: any) {
-      setError(err?.message || 'Không thể gửi mã OTP');
+      console.log('Firebase forgot password OTP error:', err);
+      setError(err?.message || 'Không thể gửi mã OTP qua Firebase');
     } finally {
       setOtpLoading(false);
     }
   };
 
   const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 4) {
-      setError('Vui lòng nhập mã OTP 4 số');
+    if (!otp || otp.length !== 6) {
+      setError('Vui lòng nhập mã OTP 6 số');
+      return;
+    }
+
+    if (!confirmObj) {
+      setError('Lỗi phiên làm việc, vui lòng quay lại và thử lại');
       return;
     }
 
     setError('');
-    setStep('NEW_PASSWORD');
+    setLoading(true);
+    
+    try {
+      // Verify OTP with Firebase
+      await confirmObj.confirm(otp);
+      
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error('Không thể lấy thông tin user từ Firebase');
+      
+      const token = await currentUser.getIdToken();
+      setFirebaseIdToken(token);
+      
+      setStep('NEW_PASSWORD');
+    } catch (err: any) {
+      console.log('Verify error:', err);
+      const errorMessage = err?.code === 'auth/invalid-verification-code' 
+        ? 'Mã xác thực không đúng' 
+        : err?.message || 'Xác thực thất bại';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -129,7 +176,8 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      const result = await resetPassword(phone, otp, newPassword);
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const result = await resetPassword(formattedPhone, firebaseIdToken, newPassword);
       
       // Save auth data
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, result.token);
@@ -163,11 +211,11 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
           placeholder="Nhập mã OTP"
           value={otp}
           onChangeText={(text) => {
-            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 4);
+            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
             setOtp(cleanedText);
           }}
           keyboardType="number-pad"
-          maxLength={4}
+          maxLength={6}
           autoFocus={true}
           blurOnSubmit={false}
           selectTextOnFocus={false}
@@ -292,7 +340,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
               <TouchableOpacity
                 style={[styles.button, styles.primaryButton]}
                 onPress={handleVerifyOTP}
-                disabled={otp.length !== 4}
+                disabled={loading || otp.length !== 6}
               >
                 <Text style={styles.buttonText}>Xác thực</Text>
               </TouchableOpacity>

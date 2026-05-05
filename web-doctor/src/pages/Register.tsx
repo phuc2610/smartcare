@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { auth } from '../firebase';
+
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+  }
+}
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -8,36 +16,75 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState(1);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      });
+    }
+  }, []);
+
+  const formatPhoneForFirebase = (p: string) => {
+    let cleaned = p.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '84' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('84')) {
+      cleaned = '84' + cleaned;
+    }
+    return '+' + cleaned;
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      await axios.post('https://smartcare-uqgi.onrender.com/api/auth/register', { 
-        name, phone, password, role: 'DOCTOR' 
-      });
-      alert('Đăng ký bước 1 thành công. Vui lòng xem mã OTP trong tab chạy Server (mô phỏng SMS).');
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const appVerifier = window.recaptchaVerifier;
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setConfirmationResult(confirmation);
+      alert('Mã OTP đã được gửi đến số điện thoại của bạn.');
       setStep(2);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Đăng ký thất bại');
+      console.error(err);
+      alert(err.message || 'Không thể gửi mã OTP. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/otp/verify', {
-        phone, otp
+      if (!confirmationResult) {
+        alert('Lỗi phiên xác thực. Vui lòng thử lại.');
+        return;
+      }
+      const result = await confirmationResult.confirm(otp);
+      const firebaseIdToken = await result.user.getIdToken();
+      
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/register', { 
+        name, phone: formattedPhone, password, role: 'DOCTOR', firebaseIdToken
       });
+      
       localStorage.setItem('token', res.data.token);
       alert('Đăng ký & Kích hoạt thành công!');
       window.location.href = '/dashboard';
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Xác thực OTP thất bại');
+      console.error(err);
+      alert(err.response?.data?.error || err.message || 'Xác thực thất bại');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div id="recaptcha-container"></div>
       
       {/* Cột trái: Banner giới thiệu */}
       <div style={{ flex: 1, background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', padding: '3rem' }}>
@@ -72,25 +119,25 @@ export default function Register() {
                 <input required type="password" placeholder="Tối thiểu 6 ký tự" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '1rem', outline: 'none' }} />
               </div>
 
-              <button type="submit" style={{ marginTop: '0.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: '#1E40AF', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '1rem', transition: 'background-color 0.2s' }}>
-                Tiếp Tục: Xác thực SĐT
+              <button disabled={loading} type="submit" style={{ marginTop: '0.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: loading ? '#9CA3AF' : '#1E40AF', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '1rem', transition: 'background-color 0.2s' }}>
+                {loading ? 'Đang gửi...' : 'Tiếp Tục: Xác thực SĐT'}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ padding: '1.25rem', backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
                 <p style={{ margin: 0, color: '#1E40AF', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  Hệ thống đã gửi một mã OTP mô phỏng vào <b>Terminal Server</b> cho số điện thoại {phone}. Hãy kiểm tra và nhập mã đó xuống đây.
+                  Hệ thống đã gửi một mã OTP qua SMS cho số điện thoại {formatPhoneForFirebase(phone)}. Hãy nhập mã đó xuống đây.
                 </p>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#374151', fontSize: '0.9rem', textAlign: 'center' }}>Mã Kích Hoạt OTP</label>
-                <input required type="text" placeholder="••••" value={otp} onChange={e => setOtp(e.target.value)} maxLength={4} style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '8px', border: '1px solid #D1D5DB', textAlign: 'center', letterSpacing: '8px', fontSize: '1.5rem', fontWeight: 'bold', outline: 'none' }} />
+                <input required type="text" placeholder="••••••" value={otp} onChange={e => setOtp(e.target.value)} maxLength={6} style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '8px', border: '1px solid #D1D5DB', textAlign: 'center', letterSpacing: '8px', fontSize: '1.5rem', fontWeight: 'bold', outline: 'none' }} />
               </div>
 
-              <button type="submit" style={{ marginTop: '0.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: '#10B981', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '1rem', transition: 'background-color 0.2s' }}>
-                Kích Hoạt Tài Khoản Bác Sĩ
+              <button disabled={loading} type="submit" style={{ marginTop: '0.5rem', padding: '1rem', borderRadius: '8px', backgroundColor: loading ? '#9CA3AF' : '#10B981', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '1rem', transition: 'background-color 0.2s' }}>
+                {loading ? 'Đang xác thực...' : 'Kích Hoạt Tài Khoản Bác Sĩ'}
               </button>
             </form>
           )}

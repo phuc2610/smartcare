@@ -6,10 +6,21 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
+  const formatPhone = (p: string) => {
+    let cleaned = p.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '84' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('84')) {
+      cleaned = '84' + cleaned;
+    }
+    return '+' + cleaned;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/login', { phone, password });
+      const formattedPhone = formatPhone(phone);
+      const res = await axios.post('https://smartcare-uqgi.onrender.com/api/auth/login', { phone: formattedPhone, password });
       if (res.data.user.role !== 'DOCTOR') {
         alert('Tài khoản này không phải là Bác sĩ!');
         return;

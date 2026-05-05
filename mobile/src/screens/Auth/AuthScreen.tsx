@@ -11,10 +11,10 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import auth from '@react-native-firebase/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { requestOTP } from '../../services/auth.service';
 import { Logo } from '../../components/Logo';
 
 type Screen = 'LOGIN' | 'REGISTER' | 'REGISTER_OTP';
@@ -72,6 +72,7 @@ export const AuthScreen = ({ navigation }: any) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   // OTP state
+  const [confirmObj, setConfirmObj] = useState<any>(null);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [otpLoading, setOtpLoading] = useState(false);
   const countdownInterval = useRef<NodeJS.Timeout | null>(null);
@@ -112,6 +113,16 @@ export const AuthScreen = ({ navigation }: any) => {
     };
   }, [otpCountdown]);
 
+  const formatPhoneForFirebase = (p: string) => {
+    let cleaned = p.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '84' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('84')) {
+      cleaned = '84' + cleaned;
+    }
+    return '+' + cleaned;
+  };
+
   const handleRequestOTP = async () => {
     if (!phone) {
       setError('Vui lòng nhập số điện thoại trước');
@@ -121,10 +132,13 @@ export const AuthScreen = ({ navigation }: any) => {
     setOtpLoading(true);
     setError('');
     try {
-      await requestOTP(phone);
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
+      setConfirmObj(confirmation);
       setOtpCountdown(300); // 5 minutes = 300 seconds
     } catch (err: any) {
-      setError(err?.message || 'Không thể gửi mã OTP');
+      console.log('Firebase request OTP error:', err);
+      setError(err?.message || 'Không thể gửi mã OTP qua Firebase');
     } finally {
       setOtpLoading(false);
     }
@@ -181,12 +195,16 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      await signUp({ name, phone, password, role });
-      // After registration, request OTP and show OTP screen
-      await handleRequestOTP();
+      // Step 1: Request OTP via Firebase before creating user on server
+      const formattedPhone = formatPhoneForFirebase(phone);
+      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
+      setConfirmObj(confirmation);
+      
+      setOtpCountdown(300); // 5 minutes
       setScreen('REGISTER_OTP');
     } catch (err: any) {
-      const errorMessage = err?.message || err?.response?.data?.error || 'Đăng ký thất bại';
+      console.log('Firebase OTP error:', err);
+      const errorMessage = err?.message || 'Không thể gửi SMS. Vui lòng kiểm tra lại số điện thoại.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -194,8 +212,13 @@ export const AuthScreen = ({ navigation }: any) => {
   };
 
   const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 4) {
-      setError('Vui lòng nhập mã OTP 4 số');
+    if (!otp || otp.length !== 6) { // Firebase OTPs are usually 6 digits
+      setError('Vui lòng nhập mã OTP 6 số');
+      return;
+    }
+
+    if (!confirmObj) {
+      setError('Lỗi phiên làm việc, vui lòng quay lại và thử lại');
       return;
     }
 
@@ -203,9 +226,23 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      await verify(phone, otp);
+      // Step 2: Verify OTP with Firebase
+      await confirmObj.confirm(otp);
+      
+      // Get the Firebase ID Token
+      const currentUser = auth().currentUser;
+      if (!currentUser) throw new Error('Không thể lấy thông tin user từ Firebase');
+      
+      const firebaseIdToken = await currentUser.getIdToken();
+      
+      // Step 3: Call our backend to register and get JWT
+      const formattedPhone = formatPhoneForFirebase(phone);
+      await signUp({ name, phone: formattedPhone, password, role, firebaseIdToken });
     } catch (err: any) {
-      const errorMessage = err?.message || err?.response?.data?.error || 'Xác thực thất bại';
+      console.log('Verify error:', err);
+      const errorMessage = err?.code === 'auth/invalid-verification-code' 
+        ? 'Mã xác thực không đúng' 
+        : err?.message || err?.response?.data?.error || 'Xác thực thất bại';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -224,11 +261,11 @@ export const AuthScreen = ({ navigation }: any) => {
           placeholder="Nhập mã OTP"
           value={otp}
           onChangeText={(text) => {
-            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 4);
+            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
             setOtp(cleanedText);
           }}
           keyboardType="number-pad"
-          maxLength={4}
+          maxLength={6}
           autoFocus={true}
           blurOnSubmit={false}
           selectTextOnFocus={false}
@@ -429,7 +466,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TouchableOpacity
               style={[styles.button, styles.primaryButton]}
               onPress={handleVerifyOTP}
-              disabled={loading || otp.length !== 4}
+              disabled={loading || otp.length !== 6}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
