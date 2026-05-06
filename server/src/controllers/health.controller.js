@@ -21,9 +21,9 @@ const createHealthLogSchema = z.object({
       durationMinutes: z.coerce.number().optional(),
       caloriesBurned: z.coerce.number().optional(),
       symptomName: z.string().optional(),
-      severity: z.coerce.number().optional(),
       note: z.string().optional(),
     }),
+    isCompleted: z.boolean().optional(),
   }),
 });
 
@@ -33,7 +33,7 @@ const createHealthLogSchema = z.object({
  */
 const createHealthLog = async (req, res) => {
   try {
-    const { type, date, scheduledDate, scheduledTime, details } = req.body;
+    const { type, date, scheduledDate, scheduledTime, details, isCompleted } = req.body;
 
     // Tạo health log với userId từ JWT token
     const healthLog = await HealthLog.create({
@@ -42,6 +42,7 @@ const createHealthLog = async (req, res) => {
       date: date ? new Date(date) : new Date(), // Nếu không có date thì dùng hôm nay
       scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
       scheduledTime: scheduledTime || undefined,
+      isCompleted: isCompleted !== undefined ? isCompleted : false,
       details,
     });
 

@@ -1,7 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, PanResponder, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-import { createHealthLog } from '../../services/health.service';
+import { createHealthLog, updateHealthLog } from '../../services/health.service';
 import { estimateCalories } from '../../services/ai.service';
 import { HealthLogType } from '../../types';
 import { COLORS } from '../../utils/constants';
@@ -12,29 +15,34 @@ import { scheduleAppointmentReminder } from '../../services/notification.service
 
 type Tab = 'meal' | 'exercise' | 'symptom' | 'appointment';
 
-export const HealthTrackingScreen = () => {
+export const HealthTrackingScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('meal');
   const [isEstimating, setIsEstimating] = useState(false);
 
   // Date and time for meal and exercise
-  const [mealDate, setMealDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
-  const [mealTime, setMealTime] = useState('08:00');
+  const [mealDate, setMealDate] = useState('');
+  const [mealTime, setMealTime] = useState('');
   
-  const [exerciseDate, setExerciseDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
-  const [exerciseTime, setExerciseTime] = useState('08:00');
+  const [exerciseDate, setExerciseDate] = useState('');
+  const [exerciseTime, setExerciseTime] = useState('');
 
   // For symptom: only date
-  const [symptomDate, setSymptomDate] = useState(() => {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  });
+  const [symptomDate, setSymptomDate] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date();
+      const currentDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const currentTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+      
+      setMealDate(currentDate);
+      setMealTime(currentTime);
+      setExerciseDate(currentDate);
+      setExerciseTime(currentTime);
+      setSymptomDate(currentDate);
+    }, [])
+  );
 
   // Meal
   const [foodName, setFoodName] = useState('');
@@ -238,26 +246,43 @@ export const HealthTrackingScreen = () => {
       let scheduledDateToUse: string | undefined;
       let scheduledTimeToUse: string | undefined;
       
+      let isCompletedToUse: boolean | undefined;
+      
       if (activeTab === 'symptom') {
         // For symptom: use symptomDate as the date field
         dateToUse = symptomDate;
+        isCompletedToUse = true; // Symptoms are inherently completed
       } else if (activeTab === 'meal') {
         // For meal: use mealDate and mealTime
         scheduledDateToUse = mealDate;
         scheduledTimeToUse = mealTime;
+        isCompletedToUse = true; // Meals are logged after eating
       } else if (activeTab === 'exercise') {
         // For exercise: use exerciseDate and exerciseTime
         scheduledDateToUse = exerciseDate;
         scheduledTimeToUse = exerciseTime;
+        isCompletedToUse = true; // Exercises are logged after doing
       }
       
-      await createHealthLog(
+      const response = await createHealthLog(
         activeTab, 
         details,
         dateToUse, // date field (only for symptom)
         scheduledDateToUse, // scheduledDate (for meal and exercise)
-        scheduledTimeToUse // scheduledTime (for meal and exercise)
+        scheduledTimeToUse, // scheduledTime (for meal and exercise)
+        isCompletedToUse // isCompleted
       );
+
+      // Workaround: Since the Render backend might not support setting isCompleted on creation yet,
+      // we immediately update it if it's meant to be completed.
+      if (isCompletedToUse && response?.healthLog?._id) {
+        try {
+          await updateHealthLog(response.healthLog._id, { isCompleted: true });
+        } catch (e) {
+          console.log('Failed to auto-complete health log', e);
+        }
+      }
+
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', 'Đã ghi nhận');
       // Reset form
@@ -275,7 +300,14 @@ export const HealthTrackingScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Icon name="arrow-back-ios" size={20} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Theo dõi sức khỏe</Text>
+        <View style={styles.headerBtn} />
+      </View>
       <ScrollView style={styles.scrollView}>
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -554,14 +586,31 @@ export const HealthTrackingScreen = () => {
         </TouchableOpacity>
       </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  header: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  headerBtn: {
+    width: 36,
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

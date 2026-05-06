@@ -12,6 +12,7 @@ import { SHADOWS } from '../theme/shadows';
 import { SPRING } from '../theme/motion';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AddMedicationScreen } from '../screens/Medication/AddMedicationScreen';
+import { SavedPrescriptionsScreen } from '../screens/Medication/SavedPrescriptionsScreen';
 import { HealthTrackingScreen } from '../screens/Health/HealthTrackingScreen';
 import { ReportScreen } from '../screens/Report/ReportScreen';
 import { CaregiverDashboardScreen } from '../screens/Caregiver/CaregiverDashboardScreen';
@@ -41,6 +42,11 @@ import { CaregiverRequestsScreen } from '../screens/CaregiverRequests/CaregiverR
 import { NotificationsScreen } from '../screens/Notifications/NotificationsScreen';
 import { ConversationListScreen } from '../screens/Chat/ConversationListScreen';
 import { ChatDetailScreen } from '../screens/Chat/ChatDetailScreen';
+import { PrescriptionViewScreen } from '../screens/Prescription/PrescriptionViewScreen';
+import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEditScreen';
+import { DependentsScreen } from '../screens/Profile/DependentsScreen';
+import { MedicationManageScreen } from '../screens/Medication/MedicationManageScreen';
+import { ManualMedicationAddScreen } from '../screens/Medication/ManualMedicationAddScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -97,7 +103,7 @@ const DashboardStack = React.memo(() => {
   return (
     <Stack.Navigator
       screenOptions={{
-        header: () => <AppHeader title="Lịch uống thuốc" />,
+        header: () => <AppHeader title="Lịch uống thuốc" variant="dashboard" />,
       }}
     >
       <Stack.Screen
@@ -117,8 +123,8 @@ const MainTabs = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#fff',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.7)',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIconStyle: styles.tabBarIcon,
@@ -131,19 +137,19 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Trang chủ',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="list" size={size || 24} color={color} focused={focused} />
+            <AnimatedTabIcon name="home" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
       {!isCaregiver && (
         <>
           <Tab.Screen
-            name="Tracking"
-            component={HealthTrackingScreen}
+            name="Prescriptions"
+            component={SavedPrescriptionsScreen}
             options={{
-              tabBarLabel: 'Theo dõi',
+              tabBarLabel: 'Đơn thuốc',
               tabBarIcon: ({ color, size, focused }) => (
-                <AnimatedTabIcon name="favorite" size={size || 24} color={color} focused={focused} />
+                <AnimatedTabIcon name="description" size={size || 24} color={color} focused={focused} />
               ),
             }}
           />
@@ -180,9 +186,9 @@ const MainTabs = () => {
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Hồ sơ',
+          tabBarLabel: 'Cá nhân',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="account-circle" size={size || 24} color={color} focused={focused} />
+            <AnimatedTabIcon name="person" size={size || 24} color={color} focused={focused} />
           ),
         }}
       />
@@ -385,23 +391,66 @@ export const TabsNavigator = () => {
           headerShown: false,
         }} 
       />
+      <Stack.Screen 
+        name="PrescriptionView" 
+        component={PrescriptionViewScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PrescriptionEdit" 
+        component={PrescriptionEditScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Dependents" 
+        component={DependentsScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="HealthTracking" 
+        component={HealthTrackingScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="MedicationManage" 
+        component={MedicationManageScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ManualMedicationAdd" 
+        component={ManualMedicationAddScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
     </Stack.Navigator>
   );
 };
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: COLORS.primary,
-    borderTopWidth: 0,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
     height: 64,
     paddingBottom: SPACING.sm,
     paddingTop: SPACING.sm,
+    ...SHADOWS.tabBar,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: SPACING.xs,
-    color: '#fff',
   },
   tabBarIcon: {
     marginTop: SPACING.xs,
@@ -415,12 +464,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -28,
     borderWidth: 4,
-    borderColor: COLORS.primaryLight,
+    borderColor: COLORS.surface,
+    ...SHADOWS.floating,
   },
   addButtonContainer: {
     top: -10,
   },
 });
+
 
 
 

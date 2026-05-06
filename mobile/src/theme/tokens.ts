@@ -1,36 +1,45 @@
 /**
  * Design Tokens
  * Fixed palette and spacing scale
+ * Minimalist Premium Theme - Teal/Blue primary
  */
 
 export const COLORS = {
-  // Primary palette
-  primary: '#0d9488',
-  primaryLight: '#14b8a6',
-  primaryDark: '#0f766e',
+  // Primary palette - Teal Green
+  primary: '#458B81',
+  primaryLight: '#E8F5F2',
+  primaryDark: '#367068',
   
   // Secondary palette
   secondary: '#6366f1',
   
   // Semantic colors
-  success: '#10b981',
-  error: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
+  success: '#34C759',
+  error: '#FF3B30',
+  warning: '#FF9500',
+  info: '#5AC8FA',
   
-  // Surface colors
-  background: '#f3f4f6',
-  surface: '#ffffff',
+  // Surface colors - Minimalist light
+  background: '#F8F9FA',
+  surface: '#FFFFFF',
   
   // Text colors
-  text: '#1f2937',
-  textSecondary: '#6b7280',
+  text: '#1C1C1E',
+  textSecondary: '#8E8E93',
   
   // Border
-  border: '#e5e7eb',
+  border: '#E5E5EA',
   
   // Overlay
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  
+  // Extra colors for pills/badges
+  pillGreen: '#E8F5E9',
+  pillGreenText: '#2E7D32',
+  pillYellow: '#FFF8E1',
+  pillYellowText: '#F57F17',
+  pillGray: '#F5F5F5',
+  pillGrayText: '#616161',
 } as const;
 
 export const SPACING = {
@@ -48,11 +57,10 @@ export const RADIUS = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
+  xl: 24,
   full: 9999,
 } as const;
 
 export const TOUCH_TARGET = {
   min: 44, // Minimum touch target size for accessibility
 } as const;
-

@@ -25,15 +25,17 @@ export const scheduleMedicationReminder = async (
   const now = new Date();
   const taskTime = new Date(scheduledTime);
   
-  // Calculate notification times: 15p, 10p, 5p, 0p (if task is in the future)
+  // Calculate notification times: 15p, 10p, 5p, 0p (exact time), -15p, -30p (after time)
   const notificationTimes = [
-    { minutes: 15, body: body },
-    { minutes: 10, body: body },
-    { minutes: 5, body: body },
-    { minutes: 0, body: 'Bạn trễ hẹn! ' + body },
+    { minutes: 15, title: title, body: body },
+    { minutes: 10, title: title, body: body },
+    { minutes: 5, title: title, body: body },
+    { minutes: 0, title: '⏰ Đến giờ uống thuốc', body: body },
+    { minutes: -15, title: '⚠️ Trễ hẹn 15 phút', body: 'Bạn đã quên uống thuốc! ' + body },
+    { minutes: -30, title: '⚠️ Trễ hẹn 30 phút', body: 'Vui lòng uống thuốc ngay kẻo ảnh hưởng liệu trình! ' + body },
   ];
 
-  for (const { minutes, body: notificationBody } of notificationTimes) {
+  for (const { minutes, title: notificationTitle, body: notificationBody } of notificationTimes) {
     const notificationTime = new Date(taskTime);
     notificationTime.setMinutes(notificationTime.getMinutes() - minutes);
     
@@ -41,7 +43,7 @@ export const scheduleMedicationReminder = async (
     if (notificationTime > now) {
       const notificationId = await notifee.createTriggerNotification(
         {
-          title: minutes === 0 ? '⚠️ Trễ hẹn' : title,
+          title: notificationTitle,
           body: notificationBody,
           data: { 
             reminderId,
@@ -54,6 +56,16 @@ export const scheduleMedicationReminder = async (
             pressAction: {
               id: 'default',
             },
+            actions: [
+              {
+                title: 'Đã uống',
+                pressAction: { id: 'mark_taken' }
+              },
+              {
+                title: 'Nhắc sau 15p',
+                pressAction: { id: 'snooze_15' }
+              }
+            ],
             showChronometer: false,
             autoCancel: true,
             ongoing: false,
@@ -103,15 +115,17 @@ export const scheduleHealthLogReminder = async (
   const now = new Date();
   const taskTime = new Date(scheduledTime);
   
-  // Calculate notification times: 15p, 10p, 5p, 0p (if task is in the future)
+  // Calculate notification times: 15p, 10p, 5p, 0p, -15p, -30p
   const notificationTimes = [
-    { minutes: 15, body: body },
-    { minutes: 10, body: body },
-    { minutes: 5, body: body },
-    { minutes: 0, body: 'Bạn trễ hẹn! ' + body },
+    { minutes: 15, title: title, body: body },
+    { minutes: 10, title: title, body: body },
+    { minutes: 5, title: title, body: body },
+    { minutes: 0, title: '⏰ Đến giờ', body: body },
+    { minutes: -15, title: '⚠️ Trễ hẹn 15 phút', body: 'Đã trễ 15 phút! ' + body },
+    { minutes: -30, title: '⚠️ Trễ hẹn 30 phút', body: 'Bạn đã trễ 30 phút! ' + body },
   ];
 
-  for (const { minutes, body: notificationBody } of notificationTimes) {
+  for (const { minutes, title: notificationTitle, body: notificationBody } of notificationTimes) {
     const notificationTime = new Date(taskTime);
     notificationTime.setMinutes(notificationTime.getMinutes() - minutes);
     
@@ -119,7 +133,7 @@ export const scheduleHealthLogReminder = async (
     if (notificationTime > now) {
       const notificationId = await notifee.createTriggerNotification(
         {
-          title: minutes === 0 ? '⚠️ Trễ hẹn' : title,
+          title: notificationTitle,
           body: notificationBody,
           data: { 
             healthLogId,
@@ -242,6 +256,38 @@ export const scheduleReminderNotifications = async (
   const body = `${reminder.medicationName} - ${reminder.dosage} ${reminder.unit}`;
 
   return await scheduleMedicationReminder(title, body, scheduledTime, reminder._id);
+};
+
+// Schedule grouped notifications for multiple reminders at the same time
+export const scheduleGroupedReminderNotifications = async (
+  session: string,
+  scheduledTimeStr: string,
+  reminders: any[]
+): Promise<string[]> => {
+  const pendingReminders = reminders.filter(r => r.status !== 'TAKEN' && r.status !== 'SKIPPED');
+  if (pendingReminders.length === 0) return [];
+
+  // Cancel existing notifications for these reminders
+  const allNotificationIds = pendingReminders.flatMap(r => r.notificationIds || []);
+  if (allNotificationIds.length > 0) {
+    await cancelNotifications(allNotificationIds);
+  }
+
+  const scheduledTime = new Date(scheduledTimeStr);
+  
+  const sessionLabel = session === 'MORNING' ? 'buổi sáng' : 
+                       session === 'NOON' ? 'buổi trưa' : 
+                       session === 'EVENING' ? 'buổi tối' : 'theo lịch';
+                       
+  const title = pendingReminders.length > 1 
+    ? `Nhắc nhở uống thuốc ${sessionLabel} (${pendingReminders.length} loại)`
+    : `Nhắc nhở uống thuốc ${sessionLabel}`;
+    
+  const body = pendingReminders.map(r => `${r.medicationName} (${r.dosage} ${r.unit})`).join(', ');
+
+  const combinedReminderIds = pendingReminders.map(r => r._id).join(',');
+
+  return await scheduleMedicationReminder(title, body, scheduledTime, combinedReminderIds);
 };
 
 // Schedule notifications for a health log (15p, 10p, 5p, 0p before scheduled time)

@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Bác sĩ tạo lịch hẹn
+  createdByRole: { type: String, enum: ['PATIENT', 'CAREGIVER', 'DOCTOR'], default: 'PATIENT' },
   doctorName: { type: String, required: true },
   doctorSpecialty: { type: String, default: '' },
   hospitalName: { type: String, default: '' },

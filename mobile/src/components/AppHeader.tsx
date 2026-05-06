@@ -8,7 +8,7 @@ import { Text } from '../ui/Text';
 import { MOTION } from '../theme/motion';
 import { NotificationBadge } from './NotificationBadge';
 import { ChatBadge } from './ChatBadge';
-import { Logo } from './Logo';
+import { Avatar } from './Avatar';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 
@@ -18,9 +18,11 @@ interface AppHeaderProps {
   onBack?: () => void;
   rightAction?: React.ReactNode;
   hideDefaultIcons?: boolean;
+  /** Use the new minimalist dashboard header style */
+  variant?: 'default' | 'dashboard';
 }
 
-const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack, rightAction, hideDefaultIcons = false }) => {
+const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack, rightAction, hideDefaultIcons = false, variant = 'default' }) => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
 
@@ -44,18 +46,86 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
     }
   }, [navigation]);
 
+  // Dashboard variant - minimalist with avatar + info on left, icons on right
+  if (variant === 'dashboard') {
+    const today = new Date();
+    const dayStr = today.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    return (
+      <View style={styles.dashboardContainer}>
+        <View style={styles.dashboardContent}>
+          {/* Left: Avatar + User Info */}
+          <View style={styles.dashboardLeft}>
+            <Avatar
+              name={user?.name || 'U'}
+              size={46}
+              avatarUrl={user?.avatar}
+              style={styles.dashboardAvatar}
+            />
+            <View style={styles.dashboardInfo}>
+              <Text variant="caption" style={styles.dashboardGreeting}>
+                Hôm nay
+              </Text>
+              <Text variant="section" style={styles.dashboardName}>
+                {user?.name || 'Bệnh nhân'}
+              </Text>
+              {user?.medicalCondition && user.medicalCondition !== 'Normal' && (
+                <View style={styles.conditionPill}>
+                  <Text style={styles.conditionPillText}>{user.medicalCondition}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Right: Action Icons */}
+          <View style={styles.dashboardRight}>
+            {/* Notifications */}
+            {user?.role === UserRole.PATIENT && (
+              <View style={styles.iconBadgeWrap}>
+                <AnimatedIconButton
+                  icon="notifications-none"
+                  onPress={() => handleNavigate('Notifications')}
+                  color={COLORS.text}
+                />
+                <NotificationBadge />
+              </View>
+            )}
+            
+            {/* Messages */}
+            <View style={styles.iconBadgeWrap}>
+              <AnimatedIconButton
+                icon="chat-bubble-outline"
+                onPress={() => handleNavigate('ConversationList')}
+                color={COLORS.text}
+              />
+              <ChatBadge />
+            </View>
+            
+            {/* Wellness / Leaf */}
+            <AnimatedIconButton
+              icon="spa"
+              onPress={() => handleNavigate('Wellness')}
+              color={COLORS.text}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Default variant - for sub-screens
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         {showBack && onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color={COLORS.surface} />
+            <Icon name="arrow-back-ios" size={20} color={COLORS.text} />
           </TouchableOpacity>
         ) : (
-          <Logo size="small" containerStyle={styles.logoPlaceholder} />
+          <View style={styles.placeholder} />
         )}
         
-        <Text variant="section" color="surface" style={styles.title}>{title}</Text>
+        <Text variant="section" color="text" style={styles.title}>{title}</Text>
         
         <View style={styles.rightActions}>
           {rightAction ? (
@@ -68,26 +138,19 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
               {user?.role === UserRole.PATIENT && (
                 <View style={styles.badgeContainer}>
                   <AnimatedIconButton
-                    icon="notifications"
+                    icon="notifications-none"
                     onPress={() => handleNavigate('Notifications')}
-                    color={COLORS.surface}
+                    color={COLORS.text}
                   />
                   <NotificationBadge />
                 </View>
               )}
               
-              {/* Wellness Icon */}
-              <AnimatedIconButton
-                icon="spa"
-                onPress={() => handleNavigate('Wellness')}
-                color={COLORS.surface}
-              />
-              
               {/* Chat AI Icon */}
               <AnimatedIconButton
                 icon="chat-bubble-outline"
                 onPress={() => handleNavigate('Chat')}
-                color={COLORS.surface}
+                color={COLORS.text}
               />
               
               {/* Messages Icon */}
@@ -95,7 +158,7 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
                 <AnimatedIconButton
                   icon="message"
                   onPress={() => handleNavigate('ConversationList')}
-                  color={COLORS.surface}
+                  color={COLORS.text}
                 />
                 <ChatBadge />
               </View>
@@ -145,9 +208,71 @@ const AnimatedIconButton = React.memo(({ icon, onPress, color }: { icon: string;
 });
 
 const styles = StyleSheet.create({
+  // ===== Dashboard Variant =====
+  dashboardContainer: {
+    backgroundColor: COLORS.surface,
+    paddingTop: 0,
+  },
+  dashboardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    minHeight: 64,
+  },
+  dashboardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  dashboardAvatar: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  dashboardInfo: {
+    marginLeft: SPACING.md,
+    flex: 1,
+  },
+  dashboardGreeting: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  dashboardName: {
+    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
+    marginTop: 1,
+  },
+  conditionPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: SPACING['2xl'],
+    marginTop: 4,
+  },
+  conditionPillText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  dashboardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  iconBadgeWrap: {
+    position: 'relative',
+  },
+
+  // ===== Default Variant =====
   container: {
-    backgroundColor: COLORS.primary,
-    borderBottomWidth: 0,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
     paddingTop: 0,
     paddingHorizontal: 0,
     alignSelf: 'stretch',
@@ -156,7 +281,7 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     minHeight: 56,
   },
@@ -167,12 +292,9 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 32,
   },
-  logoPlaceholder: {
-    width: 32,
-    height: 32,
-  },
   title: {
     flex: 1,
+    textAlign: 'center',
   },
   rightActions: {
     flexDirection: 'row',
@@ -180,11 +302,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   iconButton: {
-    padding: SPACING.xs,
-    marginLeft: SPACING.xs,
+    padding: SPACING.sm,
   },
   badgeContainer: {
     position: 'relative',
   },
 });
-

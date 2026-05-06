@@ -23,7 +23,6 @@ export const ReportScreen = ({ route }: any) => {
   const [loadingAI, setLoadingAI] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
 
-
   useEffect(() => {
     fetchReport();
   }, [targetUserId, selectedRange]);
@@ -160,8 +159,15 @@ export const ReportScreen = ({ route }: any) => {
 
   return (
     <View style={styles.container}>
-    
       
+      {/* Action Bar */}
+      <View style={styles.actionBar}>
+        <TouchableOpacity style={styles.exportButtonAction} onPress={handleExportPDF} disabled={exportingPDF}>
+          {exportingPDF ? <ActivityIndicator size="small" color="#fff" /> : <Icon name="picture-as-pdf" size={20} color="#fff" />}
+          <Text style={styles.exportButtonText}>Xuất báo cáo (PDF)</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Range Tabs */}
       <View style={styles.rangeTabs}>
         <TouchableOpacity
@@ -341,6 +347,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  exportButtonAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 6,
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   rangeTabs: {
     flexDirection: 'row',

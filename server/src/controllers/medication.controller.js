@@ -15,8 +15,11 @@ const createMedicationSchema = z.object({
     unit: z.string().default('mg'),
     notes: z.string().optional(),
     frequency: z.enum(['DAILY', 'EVERY_OTHER_DAY']),
-    times: z.array(z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)), // Format HH:mm
+    sessions: z.array(z.enum(['MORNING', 'NOON', 'EVENING'])).optional(),
+    mealTiming: z.enum(['BEFORE_MEAL', 'AFTER_MEAL', 'NONE']).optional(),
+    times: z.array(z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/)).optional(), // Format HH:mm
     startDate: z.string().datetime(),
+    endDate: z.string().datetime().optional().nullable(),
   }),
 });
 
@@ -26,7 +29,7 @@ const createMedicationSchema = z.object({
  */
 const createMedication = async (req, res) => {
   try {
-    const { name, dosage, unit, notes, frequency, times, startDate } = req.body;
+    const { name, dosage, unit, notes, frequency, sessions, mealTiming, times, startDate, endDate } = req.body;
 
     // Tạo medication mới với userId từ JWT token
     const medication = await Medication.create({
@@ -36,8 +39,11 @@ const createMedication = async (req, res) => {
       unit: unit || 'mg',
       notes: notes || '',
       frequency,
-      times,
+      sessions: sessions || [],
+      mealTiming: mealTiming || 'NONE',
+      times: times || [],
       startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : null,
     });
 
     // Tự động tạo reminders cho hôm nay dựa trên frequency và times
@@ -58,14 +64,29 @@ const getTodayReminders = async (req, res) => {
     // Cho phép caregiver xem reminders của patient (truyền userId trong query)
     const targetUserId = req.query.userId || req.user._id.toString();
 
-    // Lấy tất cả medications của user (hoặc patient)
-    const medications = await Medication.find({ userId: targetUserId });
+    // Lấy tất cả medications đang active của user
+    const medications = await Medication.find({ userId: targetUserId, isActive: true });
     const medicationIds = medications.map(m => m._id);
 
     // Tính thời gian bắt đầu và kết thúc của ngày hôm nay
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    // Auto-generate reminders cho medications chưa có reminder hôm nay
+    for (const med of medications) {
+      const existingCount = await Reminder.countDocuments({
+        medicationId: med._id,
+        scheduledTime: { $gte: startOfDay, $lte: endOfDay },
+      });
+      if (existingCount === 0) {
+        try {
+          await generateRemindersForMedication(med);
+        } catch (genErr) {
+          console.error('Auto-gen reminders failed for', med.name, genErr.message);
+        }
+      }
+    }
 
     // Tìm tất cả reminders trong ngày, sắp xếp theo giờ tăng dần
     const reminders = await Reminder.find({
@@ -78,6 +99,7 @@ const getTodayReminders = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 /**
  * Cập nhật trạng thái reminder (TAKEN/SKIPPED/PENDING)
@@ -107,6 +129,41 @@ const updateReminderStatus = async (req, res) => {
     await reminder.save();
 
     res.json({ reminder });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Uống ngay hàng loạt - đánh dấu TAKEN cho nhiều reminders
+ */
+const takeAllNow = async (req, res) => {
+  try {
+    const { reminderIds } = req.body;
+    
+    if (!reminderIds || !Array.isArray(reminderIds) || reminderIds.length === 0) {
+      return res.status(400).json({ error: 'reminderIds array is required' });
+    }
+
+    const now = new Date();
+    
+    // Validate ownership: user must own the medications of these reminders
+    const reminders = await Reminder.find({ _id: { $in: reminderIds }, status: 'PENDING' });
+    const validReminderIds = [];
+    
+    for (const reminder of reminders) {
+      const medication = await Medication.findById(reminder.medicationId);
+      if (medication && medication.userId.toString() === req.user._id.toString()) {
+        validReminderIds.push(reminder._id);
+      }
+    }
+
+    const result = await Reminder.updateMany(
+      { _id: { $in: validReminderIds } },
+      { status: 'TAKEN', takenAt: now, lastUpdated: now }
+    );
+    
+    res.json({ updated: result.modifiedCount });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -150,7 +207,13 @@ const updateReminder = async (req, res) => {
 
 const getMedications = async (req, res) => {
   try {
-    const medications = await Medication.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const filter = { userId: req.user._id };
+    if (req.query.prescriptionId) {
+      filter.prescriptionId = req.query.prescriptionId;
+    }
+    const medications = await Medication.find(filter)
+      .populate('prescriptionId', 'diagnosis doctorName startDate')
+      .sort({ createdAt: -1 });
     res.json({ medications });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -163,6 +226,25 @@ const deleteMedication = async (req, res) => {
     await Medication.findByIdAndDelete(id);
     await Reminder.deleteMany({ medicationId: id });
     res.json({ message: 'Medication deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const batchDeleteMedications = async (req, res) => {
+  try {
+    const { medicationIds } = req.body;
+    if (!medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
+      return res.status(400).json({ error: 'medicationIds array is required' });
+    }
+
+    // Xóa reminders liên quan
+    await Reminder.deleteMany({ medicationId: { $in: medicationIds } });
+    
+    // Xóa medications (ensure they belong to user)
+    await Medication.deleteMany({ _id: { $in: medicationIds }, userId: req.user._id });
+    
+    res.json({ deleted: medicationIds.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -200,6 +282,15 @@ const deleteReminder = async (req, res) => {
 const generateRemindersForMedication = async (medication) => {
   const today = new Date();
   const startDate = new Date(medication.startDate);
+  
+  // Dừng tạo nhắc nhở nếu ngày hiện tại đã vượt qua ngày kết thúc
+  if (medication.endDate) {
+    const endDate = new Date(medication.endDate);
+    endDate.setHours(23, 59, 59, 999);
+    if (today > endDate) {
+      return; 
+    }
+  }
 
   // Xác định có nên tạo reminder hôm nay không
   let shouldSchedule = false;
@@ -213,11 +304,31 @@ const generateRemindersForMedication = async (medication) => {
     shouldSchedule = diffDays % 2 === 0;
   }
 
-  // Nếu cần tạo reminder, duyệt qua tất cả các giờ trong times
-  if (shouldSchedule) {
+  // Xác định mảng times/sessions cuối cùng để loop
+  const User = require('../models/User');
+  const userObj = await User.findById(medication.userId);
+  const prefs = userObj?.medicationTimes || { morning: '08:00', noon: '12:00', evening: '20:00' };
+
+  let creationTargets = []; // Array of { timeStr, session }
+  
+  if (medication.sessions && medication.sessions.length > 0) {
+    for (const session of medication.sessions) {
+      if (session === 'MORNING') creationTargets.push({ timeStr: prefs.morning, session: 'MORNING' });
+      if (session === 'NOON') creationTargets.push({ timeStr: prefs.noon, session: 'NOON' });
+      if (session === 'EVENING') creationTargets.push({ timeStr: prefs.evening, session: 'EVENING' });
+    }
+  } else if (medication.times && medication.times.length > 0) {
+    // Fallback for explicitly specified times
     for (const timeStr of medication.times) {
+      creationTargets.push({ timeStr, session: 'CUSTOM' });
+    }
+  }
+
+  // Nếu cần tạo reminder, duyệt qua tất cả các giờ đã map
+  if (shouldSchedule && creationTargets.length > 0) {
+    for (const target of creationTargets) {
       // Parse giờ và phút từ string "HH:mm"
-      const [hours, minutes] = timeStr.split(':').map(Number);
+      const [hours, minutes] = target.timeStr.split(':').map(Number);
       const scheduleDate = new Date(today);
       scheduleDate.setHours(hours, minutes, 0, 0);
 
@@ -236,6 +347,8 @@ const generateRemindersForMedication = async (medication) => {
           unit: medication.unit,
           scheduledTime: scheduleDate,
           status: 'PENDING',
+          mealTiming: medication.mealTiming || 'NONE',
+          session: target.session,
           isSynced: true,
           lastUpdated: new Date(),
         });
@@ -279,10 +392,13 @@ module.exports = {
   updateReminder,
   getMedications,
   deleteMedication,
+  batchDeleteMedications,
   deleteReminder,
   getMissedMedications,
+  takeAllNow,
   createMedicationSchema,
   updateReminderSchema,
+  generateRemindersForMedication,
 };
 
 

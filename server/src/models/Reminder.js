@@ -7,10 +7,13 @@ const reminderSchema = new mongoose.Schema({
   unit: { type: String, required: true },
   scheduledTime: { type: Date, required: true },
   status: { type: String, enum: ['PENDING', 'TAKEN', 'SKIPPED'], default: 'PENDING' },
+  mealTiming: { type: String, enum: ['BEFORE_MEAL', 'AFTER_MEAL', 'NONE'], default: 'NONE' },
+  session: { type: String, enum: ['MORNING', 'NOON', 'EVENING', 'CUSTOM'], default: 'CUSTOM' },
   takenAt: { type: Date, default: null },
   isSynced: { type: Boolean, default: true },
   lastUpdated: { type: Date, default: Date.now },
   notificationIds: { type: [String], default: [] }, // Array of notification IDs for multiple reminders
+  escalationLevel: { type: Number, default: 0 }, // 0: Not escalated, 1: 5m, 2: 15m, 3: 30m, 4: 60m
 }, {
   timestamps: true,
 });

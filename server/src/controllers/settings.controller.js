@@ -112,8 +112,64 @@ const updateNotificationSettings = async (req, res) => {
   }
 };
 
+/**
+ * Lấy cấu hình giờ uống thuốc theo buổi của bệnh nhân
+ */
+const getMedicationTimes = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const medicationTimes = user.medicationTimes || {
+      morning: '08:00',
+      noon: '12:00',
+      evening: '20:00',
+    };
+
+    res.json({ medicationTimes });
+  } catch (error) {
+    console.error('[Settings] Get medication times error:', error);
+    res.status(500).json({ error: 'Failed to get medication times' });
+  }
+};
+
+/**
+ * Cập nhật cấu hình giờ uống thuốc theo buổi
+ */
+const updateMedicationTimes = async (req, res) => {
+  try {
+    const { morning, noon, evening } = req.body;
+    const updateData = {};
+
+    // Validate HH:mm format
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    if (morning && !timeRegex.test(morning)) return res.status(400).json({ error: 'Giờ sáng không hợp lệ (HH:mm)' });
+    if (noon && !timeRegex.test(noon)) return res.status(400).json({ error: 'Giờ trưa không hợp lệ (HH:mm)' });
+    if (evening && !timeRegex.test(evening)) return res.status(400).json({ error: 'Giờ tối không hợp lệ (HH:mm)' });
+
+    if (morning) updateData['medicationTimes.morning'] = morning;
+    if (noon) updateData['medicationTimes.noon'] = noon;
+    if (evening) updateData['medicationTimes.evening'] = evening;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ medicationTimes: user.medicationTimes });
+  } catch (error) {
+    console.error('[Settings] Update medication times error:', error);
+    res.status(500).json({ error: 'Failed to update medication times' });
+  }
+};
+
 module.exports = {
   getNotificationSettings: [authenticate, getNotificationSettings],
   updateNotificationSettings: [authenticate, updateNotificationSettings],
+  getMedicationTimes: [authenticate, getMedicationTimes],
+  updateMedicationTimes: [authenticate, updateMedicationTimes],
 };
 

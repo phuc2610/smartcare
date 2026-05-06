@@ -21,11 +21,11 @@ export interface AuthResponse {
   token: string;
 }
 
-export const register = async (data: RegisterData): Promise<{ message: string; phone: string }> => {
+export const register = async (data: RegisterData): Promise<AuthResponse> => {
   logger.auth('REGISTER: Starting', { phone: data.phone, name: data.name, role: data.role });
   
   try {
-    const result = await api.post<{ message: string; phone: string }>('/api/auth/register', data);
+    const result = await api.post<AuthResponse>('/api/auth/register', data);
   
     logger.auth('REGISTER: API response', { ok: result.ok, status: result.status, hasData: !!result.data });
     
@@ -34,8 +34,16 @@ export const register = async (data: RegisterData): Promise<{ message: string; p
       throw new Error(result.error || 'Register failed');
     }
 
-    logger.auth('REGISTER: Success', { message: result.data?.message, phone: result.data?.phone });
-    return result.data;
+    const { user, token } = result.data;
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    } catch (error) {
+      logger.error('Failed to save auth data', error);
+    }
+
+    logger.auth('REGISTER: Success', { userId: user?._id, phone: user?.phone });
+    return { user, token };
   } catch (error: any) {
     logger.error('REGISTER: Exception', { 
       message: error?.message, 
@@ -46,32 +54,7 @@ export const register = async (data: RegisterData): Promise<{ message: string; p
   }
 };
 
-export const requestOTP = async (phone: string): Promise<{ message: string; phone: string }> => {
-  const result = await api.post<{ message: string; phone: string }>('/api/auth/otp/request', { phone });
-  
-  if (!result.ok) {
-    throw new Error(result.error || 'Request OTP failed');
-  }
-  
-  return result.data;
-};
-
-export const verifyOTP = async (phone: string, otp: string): Promise<AuthResponse> => {
-  const result = await api.post<AuthResponse>('/api/auth/otp/verify', { phone, otp });
-  
-  if (!result.ok) {
-    throw new Error(result.error || 'Verify OTP failed');
-  }
-
-    const { user, token } = result.data;
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    } catch (error) {
-      logger.error('Failed to save auth data', error);
-    }
-    return { user, token };
-};
+// requestOTP and verifyOTP removed for Firebase Phone Auth
 
 export const login = async (data: LoginData): Promise<AuthResponse> => {
   logger.auth('LOGIN: Starting', { phone: data.phone });
@@ -151,21 +134,21 @@ export const getStoredToken = async (): Promise<string | null> => {
   }
 };
 
-export const forgotPassword = async (phone: string): Promise<{ message: string; phone: string }> => {
-  const result = await api.post<{ message: string; phone: string }>('/api/auth/forgot-password', { phone });
+export const forgotPassword = async (phone: string, name: string): Promise<{ message: string; phone: string; verified: boolean }> => {
+  const result = await api.post<{ message: string; phone: string; verified: boolean }>('/api/auth/forgot-password', { phone, name });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Forgot password failed');
+    throw new Error(result.error || 'Xác minh thất bại');
   }
   
   return result.data;
 };
 
-export const resetPassword = async (phone: string, otp: string, newPassword: string): Promise<AuthResponse> => {
-  const result = await api.post<AuthResponse>('/api/auth/reset-password', { phone, otp, newPassword });
+export const resetPassword = async (phone: string, name: string, newPassword: string): Promise<AuthResponse> => {
+  const result = await api.post<AuthResponse>('/api/auth/reset-password', { phone, name, newPassword });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Reset password failed');
+    throw new Error(result.error || 'Đổi mật khẩu thất bại');
   }
 
   const { user, token } = result.data;
@@ -191,7 +174,21 @@ export const changePassword = async (currentPassword: string, newPassword: strin
   return result.data;
 };
 
-
-
-
+export const deleteAccount = async (password: string): Promise<{ message: string }> => {
+  const result = await api.post<{ message: string }>('/api/auth/delete-account', { password });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Delete account failed');
+  }
+  
+  // Xoá dữ liệu local
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN);
+    await AsyncStorage.removeItem(STORAGE_KEYS.USER);
+  } catch (error) {
+    logger.error('Failed to clear auth storage after account deletion', error);
+  }
+  
+  return result.data;
+};
 

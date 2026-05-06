@@ -1099,6 +1099,64 @@ const sendTaskNotification = async (req, res) => {
   }
 };
 
+/**
+ * Lấy trạng thái tổng quan hôm nay của patient (Adherence, Missed meds, Last missed, Alerts)
+ */
+const getPatientTodayStatus = async (req, res) => {
+  try {
+    if (req.user.role !== 'CAREGIVER') {
+      return res.status(403).json({ error: 'Only caregivers can view today status' });
+    }
+
+    const { patientId } = req.params;
+    const patient = await User.findById(patientId);
+    if (!patient || patient.caregiverId?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+
+    const medications = await Medication.find({ userId: patientId });
+    const medicationIds = medications.map(m => m._id);
+
+    const reminders = await Reminder.find({
+      medicationId: { $in: medicationIds },
+      scheduledTime: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    const total = reminders.length;
+    const taken = reminders.filter(r => r.status === 'TAKEN').length;
+    const adherenceRate = total > 0 ? Math.round((taken / total) * 100) : 100;
+
+    const missedReminders = reminders.filter(r => r.status === 'PENDING' && new Date(r.scheduledTime) < today);
+    const missedMedsCount = missedReminders.length;
+    
+    // Most recently missed medication
+    missedReminders.sort((a, b) => new Date(b.scheduledTime) - new Date(a.scheduledTime));
+    const lastMissed = missedReminders.length > 0 ? missedReminders[0] : null;
+
+    const unreadAlerts = await Alert.countDocuments({
+      patientId,
+      isRead: false,
+      createdAt: { $gte: startOfDay }
+    });
+
+    res.json({
+      status: {
+        adherenceRate,
+        missedMedsCount,
+        lastMissedMedication: lastMissed ? lastMissed.medicationName : null,
+        lastMissedTime: lastMissed ? lastMissed.scheduledTime : null,
+        unreadAlertsToday: unreadAlerts
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   requestLink,
   acceptLink,
@@ -1119,6 +1177,7 @@ module.exports = {
   getEmergencyContacts,
   getPatientTasks,
   sendTaskNotification,
+  getPatientTodayStatus,
   requestLinkSchema,
   acceptLinkSchema,
   respondToRequestSchema,

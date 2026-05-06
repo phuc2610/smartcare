@@ -19,7 +19,7 @@ interface RequestConfig {
   retries?: number;
 }
 
-const DEFAULT_TIMEOUT = 10000; // 10s
+const DEFAULT_TIMEOUT = 60000; // 60s (to handle Render cold starts)
 const DEFAULT_RETRIES = 2;
 
 if (!API_BASE_URL || API_BASE_URL.trim() === '') {

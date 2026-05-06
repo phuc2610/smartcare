@@ -6,6 +6,8 @@ import {
   Switch,
   Alert,
   TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -18,7 +20,8 @@ import { Screen } from '../../ui/Screen';
 import { Button } from '../../ui/Button';
 import { AppHeader } from '../../components/AppHeader';
 import { Logo } from '../../components/Logo';
-import { getNotificationSettings, updateNotificationSettings } from '../../services/settings.service';
+import { getNotificationSettings, updateNotificationSettings, getMedicationTimes, updateMedicationTimes, MedicationTimes } from '../../services/settings.service';
+import { deleteAccount } from '../../services/auth.service';
 
 interface NotificationSettings {
   medicationReminderBefore: number;
@@ -33,6 +36,9 @@ export const SettingsScreen = () => {
   const navigation = useNavigation<any>();
   const { signOut } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
     medicationReminderBefore: 15,
     mealReminderBefore: 15,
@@ -42,8 +48,15 @@ export const SettingsScreen = () => {
     exerciseEnabled: true,
   });
 
+  const [medTimes, setMedTimes] = useState<MedicationTimes>({
+    morning: '08:00',
+    noon: '12:00',
+    evening: '20:00',
+  });
+
   useEffect(() => {
     loadSettings();
+    loadMedTimes();
   }, []);
 
   const loadSettings = async () => {
@@ -64,15 +77,63 @@ export const SettingsScreen = () => {
     }
   };
 
+  const loadMedTimes = async () => {
+    try {
+      const data = await getMedicationTimes();
+      if (data.medicationTimes) {
+        setMedTimes(data.medicationTimes);
+      }
+    } catch (error) {
+      console.error('Failed to load medication times:', error);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
       await updateNotificationSettings(settings);
-      Alert.alert('Thành công', 'Đã lưu cài đặt thông báo');
+      await updateMedicationTimes(medTimes);
+      Alert.alert('Thành công', 'Đã lưu cài đặt thông báo và giờ uống thuốc');
     } catch (error: any) {
       Alert.alert('Lỗi', error?.message || 'Không thể lưu cài đặt');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Xác nhận xoá tài khoản',
+      'Bạn có chắc chắn muốn xoá tài khoản vĩnh viễn không?\n\nTất cả dữ liệu của bạn (đơn thuốc, lịch nhắc, hồ sơ sức khoẻ...) sẽ bị xoá vĩnh viễn và không thể khôi phục.',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Tiếp tục xoá',
+          style: 'destructive',
+          onPress: () => {
+            setDeletePassword('');
+            setShowDeleteModal(true);
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await deleteAccount(deletePassword);
+      setShowDeleteModal(false);
+      Alert.alert('Thành công', 'Tài khoản đã được xoá.');
+      signOut();
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message || 'Không thể xoá tài khoản');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -242,6 +303,85 @@ export const SettingsScreen = () => {
           </Card>
         </View>
 
+        {/* Giờ uống thuốc theo buổi */}
+        <View style={styles.section}>
+          <Text variant="section" color="text" style={styles.sectionTitle}>
+            💊 Giờ uống thuốc theo Buổi
+          </Text>
+          <Card style={styles.card}>
+            <Text variant="caption" color="textSecondary" style={{ marginBottom: SPACING.md }}>
+              Bác sĩ sẽ kê thuốc theo buổi (Sáng, Trưa, Tối). Bạn có thể tuỳ chỉnh giờ uống cụ thể phù hợp với lối sống của mình.
+            </Text>
+            
+            {/* Buổi Sáng */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
+                  <Icon name="wb-sunny" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Sáng</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 06:00 – 09:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.morning}
+                onChangeText={(text) => setMedTimes({ ...medTimes, morning: text })}
+                placeholder="08:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Buổi Trưa */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FFEDD5' }]}>
+                  <Icon name="wb-cloudy" size={20} color="#F97316" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Trưa</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 10:00 – 13:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.noon}
+                onChangeText={(text) => setMedTimes({ ...medTimes, noon: text })}
+                placeholder="12:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Buổi Tối */}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#E0E7FF' }]}>
+                  <Icon name="nightlight-round" size={20} color="#6366F1" />
+                </View>
+                <View style={styles.settingText}>
+                  <Text variant="body" color="text" semibold>Buổi Tối</Text>
+                  <Text variant="caption" color="textSecondary">Gợi ý: 17:00 – 21:00</Text>
+                </View>
+              </View>
+              <TextInput
+                style={[styles.numberInput, { width: 70 }]}
+                value={medTimes.evening}
+                onChangeText={(text) => setMedTimes({ ...medTimes, evening: text })}
+                placeholder="20:00"
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+          </Card>
+        </View>
+
         {/* Nút lưu */}
         <View style={styles.saveButtonContainer}>
           <Button
@@ -322,7 +462,69 @@ export const SettingsScreen = () => {
             textStyle={styles.logoutButtonText}
           />
         </View>
+
+        {/* Xoá tài khoản */}
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+          >
+            <Icon name="delete-forever" size={18} color="#DC2626" />
+            <Text variant="caption" style={styles.deleteButtonText}>
+              Xoá tài khoản vĩnh viễn
+            </Text>
+          </TouchableOpacity>
+        </View>
       </Screen>
+
+      {/* Modal nhập mật khẩu xác nhận xoá */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Icon name="warning" size={40} color="#DC2626" style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Text variant="body" semibold style={{ textAlign: 'center', marginBottom: 8, color: COLORS.text }}>
+              Nhập mật khẩu để xác nhận
+            </Text>
+            <Text variant="caption" color="textSecondary" style={{ textAlign: 'center', marginBottom: 16 }}>
+              Vui lòng nhập mật khẩu hiện tại để xác nhận xoá tài khoản vĩnh viễn.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Mật khẩu"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setShowDeleteModal(false)}
+                disabled={deleteLoading}
+              >
+                <Text variant="body" semibold style={{ color: COLORS.textSecondary }}>Huỷ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnDelete]}
+                onPress={confirmDeleteAccount}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text variant="body" semibold style={{ color: '#fff' }}>Xoá tài khoản</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -423,7 +625,7 @@ const styles = StyleSheet.create({
   logoutContainer: {
     paddingHorizontal: SPACING.lg,
     marginTop: SPACING['2xl'],
-    marginBottom: SPACING['3xl'],
+    marginBottom: SPACING.md,
   },
   logoutButton: {
     width: '100%',
@@ -451,5 +653,61 @@ const styles = StyleSheet.create({
   },
   aboutDescription: {
     marginTop: SPACING.xs,
+  },
+  deleteContainer: {
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING['3xl'],
+    alignItems: 'center',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING.sm,
+  },
+  deleteButtonText: {
+    color: '#DC2626',
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+  },
+  modalInput: {
+    width: '100%',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    fontSize: 16,
+    color: COLORS.text,
+    marginBottom: SPACING.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnCancel: {
+    backgroundColor: '#F3F4F6',
+  },
+  modalBtnDelete: {
+    backgroundColor: '#DC2626',
   },
 });

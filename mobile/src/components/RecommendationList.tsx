@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../contexts/AuthContext';
-import { Recommendation } from '../types';
+import { Recommendation, HealthLogType } from '../types';
 import { COLORS } from '../utils/constants';
 import { getHealthRecommendations } from '../services/ai.service';
+import { createHealthLog } from '../services/health.service';
 
 const CACHE_KEY_PREFIX = 'health_recommendations_';
 const CACHE_EXPIRY_DAYS = 7; // Cache for 7 days
@@ -19,8 +21,20 @@ export const RecommendationList = () => {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const previousConditionRef = useRef<string | undefined>(undefined);
   const hasLoadedRef = useRef(false);
+
+  const handleReload = async () => {
+    if (!user?.medicalCondition) return;
+    const cacheKey = `${CACHE_KEY_PREFIX}${user.medicalCondition}`;
+    await AsyncStorage.removeItem(cacheKey);
+    hasLoadedRef.current = false;
+    previousConditionRef.current = undefined;
+    setReloadTrigger(prev => prev + 1);
+  };
+
+
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -107,12 +121,14 @@ export const RecommendationList = () => {
     };
 
     fetchRecommendations();
-  }, [user?.medicalCondition]);
+  }, [user?.medicalCondition, reloadTrigger]);
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Gợi ý sức khỏe</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Gợi ý sức khỏe</Text>
+        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color={COLORS.primary} />
           <Text style={styles.loadingText}>AI đang phân tích...</Text>
@@ -125,12 +141,20 @@ export const RecommendationList = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Gợi ý sức khỏe</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Gợi ý sức khỏe</Text>
+        <TouchableOpacity onPress={handleReload} style={styles.reloadButton}>
+          <Icon name="refresh" size={16} color={COLORS.primary} />
+          <Text style={styles.reloadText}>Đổi gợi ý</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
         {recommendations.map(item => (
           <View key={item.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDescription}>{item.description}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardDescription}>{item.description}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -143,39 +167,60 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     paddingHorizontal: 16,
   },
-  title: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.text,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  title: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6B7280',
     textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  reloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary + '15',
+  },
+  reloadText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   scroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
   },
   card: {
-    width: 220,
+    width: 200,
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1C1C1E',
     marginBottom: 8,
   },
   cardDescription: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#8E8E93',
     lineHeight: 18,
+    marginBottom: 14,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -186,9 +231,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: '#8E8E93',
   },
 });
+
 
 
 

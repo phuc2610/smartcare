@@ -3,12 +3,10 @@ import { User, UserRole } from '../types';
 import { RegisterData, LoginData } from '../services/auth.service';
 import { logger } from '../utils/logger';
 
-// Safe import auth service với fallback
 let authService: any = null;
 let getCurrentUser: (() => Promise<User | null>) | null = null;
-let registerAPI: ((data: RegisterData) => Promise<{ message: string; phone: string }>) | null = null;
+let registerAPI: ((data: RegisterData) => Promise<{ user: User; token: string }>) | null = null;
 let loginAPI: ((data: { phone: string; password: string }) => Promise<{ user: User; token: string }>) | null = null;
-let verifyOTP: ((phone: string, otp: string) => Promise<{ user: User; token: string }>) | null = null;
 let logoutAPI: (() => Promise<void>) | null = null;
 
 try {
@@ -16,7 +14,6 @@ try {
   getCurrentUser = authService?.getCurrentUser || null;
   registerAPI = authService?.register || null;
   loginAPI = authService?.login || null;
-  verifyOTP = authService?.verifyOTP || null;
   logoutAPI = authService?.logout || null;
 } catch (error) {
   console.warn('Failed to load auth.service module (non-critical):', error);
@@ -42,7 +39,6 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
   signUp: (data: RegisterData) => Promise<void>;
-  verify: (phone: string, otp: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updatedUser: User) => void;
 }
@@ -102,8 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Register service is not available');
       }
       logger.auth('AuthContext.signUp: Calling registerAPI');
-      const result = await registerAPI(data);
-      logger.auth('AuthContext.signUp: API success', { message: result?.message, phone: result?.phone });
+      const res = await registerAPI(data);
+      logger.auth('AuthContext.signUp: API success', { hasUser: !!res?.user, userId: res?.user?._id });
+      setUser(res?.user || null);
     } catch (error: any) {
       logger.error('AuthContext.signUp: Failed', { 
         message: error?.message, 
@@ -111,20 +108,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error 
       });
       throw new Error(error?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
-    }
-  };
-
-  const verify = async (phone: string, otp: string) => {
-    try {
-      // Guard: Kiểm tra verifyOTP có tồn tại
-      if (!verifyOTP || typeof verifyOTP !== 'function') {
-        throw new Error('Verify OTP service is not available');
-      }
-      const res = await verifyOTP(phone, otp);
-      setUser(res?.user || null);
-    } catch (error: any) {
-      logger.error('Verify OTP failed', error);
-      throw new Error(error?.message || 'Xác thực OTP thất bại. Vui lòng thử lại.');
     }
   };
 
@@ -149,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, signIn, signUp, verify, signOut, updateProfile }}
+      value={{ user, isLoading, signIn, signUp, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>

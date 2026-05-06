@@ -20,6 +20,7 @@ const {
   getEmergencyContacts,
   getPatientTasks,
   sendTaskNotification,
+  getPatientTodayStatus,
   requestLinkSchema,
   acceptLinkSchema,
   respondToRequestSchema,
@@ -38,6 +39,7 @@ router.post('/requests/respond', authenticate, validate(respondToRequestSchema),
 // Patient management
 router.get('/patients', authenticate, getPatients);
 router.get('/patients/:patientId', authenticate, getPatientDetail);
+router.get('/patients/:patientId/today-status', authenticate, getPatientTodayStatus);
 
 // Alerts
 router.get('/alerts', authenticate, getAlerts);

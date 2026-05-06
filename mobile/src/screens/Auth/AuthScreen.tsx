@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,9 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
-import { requestOTP } from '../../services/auth.service';
 import { Logo } from '../../components/Logo';
 
-type Screen = 'LOGIN' | 'REGISTER' | 'REGISTER_OTP';
+type Screen = 'LOGIN' | 'REGISTER';
 
 // Move PasswordInput outside to prevent re-creation on every render
 const PasswordInput = React.memo(({ 
@@ -37,6 +36,7 @@ const PasswordInput = React.memo(({
     <TextInput
       style={styles.passwordInput}
       placeholder={placeholder}
+      placeholderTextColor={COLORS.textSecondary}
       value={value}
       onChangeText={onChangeText}
       secureTextEntry={!showPassword}
@@ -54,7 +54,7 @@ const PasswordInput = React.memo(({
 ));
 
 export const AuthScreen = ({ navigation }: any) => {
-  const { signIn, signUp, verify } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [screen, setScreen] = useState<Screen>('LOGIN');
 
   // Form state
@@ -62,7 +62,6 @@ export const AuthScreen = ({ navigation }: any) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [otp, setOtp] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.PATIENT);
 
   // UI state
@@ -70,70 +69,15 @@ export const AuthScreen = ({ navigation }: any) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // OTP state
-  const [otpCountdown, setOtpCountdown] = useState(0);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup countdown on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, []);
-
-  // Countdown timer
-  useEffect(() => {
-    if (otpCountdown > 0) {
-      countdownInterval.current = setInterval(() => {
-        setOtpCountdown((prev) => {
-          if (prev <= 1) {
-            if (countdownInterval.current) {
-              clearInterval(countdownInterval.current);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
+  const formatPhoneForServer = (p: string) => {
+    let cleaned = p.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '84' + cleaned.slice(1);
+    } else if (!cleaned.startsWith('84')) {
+      cleaned = '84' + cleaned;
     }
-
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, [otpCountdown]);
-
-  const handleRequestOTP = async () => {
-    if (!phone) {
-      setError('Vui lòng nhập số điện thoại trước');
-      return;
-    }
-
-    setOtpLoading(true);
-    setError('');
-    try {
-      await requestOTP(phone);
-      setOtpCountdown(300); // 5 minutes = 300 seconds
-    } catch (err: any) {
-      setError(err?.message || 'Không thể gửi mã OTP');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const formatCountdown = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return '+' + cleaned;
   };
 
   const handleLogin = async () => {
@@ -146,7 +90,8 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      await signIn(phone, password);
+      const formattedPhone = formatPhoneForServer(phone);
+      await signIn(formattedPhone, password);
     } catch (err: any) {
       const errorMessage = err?.message || err?.response?.data?.error || 'Đăng nhập thất bại';
       setError(errorMessage);
@@ -181,83 +126,29 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      await signUp({ name, phone, password, role });
-      // After registration, request OTP and show OTP screen
-      await handleRequestOTP();
-      setScreen('REGISTER_OTP');
+      // Đăng ký trực tiếp, không cần OTP
+      const formattedPhone = formatPhoneForServer(phone);
+      await signUp({ name, phone: formattedPhone, password, role });
+      console.log('Registration successful!');
     } catch (err: any) {
-      const errorMessage = err?.message || err?.response?.data?.error || 'Đăng ký thất bại';
+      console.log('Register error:', err);
+      let errorMessage = 'Đăng ký thất bại';
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 4) {
-      setError('Vui lòng nhập mã OTP 4 số');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-    
-    try {
-      await verify(phone, otp);
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.response?.data?.error || 'Xác thực thất bại';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const otpInputRef = useRef<TextInput>(null);
-
-  const OTPInput = () => (
-    <View style={styles.otpWrapper}>
-      <View style={styles.otpContainer}>
-        <TextInput
-          ref={otpInputRef}
-          style={styles.otpInput}
-          placeholder="Nhập mã OTP"
-          value={otp}
-          onChangeText={(text) => {
-            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 4);
-            setOtp(cleanedText);
-          }}
-          keyboardType="number-pad"
-          maxLength={4}
-          autoFocus={true}
-          blurOnSubmit={false}
-          selectTextOnFocus={false}
-          returnKeyType="done"
-        />
-      </View>
-      <TouchableOpacity
-        onPress={handleRequestOTP}
-        disabled={otpCountdown > 0 || otpLoading}
-        style={styles.otpButton}
-        activeOpacity={0.7}
-      >
-        {otpLoading ? (
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        ) : otpCountdown > 0 ? (
-          <Text style={styles.otpCountdown}>{formatCountdown(otpCountdown)}</Text>
-        ) : (
-          <Text style={styles.otpResendText}>Gửi lại</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      enabled={screen !== 'REGISTER_OTP'}
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -273,6 +164,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Số điện thoại"
+              placeholderTextColor={COLORS.textSecondary}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -330,6 +222,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Họ và tên"
+              placeholderTextColor={COLORS.textSecondary}
               value={name}
               onChangeText={setName}
             />
@@ -337,6 +230,7 @@ export const AuthScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Số điện thoại"
+              placeholderTextColor={COLORS.textSecondary}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -398,7 +292,7 @@ export const AuthScreen = ({ navigation }: any) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Tiếp tục</Text>
+                <Text style={styles.buttonText}>Đăng ký</Text>
               )}
             </TouchableOpacity>
 
@@ -407,43 +301,6 @@ export const AuthScreen = ({ navigation }: any) => {
               setError('');
             }}>
               <Text style={styles.linkText}>Đã có tài khoản? Đăng nhập</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {screen === 'REGISTER_OTP' && (
-          <View style={styles.form}>
-            <Logo size="medium" containerStyle={styles.logoContainer} />
-            <Text style={styles.title}>Xác thực tài khoản</Text>
-            <Text style={styles.subtitle}>
-              Mã OTP đã được gửi đến số điện thoại {phone}
-            </Text>
-            <Text style={styles.subtitleSmall}>
-              Vui lòng kiểm tra log console để xem mã OTP
-            </Text>
-
-            <OTPInput />
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleVerifyOTP}
-              disabled={loading || otp.length !== 4}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Xác thực</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => {
-              setScreen('REGISTER');
-              setOtp('');
-              setError('');
-            }}>
-              <Text style={styles.linkText}>Quay lại</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -477,14 +334,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitleSmall: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
     marginBottom: 32,
-    fontStyle: 'italic',
   },
   input: {
     width: '100%',
@@ -495,6 +345,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     marginBottom: 16,
+    color: COLORS.text,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -509,50 +360,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     fontSize: 16,
+    color: COLORS.text,
   },
   eyeIcon: {
     padding: 16,
-  },
-  otpWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  otpContainer: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpInput: {
-    width: '100%',
-    padding: 16,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: 4,
-  },
-  otpButton: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 80,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpCountdown: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  otpResendText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   roleSelector: {
     flexDirection: 'row',

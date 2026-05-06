@@ -1,0 +1,39 @@
+const express = require('express');
+const router = express.Router();
+const doctorController = require('../controllers/doctor.controller');
+const { authenticate } = require('../middleware/auth');
+
+// Lấy profile của bác sĩ
+router.get('/profile', authenticate, doctorController.getProfile);
+
+// Bệnh nhân link với bác sĩ
+router.post('/link', authenticate, doctorController.linkDoctor);
+
+// Bệnh nhân hủy link với bác sĩ
+router.post('/revoke/:doctorId', authenticate, doctorController.revokeDoctor);
+
+// Bệnh nhân lấy danh sách bác sĩ của mình
+router.get('/my-doctors', authenticate, doctorController.getMyDoctors);
+
+// Bác sĩ lấy danh sách bệnh nhân
+router.get('/patients', authenticate, doctorController.getPatients);
+
+// Bác sĩ lấy thông tin hồ sơ của 1 bệnh nhân
+router.get('/patients/:patientId/profile', authenticate, doctorController.getPatientProfile);
+
+// Bác sĩ lấy chỉ số của 1 bệnh nhân
+router.get('/patients/:patientId/vitals', authenticate, doctorController.getPatientVitals);
+
+// Bác sĩ kê đơn thuốc cho bệnh nhân
+router.post('/patients/:patientId/prescriptions', authenticate, doctorController.prescribeMedication);
+
+// Bác sĩ xem độ tuân thủ thuốc của bệnh nhân
+router.get('/patients/:patientId/adherence', authenticate, doctorController.getPatientAdherence);
+
+// Bác sĩ xem lịch sử đơn thuốc (M4 — Prescription History)
+router.get('/patients/:patientId/prescription-history', authenticate, doctorController.getPrescriptionHistory);
+
+// Bác sĩ xem xu hướng triệu chứng (M6 — Symptom Trend)
+router.get('/patients/:patientId/symptom-trend', authenticate, doctorController.getSymptomTrend);
+
+module.exports = router;

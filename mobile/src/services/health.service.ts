@@ -8,7 +8,8 @@ export const createHealthLog = async (
   details: HealthLogDetails,
   date?: string,
   scheduledDate?: string,
-  scheduledTime?: string
+  scheduledTime?: string,
+  isCompleted?: boolean
 ): Promise<{ healthLog: HealthLog }> => {
   const result = await api.post<{ healthLog: HealthLog }>('/api/health/logs', { 
     type, 
@@ -16,6 +17,7 @@ export const createHealthLog = async (
     date,
     scheduledDate,
     scheduledTime,
+    isCompleted,
   });
   
   if (result.ok) {
