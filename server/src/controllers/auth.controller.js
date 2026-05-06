@@ -106,11 +106,11 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Sai số điện thoại hoặc mật khẩu.' });
     }
 
-    // Kiểm tra tài khoản đã được xác thực chưa
+    // Kiểm tra tài khoản đã được xác thực chưa (đã bỏ vì không dùng OTP nữa)
     if (!user.isVerified) {
-      return res.status(403).json({ 
-        error: 'Tài khoản chưa được xác thực. Vui lòng liên hệ hỗ trợ.',
-      });
+      // Tự động cập nhật thành true cho các tài khoản cũ
+      user.isVerified = true;
+      await user.save();
     }
 
     // Tạo JWT token để đăng nhập
