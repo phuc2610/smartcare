@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { showError } from '../utils/alert';
 import { useAuth } from '../contexts/AuthContext';
 import { getCurrentPositionAsync } from '../services/location.service';
 import { triggerEmergencySOS } from '../services/database.service';
@@ -64,7 +65,7 @@ export const FallAlertModal: React.FC<FallAlertModalProps> = ({
         onTriggerSOS();
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể gửi SOS');
+      showError('Lỗi', 'Không thể gửi SOS');
     }
   };
 

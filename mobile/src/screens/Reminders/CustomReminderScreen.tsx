@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { showError } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS } from '../../theme/tokens';
@@ -47,7 +48,7 @@ export const CustomReminderScreen = () => {
       setReminders(data.reminders);
     } catch (error) {
       console.error('Failed to load reminders:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách nhắc nhở');
+      showError('Lỗi', 'Không thể tải danh sách nhắc nhở');
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export const CustomReminderScreen = () => {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề');
+      showError('Lỗi', 'Vui lòng nhập tiêu đề');
       return;
     }
 
@@ -102,7 +103,7 @@ export const CustomReminderScreen = () => {
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', editingReminder ? 'Đã cập nhật nhắc nhở' : 'Đã tạo nhắc nhở');
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể lưu nhắc nhở');
+      showError('Lỗi', error?.message || 'Không thể lưu nhắc nhở');
     } finally {
       setSaving(false);
     }

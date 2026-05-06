@@ -4,11 +4,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
-  Alert,
-  TextInput,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
+import { showError, showSuccess, showAlert } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
@@ -93,16 +91,16 @@ export const SettingsScreen = () => {
     try {
       await updateNotificationSettings(settings);
       await updateMedicationTimes(medTimes);
-      Alert.alert('Thành công', 'Đã lưu cài đặt thông báo và giờ uống thuốc');
+      showSuccess('Thành công', 'Đã lưu cài đặt thông báo và giờ uống thuốc');
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể lưu cài đặt');
+      showError('Lỗi', error?.message || 'Không thể lưu cài đặt');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert('warning',
       'Xác nhận xoá tài khoản',
       'Bạn có chắc chắn muốn xoá tài khoản vĩnh viễn không?\n\nTất cả dữ liệu của bạn (đơn thuốc, lịch nhắc, hồ sơ sức khoẻ...) sẽ bị xoá vĩnh viễn và không thể khôi phục.',
       [
@@ -121,17 +119,17 @@ export const SettingsScreen = () => {
 
   const confirmDeleteAccount = async () => {
     if (!deletePassword) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu');
+      showError('Lỗi', 'Vui lòng nhập mật khẩu');
       return;
     }
     setDeleteLoading(true);
     try {
       await deleteAccount(deletePassword);
       setShowDeleteModal(false);
-      Alert.alert('Thành công', 'Tài khoản đã được xoá.');
+      showSuccess('Thành công', 'Tài khoản đã được xoá.');
       signOut();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message || 'Không thể xoá tài khoản');
+      showError('Lỗi', err?.message || 'Không thể xoá tài khoản');
     } finally {
       setDeleteLoading(false);
     }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
+import { showError, showSuccess } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { getComprehensiveReport, exportReportPDF } from '../../services/report.service';
@@ -145,13 +146,13 @@ export const ReportScreen = ({ route }: any) => {
       const canOpen = await Linking.canOpenURL(pdfUrl);
       if (canOpen) {
         await Linking.openURL(pdfUrl);
-        Alert.alert('Thành công', 'Đang tải báo cáo PDF...\nVui lòng kiểm tra thư mục Tải xuống');
+        showSuccess('Thành công', 'Đang tải báo cáo PDF...\nVui lòng kiểm tra thư mục Tải xuống');
       } else {
-        Alert.alert('Lỗi', 'Không thể mở trình duyệt');
+        showError('Lỗi', 'Không thể mở trình duyệt');
       }
     } catch (error: any) {
       console.error('[Export PDF] Error:', error);
-      Alert.alert('Lỗi', error?.message || 'Không thể xuất báo cáo PDF');
+      showError('Lỗi', error?.message || 'Không thể xuất báo cáo PDF');
     } finally {
       setExportingPDF(false);
     }

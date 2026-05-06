@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Linking, Platform, Alert } from 'react-native';
+import { View, StyleSheet, Linking, Platform } from 'react-native';
+import { showError, showAlert } from '../../utils/alert';
 import { Screen } from '../../ui/Screen';
 import { Text } from '../../ui/Text';
 import { Button } from '../../ui/Button';
@@ -44,7 +45,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
       if (hasPermission) {
         onPermissionGranted();
       } else {
-        Alert.alert(
+        showAlert('warning',
           'Cần quyền thông báo',
           'Ứng dụng cần quyền thông báo để nhắc nhở bạn về thuốc và các nhiệm vụ sức khỏe. Vui lòng bật quyền thông báo trong cài đặt.',
           [
@@ -64,7 +65,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      Alert.alert(
+      showError(
         'Lỗi',
         'Không thể yêu cầu quyền thông báo. Vui lòng thử lại.',
         [{ text: 'OK' }]

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { showSuccess, showError } from '../utils/alert';
 import { useAuth } from '../contexts/AuthContext';
 import { getCurrentPositionAsync } from '../services/location.service';
 import { triggerEmergencySOS } from '../services/database.service';
@@ -51,14 +52,14 @@ export const SOSButton = () => {
       if (user) {
         await triggerEmergencySOS(user, coords);
         setStatus('SENT');
-        Alert.alert('Đã gửi SOS', 'Người thân đã nhận được vị trí của bạn.');
+        showSuccess('Đã gửi SOS', 'Người thân đã nhận được vị trí của bạn.');
         setTimeout(() => {
           setStatus('IDLE');
           setProgress(0);
         }, 3000);
       }
     } catch (error: any) {
-      Alert.alert('Lỗi', `Không thể gửi SOS: ${error.message}`);
+      showError('Lỗi', `Không thể gửi SOS: ${error.message}`);
       setStatus('ERROR');
       setTimeout(() => setStatus('IDLE'), 2000);
     }

@@ -86,7 +86,7 @@ CHỈ trả về JSON (không markdown, không code block). Format:
       "dosage": "Liều dùng (VD: 1 viên/lần)",
       "quantity": number,
       "unit": "Viên|Gói|Chai|Ống|Tuýp|Lọ",
-      "sessions": ["MORNING"|"NOON"|"AFTERNOON"|"EVENING"],
+      "sessions": ["MORNING"|"NOON"|"EVENING"],
       "mealTiming": "BEFORE_MEAL|AFTER_MEAL|DURING_MEAL|NONE",
       "instructions": "Hướng dẫn sử dụng chi tiết",
       "usage": "Công dụng",
@@ -96,7 +96,7 @@ CHỈ trả về JSON (không markdown, không code block). Format:
   ]
 }
 
-Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=AFTERNOON, Tối=EVENING.
+Sessions mapping: Sáng=MORNING, Trưa=NOON, Chiều=EVENING, Tối=EVENING.
 Nếu không đọc được trường nào, để chuỗi rỗng và confidence = 0.`;
 
 // ─────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ NHIỆM VỤ KIỂM TRA VÀ SỬA LỖI:
 
 2. LIỀU DÙNG (Dosage) VÀ SESSIONS:
    - Dựa vào phần "rawText" hoặc "instructions", nếu thấy dặn "Ngày uống 2 lần sáng tối", hãy đảm bảo sessions = ["MORNING", "EVENING"].
-   - "Sáng 1, Chiều 1" -> dosage: "1 viên/lần", sessions: ["MORNING", "AFTERNOON"].
+   - "Sáng 1, Chiều 1" -> dosage: "1 viên/lần", sessions: ["MORNING", "EVENING"].
 
 3. SỐ LƯỢNG (Quantity):
    - Nếu AI trước đó không đọc được, hãy dùng thuật toán: Số lượng = (Liều 1 lần × Số lần 1 ngày) × Số ngày uống.

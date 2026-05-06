@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,7 +7,7 @@ import { generateLinkCode, submitLinkCode } from '../../services/caregiver.servi
 import { linkDoctor, getMyDoctors, revokeDoctor } from '../../services/doctor.service';
 import { UserRole } from '../../types';
 import { COLORS } from '../../theme/tokens';
-import { showInfo } from '../../utils/alert';
+import { showInfo, showError, showAlert } from '../../utils/alert';
 
 const TEAL = COLORS.primary;
 
@@ -35,30 +35,30 @@ export const DependentsScreen = ({ navigation }: any) => {
   const handleGenerateCode = async () => {
     if (!user) return; setLinkLoading(true);
     try { const data = await generateLinkCode(); setGeneratedCode(data.code); }
-    catch (error: any) { const status = error?.response?.status; const message = error?.response?.data?.error || error?.message || 'Không thể tạo mã'; Alert.alert('Lỗi', status === 429 ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau.' : message); }
+    catch (error: any) { const status = error?.response?.status; const message = error?.response?.data?.error || error?.message || 'Không thể tạo mã'; showError('Lỗi', status === 429 ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau.' : message); }
     finally { setLinkLoading(false); }
   };
 
   const handleSubmitCode = async () => {
     if (!user || !inputCode) return; setLinkLoading(true);
     try { const res = await submitLinkCode(inputCode); setLinkSuccessMsg(`Đã liên kết thành công với bệnh nhân: ${res.patientName}`); setInputCode(''); setTimeout(() => setLinkSuccessMsg(''), 3000); }
-    catch (error: any) { Alert.alert('Lỗi', error.response?.data?.error || 'Không thể liên kết'); }
+    catch (error: any) { showError('Lỗi', error.response?.data?.error || 'Không thể liên kết'); }
     finally { setLinkLoading(false); }
   };
 
   const handleLinkDoctor = async () => {
     if (!user || !doctorCode) return; setLinkDoctorLoading(true);
     try { const res = await linkDoctor(doctorCode); showInfo('Kết nối thành công', `Đã liên kết với bác sĩ ${res.doctor.name}`); setDoctorCode(''); fetchMyDoctors(); }
-    catch (error: any) { Alert.alert('Lỗi', error.message || 'Không thể liên kết bác sĩ'); }
+    catch (error: any) { showError('Lỗi', error.message || 'Không thể liên kết bác sĩ'); }
     finally { setLinkDoctorLoading(false); }
   };
 
   const handleRevokeDoctor = async (doctorId: string) => {
-    Alert.alert('Thu hồi quyền', 'Bạn có chắc chắn muốn ngừng chia sẻ hồ sơ với bác sĩ này?', [
+    showAlert('warning', 'Thu hồi quyền', 'Bạn có chắc chắn muốn ngừng chia sẻ hồ sơ với bác sĩ này?', [
       { text: 'Hủy', style: 'cancel' },
       { text: 'Đồng ý', style: 'destructive', onPress: async () => {
         try { await revokeDoctor(doctorId); showInfo('Thành công', 'Đã thu hồi quyền truy cập'); fetchMyDoctors(); }
-        catch (e: any) { Alert.alert('Lỗi', e.message || 'Không thể thu hồi quyền'); }
+        catch (e: any) { showError('Lỗi', e.message || 'Không thể thu hồi quyền'); }
       }},
     ]);
   };

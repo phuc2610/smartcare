@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { updatePrescription, deletePrescription } from '../../services/prescription.service';
 import type { Prescription, PrescriptionMedication } from '../../services/prescription.service';
 import { MedicalDisclaimer } from '../../components/MedicalDisclaimer';
 import { COLORS } from '../../theme/tokens';
-import { showError } from '../../utils/alert';
+import { showError, showAlert } from '../../utils/alert';
 
 const TEAL = COLORS.primary;
 
@@ -41,7 +41,7 @@ export const PrescriptionEditScreen = ({ route, navigation }: any) => {
   const handleCancel = () => navigation.goBack();
 
   const handleDelete = () => {
-    Alert.alert('Xóa đơn thuốc', 'Bạn có chắc chắn muốn xóa đơn thuốc này không?', [
+    showAlert('warning', 'Xóa đơn thuốc', 'Bạn có chắc chắn muốn xóa đơn thuốc này không?', [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Xóa', style: 'destructive', onPress: async () => {
@@ -72,7 +72,7 @@ export const PrescriptionEditScreen = ({ route, navigation }: any) => {
         doctorName, patientName, startDate, diagnosis, notes, medications,
       } as any);
 
-      Alert.alert('✅ Thành công', 'Đơn thuốc đã được lưu và lịch nhắc nhở đã được tạo.', [
+      showAlert('success', 'Thành công', 'Đơn thuốc đã được lưu và lịch nhắc nhở đã được tạo.', [
         { text: 'OK', onPress: () => navigation.popToTop() },
       ]);
     } catch (err) {

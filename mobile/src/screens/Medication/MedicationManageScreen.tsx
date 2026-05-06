@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert
+  ActivityIndicator
 } from 'react-native';
+import { showError, showAlert } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -33,7 +34,7 @@ export const MedicationManageScreen = () => {
       setPrescriptions(presRes.prescriptions || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách thuốc');
+      showError('Lỗi', 'Không thể tải danh sách thuốc');
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export const MedicationManageScreen = () => {
   const handleBatchDelete = async () => {
     if (selectedMedicationIds.length === 0) return;
     
-    Alert.alert(
+    showAlert('warning',
       'Xác nhận xóa',
       `Bạn có chắc chắn muốn xóa ${selectedMedicationIds.length} thuốc đã chọn?\nLưu ý: Các nhắc nhở liên quan cũng sẽ bị xóa.`,
       [
@@ -77,7 +78,7 @@ export const MedicationManageScreen = () => {
               setSelectedMedicationIds([]);
               fetchData();
             } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa thuốc');
+              showError('Lỗi', 'Không thể xóa thuốc');
               setLoading(false);
             }
           }
@@ -91,7 +92,7 @@ export const MedicationManageScreen = () => {
 
     const presName = prescriptions.find(p => p._id === selectedPrescriptionId)?.diagnosis || 'Đơn thuốc này';
 
-    Alert.alert(
+    showAlert('warning',
       'Xóa toàn bộ đơn thuốc',
       `Bạn sẽ xóa hoàn toàn đơn thuốc "${presName}", bao gồm cả hình ảnh và tất cả các loại thuốc + nhắc nhở liên quan.\nHành động này không thể hoàn tác!`,
       [
@@ -107,7 +108,7 @@ export const MedicationManageScreen = () => {
               setSelectedMedicationIds([]);
               fetchData();
             } catch (error) {
-              Alert.alert('Lỗi', 'Không thể xóa đơn thuốc');
+              showError('Lỗi', 'Không thể xóa đơn thuốc');
               setLoading(false);
             }
           }

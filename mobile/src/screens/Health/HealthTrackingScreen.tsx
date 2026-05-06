@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, PanResponder, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, PanResponder, Animated } from 'react-native';
+import { showError } from '../../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -129,7 +130,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
     try {
       if (activeTab === 'meal') {
         if (!foodName) {
-          Alert.alert('Lỗi', 'Vui lòng nhập tên món ăn');
+          showError('Lỗi', 'Vui lòng nhập tên món ăn');
           return;
         }
         const result = await estimateCalories(foodName, 'food');
@@ -140,7 +141,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         }
       } else if (activeTab === 'exercise') {
         if (!exerciseType || !duration) {
-          Alert.alert('Lỗi', 'Vui lòng nhập loại vận động và thời gian');
+          showError('Lỗi', 'Vui lòng nhập loại vận động và thời gian');
           return;
         }
         const query = `${exerciseType} trong ${duration} phút`;
@@ -152,7 +153,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         }
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể ước lượng lúc này');
+      showError('Lỗi', 'Không thể ước lượng lúc này');
     } finally {
       setIsEstimating(false);
     }
@@ -164,7 +165,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
     // Handle appointment separately
     if (activeTab === 'appointment') {
       if (!doctorName) {
-        Alert.alert('Lỗi', 'Vui lòng nhập tên bác sĩ');
+        showError('Lỗi', 'Vui lòng nhập tên bác sĩ');
         return;
       }
       try {
@@ -211,7 +212,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         setAppointmentNotes('');
         setReminderBefore(24);
       } catch (error: any) {
-        Alert.alert('Lỗi', error?.message || 'Không thể lưu lịch hẹn');
+        showError('Lỗi', error?.message || 'Không thể lưu lịch hẹn');
       }
       return;
     }
@@ -219,13 +220,13 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
     let details: any = {};
     if (activeTab === 'meal') {
       if (!foodName) {
-        Alert.alert('Lỗi', 'Vui lòng nhập tên món ăn');
+        showError('Lỗi', 'Vui lòng nhập tên món ăn');
         return;
       }
       details = { foodName, calories: Number(calories) || 0 };
     } else if (activeTab === 'exercise') {
       if (!exerciseType) {
-        Alert.alert('Lỗi', 'Vui lòng nhập loại vận động');
+        showError('Lỗi', 'Vui lòng nhập loại vận động');
         return;
       }
       details = {
@@ -235,7 +236,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
       };
     } else {
       if (!symptomName) {
-        Alert.alert('Lỗi', 'Vui lòng nhập triệu chứng');
+        showError('Lỗi', 'Vui lòng nhập triệu chứng');
         return;
       }
       details = { symptomName, severity, note };
@@ -295,7 +296,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
       setSeverity(5);
       setNote('');
     } catch (error: any) {
-      Alert.alert('Lỗi', error.response?.data?.error || 'Không thể lưu');
+      showError('Lỗi', error.response?.data?.error || 'Không thể lưu');
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { showError } from '../../utils/alert';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { generateLinkCode, submitLinkCode } from '../../services/caregiver.service';
@@ -28,7 +29,7 @@ export const LinkAccountScreen = ({ navigation }: any) => {
         status === 429
           ? 'Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.'
           : message;
-      Alert.alert('Lỗi', friendly);
+      showError('Lỗi', friendly);
     } finally {
       setLoading(false);
     }
@@ -42,7 +43,7 @@ export const LinkAccountScreen = ({ navigation }: any) => {
       setSuccessMsg(res.message || `Đã gửi yêu cầu liên kết với bệnh nhân: ${res.patientName || 'người bệnh'}`);
       // Don't navigate immediately - wait for patient approval
     } catch (error: any) {
-      Alert.alert('Lỗi', error.message || 'Không thể gửi yêu cầu liên kết');
+      showError('Lỗi', error.message || 'Không thể gửi yêu cầu liên kết');
     } finally {
       setLoading(false);
     }

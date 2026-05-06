@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { showError } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS } from '../../theme/tokens';
@@ -55,7 +56,7 @@ export const AppointmentScreen = () => {
       setAppointments(data.appointments);
     } catch (error) {
       console.error('Failed to load appointments:', error);
-      Alert.alert('Lỗi', 'Không thể tải danh sách lịch hẹn');
+      showError('Lỗi', 'Không thể tải danh sách lịch hẹn');
     } finally {
       setLoading(false);
     }
@@ -63,7 +64,7 @@ export const AppointmentScreen = () => {
 
   const handleSave = async () => {
     if (!doctorName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên bác sĩ');
+      showError('Lỗi', 'Vui lòng nhập tên bác sĩ');
       return;
     }
 
@@ -121,7 +122,7 @@ export const AppointmentScreen = () => {
       const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', editingAppointment ? 'Đã cập nhật lịch hẹn' : 'Đã tạo lịch hẹn');
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể lưu lịch hẹn');
+      showError('Lỗi', error?.message || 'Không thể lưu lịch hẹn');
     } finally {
       setSaving(false);
     }
@@ -164,7 +165,7 @@ export const AppointmentScreen = () => {
       await updateAppointment(id, { isCompleted: true });
       loadAppointments();
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể cập nhật');
+      showError('Lỗi', error?.message || 'Không thể cập nhật');
     }
   };
 

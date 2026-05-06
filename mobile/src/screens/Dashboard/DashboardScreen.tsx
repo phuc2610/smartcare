@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Animated, Platform, PermissionsAndroid, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Platform, PermissionsAndroid, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Avatar } from '../../components/Avatar';
 import { useNavigation } from '@react-navigation/native';
@@ -428,7 +428,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   }
 
   const handleSOS = () => {
-    Alert.alert(
+    showAlert(
+      'error',
       '🆘 Gửi SOS Khẩn Cấp',
       'Bạn chắc chắn muốn gửi tín hiệu SOS đến tất cả bác sĩ đang theo dõi? \n\nHành động này chỉ dùng trong trường hợp khẩn cấp.',
       [
@@ -475,14 +476,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
               if (result.ok) {
                 setSosSent(true);
-                Alert.alert('✅ Đã gửi', 'Tín hiệu SOS đã được gửi đến bác sĩ của bạn. Hãy giữ bình tĩnh và chờ phản hồi.');
+                showAlert('success', 'Đã gửi SOS', 'Tín hiệu SOS đã được gửi đến bác sĩ của bạn. Hãy giữ bình tĩnh và chờ phản hồi.');
                 // Reset after 30s
                 setTimeout(() => setSosSent(false), 30000);
               } else {
-                Alert.alert('Lỗi', result.error || 'Không thể gửi SOS. Hãy thử lại.');
+                showError('Lỗi', result.error || 'Không thể gửi SOS. Hãy thử lại.');
               }
             } catch (err) {
-              Alert.alert('Lỗi', 'Không thể gửi SOS. Kiểm tra kết nối mạng.');
+              showError('Lỗi', 'Không thể gửi SOS. Kiểm tra kết nối mạng.');
             } finally {
               setSosLoading(false);
             }

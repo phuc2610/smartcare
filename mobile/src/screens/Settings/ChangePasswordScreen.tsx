@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { showError, showSuccess } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS } from '../../theme/tokens';
@@ -93,14 +94,9 @@ export const ChangePasswordScreen = () => {
     setLoading(true);
     try {
       await changePassword(currentPassword, newPassword);
-      Alert.alert('Thành công', 'Đã đổi mật khẩu thành công', [
-        {
-          text: 'OK',
-          onPress: () => navigation?.goBack(),
-        },
-      ]);
+      showSuccess('Thành công', 'Đã đổi mật khẩu thành công', () => navigation?.goBack());
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể đổi mật khẩu');
+      showError('Lỗi', error?.message || 'Không thể đổi mật khẩu');
     } finally {
       setLoading(false);
     }

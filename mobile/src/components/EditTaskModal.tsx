@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
 } from 'react-native';
+import { showError } from '../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { COLORS } from '../utils/constants';
 import { Reminder, HealthLog } from '../types';
@@ -123,7 +123,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Failed to save:', error);
-      Alert.alert('Lỗi', 'Không thể lưu thay đổi');
+      showError('Lỗi', 'Không thể lưu thay đổi');
     } finally {
       setLoading(false);
     }
