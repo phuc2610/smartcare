@@ -274,6 +274,18 @@ const scanWithOpenAI = async (imageInput) => {
   });
 
   const result = JSON.parse(completion.choices[0].message.content);
+  
+  // Sanitize: Map AFTERNOON to EVENING
+  if (result.medications && Array.isArray(result.medications)) {
+    result.medications.forEach(med => {
+      if (med.sessions && Array.isArray(med.sessions)) {
+        med.sessions = med.sessions.map(s => s === 'AFTERNOON' ? 'EVENING' : s);
+        // Loại bỏ trùng lặp nếu có cả AFTERNOON và EVENING
+        med.sessions = [...new Set(med.sessions)];
+      }
+    });
+  }
+
   console.log('[SCAN] OpenAI single-pass SUCCESS. Medications:', result.medications?.length || 0);
   return result;
 };

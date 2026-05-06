@@ -295,13 +295,23 @@ const SESSION_RANGES = {
   EVENING: { start: '17:00', end: '20:00' },
 };
 
-/** Helper: parse "HH:mm" → Date object hôm nay */
+/** Helper: parse "HH:mm" → Date object hôm nay (theo GMT+7) */
 const buildTodayDate = (timeStr) => {
   const today = new Date();
   const [h, m] = timeStr.split(':').map(Number);
-  const d = new Date(today);
-  d.setHours(h, m, 0, 0);
-  return d;
+  
+  // Lấy ngày/tháng/năm hiện tại theo múi giờ Việt Nam
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric', month: 'numeric', day: 'numeric'
+  });
+  const parts = formatter.formatToParts(today);
+  const year = parseInt(parts.find(p => p.type === 'year').value);
+  const month = parseInt(parts.find(p => p.type === 'month').value) - 1;
+  const day = parseInt(parts.find(p => p.type === 'day').value);
+
+  // Tạo Date theo chuẩn UTC (VN là GMT+7 nên phải trừ đi 7 giờ)
+  return new Date(Date.UTC(year, month, day, h - 7, m, 0, 0));
 };
 
 /**
