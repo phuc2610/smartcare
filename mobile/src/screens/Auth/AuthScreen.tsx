@@ -90,7 +90,8 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      await signIn(phone, password);
+      const formattedPhone = formatPhoneForServer(phone);
+      await signIn(formattedPhone, password);
     } catch (err: any) {
       const errorMessage = err?.message || err?.response?.data?.error || 'Đăng nhập thất bại';
       setError(errorMessage);
