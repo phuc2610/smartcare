@@ -237,22 +237,61 @@ export const scheduleAppointmentReminder = async (
   return notificationId;
 };
 
-// Schedule notifications for a reminder (15p, 10p, 5p, 0p before scheduled time)
-export const scheduleReminderNotifications = async (
-  reminder: { _id: string; medicationName: string; dosage: string; unit: string; scheduledTime: string; status: string; notificationIds?: string[] }
-): Promise<string[]> => {
-  // If already completed, don't schedule
-  if (reminder.status === 'TAKEN' || reminder.status === 'SKIPPED') {
-    return [];
-  }
+// ── Session label helper ──
+const SESSION_LABEL: Record<string, string> = {
+  MORNING: 'buổi sáng',
+  NOON:    'buổi trưa',
+  EVENING: 'buổi tối',
+  CUSTOM:  'theo lịch',
+};
 
-  // Cancel existing notifications if any
+/**
+ * Schedule grouped notification cho 1 session (nhiều thuốc → 1 thông báo)
+ * Body liệt kê tên từng thuốc để user biết cần uống gì.
+ */
+export const scheduleSessionGroupedNotifications = async (
+  session: string,
+  reminders: Array<{ _id: string; medicationName: string; dosage: string; unit: string; scheduledTime: string; status: string; notificationIds?: string[] }>
+): Promise<string[]> => {
+  const pending = reminders.filter(r => r.status !== 'TAKEN' && r.status !== 'SKIPPED');
+  if (pending.length === 0) return [];
+
+  // Cancel cũ nếu có
+  const oldIds = pending.flatMap(r => r.notificationIds || []);
+  if (oldIds.length > 0) await cancelNotifications(oldIds);
+
+  const scheduledTime = new Date(pending[0].scheduledTime);
+  const label = SESSION_LABEL[session] || 'theo lịch';
+
+  const title = pending.length > 1
+    ? `⏰ Đến giờ uống thuốc ${label} (${pending.length} loại)`
+    : `⏰ Đến giờ uống thuốc ${label}`;
+
+  // Body: liệt kê tên thuốc, tối đa 3 loại rồi "và X loại khác"
+  const MAX_SHOWN = 3;
+  const shown = pending.slice(0, MAX_SHOWN).map(r => `• ${r.medicationName} (${r.dosage} ${r.unit})`);
+  const extra = pending.length > MAX_SHOWN ? `\nVà ${pending.length - MAX_SHOWN} loại khác...` : '';
+  const body = shown.join('\n') + extra;
+
+  const combinedIds = pending.map(r => r._id).join(',');
+  return await scheduleMedicationReminder(title, body, scheduledTime, combinedIds);
+};
+
+// Schedule notification cho 1 reminder đơn lẻ (giữ backward compat)
+export const scheduleReminderNotifications = async (
+  reminder: { _id: string; medicationName: string; dosage: string; unit: string; scheduledTime: string; status: string; session?: string; notificationIds?: string[] }
+): Promise<string[]> => {
+  if (reminder.status === 'TAKEN' || reminder.status === 'SKIPPED') return [];
+
   if (reminder.notificationIds && reminder.notificationIds.length > 0) {
     await cancelNotifications(reminder.notificationIds);
   }
 
   const scheduledTime = new Date(reminder.scheduledTime);
-  const title = `Nhắc nhở uống thuốc`;
+  const session = reminder.session || 'CUSTOM';
+  const label = SESSION_LABEL[session] || 'theo lịch';
+
+  const title = `⏰ Đến giờ uống thuốc ${label}`;
   const body = `${reminder.medicationName} - ${reminder.dosage} ${reminder.unit}`;
 
   return await scheduleMedicationReminder(title, body, scheduledTime, reminder._id);

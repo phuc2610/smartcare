@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch, ActionSheetIOS, Platform, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType, PhotoQuality } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -11,7 +11,7 @@ import { identifyDisease } from '../../services/ai.service';
 import { UserRole } from '../../types';
 import { COLORS } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
-import { showInfo } from '../../utils/alert';
+import { showInfo, showSuccess, showError, showAlert, showConfirm } from '../../utils/alert';
 
 const TEAL = COLORS.primary;
 
@@ -46,7 +46,11 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions({ options: ['Hủy', 'Chụp ảnh', 'Chọn từ thư viện'], cancelButtonIndex: 0 }, (i) => { if (i === 1) handleImagePicker('camera'); else if (i === 2) handleImagePicker('library'); });
     } else {
-      Alert.alert('Đổi ảnh đại diện', '', [{ text: 'Hủy', style: 'cancel' }, { text: 'Chụp ảnh', onPress: () => handleImagePicker('camera') }, { text: 'Chọn từ thư viện', onPress: () => handleImagePicker('library') }]);
+      showAlert('info', 'Đổi ảnh đại diện', 'Chọn nguồn ảnh', [
+        { text: 'Hủy', onPress: () => {}, style: 'cancel' },
+        { text: 'Chụp ảnh', onPress: () => handleImagePicker('camera') },
+        { text: 'Thư viện', onPress: () => handleImagePicker('library') },
+      ]);
     }
   };
 
@@ -59,10 +63,9 @@ export const ProfileScreen = ({ navigation, route }: any) => {
       const uploadResult = await uploadImage(response.assets[0].uri);
       const updatedUser = await updateProfileAPI({ avatar: uploadResult.url });
       updateProfile(updatedUser.user);
-      const { showSuccess } = require('../../utils/alert');
       showSuccess('Thành công', 'Đã cập nhật ảnh đại diện');
     } catch (error: any) {
-      Alert.alert('Lỗi', 'Không thể tải ảnh lên');
+      showError('Lỗi', 'Không thể tải ảnh lên');
     } finally { setUploadingAvatar(false); }
   };
 
@@ -79,60 +82,54 @@ export const ProfileScreen = ({ navigation, route }: any) => {
       }
       const updatedUser = await updateProfileAPI(updateData);
       updateProfile(updatedUser.user);
-      if (user.role === UserRole.PATIENT && updateData.medicalCondition) Alert.alert('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${updateData.medicalCondition}`);
-      else Alert.alert('Thành công', 'Đã lưu hồ sơ!');
+      if (user.role === UserRole.PATIENT && updateData.medicalCondition) showSuccess('Thành công', `Đã lưu hồ sơ!\nHệ thống ghi nhận: ${updateData.medicalCondition}`);
+      else showSuccess('Thành công', 'Đã lưu hồ sơ!');
     } catch (error: any) {
       try {
         const updateData: any = { height: Number(height) || undefined, weight: Number(weight) || undefined };
         if (user.role === UserRole.PATIENT && user.medicalCondition) updateData.medicalCondition = user.medicalCondition;
         const updatedUser = await updateProfileAPI(updateData);
         updateProfile(updatedUser.user);
-        Alert.alert('Thành công', 'Đã lưu thông tin');
-      } catch (saveError: any) { Alert.alert('Lỗi', saveError.response?.data?.error || 'Không thể lưu'); }
+        showSuccess('Thành công', 'Đã lưu thông tin');
+      } catch (saveError: any) { showError('Lỗi', saveError.response?.data?.error || 'Không thể lưu'); }
     } finally { setAnalyzing(false); setLoading(false); }
   };
 
   const handleSignOut = () => {
-    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Đăng xuất', style: 'destructive', onPress: () => signOut() },
+    showAlert('warning', 'Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+      { text: 'Hủy', onPress: () => {}, style: 'cancel' },
+      { text: 'Đăng xuất', onPress: () => signOut(), style: 'destructive' },
     ]);
   };
 
   const handleDeleteAccountPress = () => {
-    Alert.alert(
+    showAlert(
+      'error',
       'Cảnh báo nguy hiểm',
-      'Bạn đang yêu cầu XÓA VĨNH VIỄN tài khoản và toàn bộ dữ liệu (đơn thuốc, hồ sơ, lịch hẹn...). Hành động này KHÔNG THỂ hoàn tác.\n\nBạn có chắc chắn muốn tiếp tục?',
+      'Bạn đang yêu cầu XÓA VĨNH VIỄN tài khoản và toàn bộ dữ liệu. Hành động này KHÔNG THỂ hoàn tác.',
       [
-        { text: 'Hủy bỏ', style: 'cancel' },
-        { 
-          text: 'Tiếp tục xóa', 
-          style: 'destructive', 
-          onPress: () => setDeleteModalVisible(true) 
-        },
+        { text: 'Hủy bỏ', onPress: () => {}, style: 'cancel' },
+        { text: 'Tiếp tục xóa', onPress: () => setDeleteModalVisible(true), style: 'destructive' },
       ]
     );
   };
 
   const confirmDeleteAccount = async () => {
     if (!deletePassword) {
-      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận');
+      showError('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận');
       return;
     }
-    
+
     setDeleting(true);
     try {
       await deleteAccount(deletePassword);
       setDeleteModalVisible(false);
       setDeletePassword('');
-      Alert.alert('Thành công', 'Tài khoản của bạn đã được xóa vĩnh viễn.', [
-        {
-          text: 'Đóng',
-          onPress: () => signOut(),
-        }
+      showAlert('success', 'Thành công', 'Tài khoản của bạn đã được xóa vĩnh viễn.', [
+        { text: 'Đóng', onPress: () => signOut() },
       ]);
     } catch (error: any) {
-      Alert.alert('Xóa thất bại', error.message || 'Mật khẩu không đúng hoặc có lỗi xảy ra');
+      showError('Xóa thất bại', error.message || 'Mật khẩu không đúng hoặc có lỗi xảy ra');
     } finally {
       setDeleting(false);
     }

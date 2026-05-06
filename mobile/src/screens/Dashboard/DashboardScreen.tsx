@@ -6,7 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTodayReminders, updateReminderStatus, updateReminder, getMissedMedications, deleteReminder, deleteMedication, takeAllNow } from '../../services/medication.service';
 import { getTodayHealthLogs, updateHealthLog, deleteHealthLog } from '../../services/health.service';
-import { scheduleGroupedReminderNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
+import { scheduleSessionGroupedNotifications, scheduleHealthLogNotifications, cancelNotifications } from '../../services/notification.service';
+import { showError, showAlert } from '../../utils/alert';
 import { getAppointments, Appointment } from '../../services/appointment.service';
 import { Reminder, ReminderStatus, HealthLog } from '../../types';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../theme';
@@ -78,13 +79,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         groupedReminders[key].push(r);
       });
 
-      // Schedule grouped notifications
+      // Schedule grouped notifications — 1 notification per session
       for (const key of Object.keys(groupedReminders)) {
         try {
           const group = groupedReminders[key];
-          await scheduleGroupedReminderNotifications(
+          await scheduleSessionGroupedNotifications(
             group[0].session || 'CUSTOM',
-            group[0].scheduledTime,
             group
           );
         } catch (err) {
@@ -187,44 +187,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const handleDeleteReminder = async (id: string) => {
     if (readOnly) return;
     const reminder = reminders.find(r => r._id === id);
-    const { showError } = require('../../utils/alert');
 
-    Alert.alert(
-      'Xóa thuốc',
-      `Bạn muốn xóa "${reminder?.medicationName || 'mục này'}"?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa lịch hôm nay',
-          onPress: async () => {
-            try {
+    showAlert('warning', 'Xóa thuốc', `Bạn muốn xóa "${reminder?.medicationName || 'mục này'}"?`, [
+      { text: 'Hủy', onPress: () => {}, style: 'cancel' },
+      {
+        text: 'Xóa toàn bộ thuốc',
+        onPress: async () => {
+          try {
+            if (reminder?.medicationId) {
+              await deleteMedication(reminder.medicationId);
+            } else {
               await deleteReminder(id);
-              fetchData();
-            } catch (error) {
-              console.error('Failed to delete reminder:', error);
-              showError('Lỗi', 'Không thể xóa');
             }
-          },
+            fetchData();
+          } catch (error) {
+            showError('Lỗi', 'Không thể xóa');
+          }
         },
-        {
-          text: 'Xóa toàn bộ thuốc này',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (reminder?.medicationId) {
-                await deleteMedication(reminder.medicationId);
-              } else {
-                await deleteReminder(id);
-              }
-              fetchData();
-            } catch (error) {
-              console.error('Failed to delete medication:', error);
-              showError('Lỗi', 'Không thể xóa');
-            }
-          },
-        },
-      ]
-    );
+        style: 'destructive',
+      },
+    ]);
   };
 
   const handleCheckHealthLog = async (id: string) => {
@@ -241,7 +223,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       fetchData();
     } catch (error) {
       console.error('Failed to update health log:', error);
-      Alert.alert('Lỗi', 'Không thể cập nhật');
+      showError('Lỗi', 'Không thể cập nhật');
     }
   };
 
@@ -335,7 +317,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       fetchData();
     } catch (error) {
       console.error('Failed to take all reminders:', error);
-      Alert.alert('Lỗi', 'Không thể cập nhật trạng thái');
+      showError('Lỗi', 'Không thể cập nhật trạng thái');
     }
   };
 

@@ -508,14 +508,19 @@ const updatePrescription = async (req, res) => {
     if (!prescription) return res.status(404).json({ error: 'Prescription not found' });
 
     // Auto-create Medication records for active medications
+    // ONLY map MORNING/NOON/EVENING — AFTERNOON (15:00) is excluded
     const sessionToTime = {
-      MORNING: '07:00', NOON: '11:00', AFTERNOON: '15:00', EVENING: '18:00',
+      MORNING: '07:00', NOON: '11:00', EVENING: '18:00',
     };
+    const VALID_SESSIONS = ['MORNING', 'NOON', 'EVENING'];
 
     for (const med of (medications || [])) {
       if (!med.isActive) continue;
 
-      const times = (med.sessions || ['MORNING']).map(s => sessionToTime[s] || '08:00');
+      // Filter first, then build times — ensures times never contains 15:00
+      const validSessions = (med.sessions || ['MORNING']).filter(s => VALID_SESSIONS.includes(s));
+      const finalSessions = validSessions.length > 0 ? validSessions : ['MORNING'];
+      const times = finalSessions.map(s => sessionToTime[s] || '07:00');
 
       try {
         const newMedication = await Medication.create({
@@ -526,7 +531,7 @@ const updatePrescription = async (req, res) => {
           unit: med.unit || 'Viên',
           notes: med.instructions || '',
           frequency: 'DAILY',
-          sessions: med.sessions?.filter(s => ['MORNING', 'NOON', 'EVENING'].includes(s)) || [],
+          sessions: finalSessions,
           mealTiming: med.mealTiming || 'AFTER_MEAL',
           times,
           startDate: prescription.startDate ? new Date(prescription.startDate.split('/').reverse().join('-')) : new Date(),
