@@ -172,23 +172,42 @@ const calculateQualityScore = (data) => {
 // ─────────────────────────────────────────────────────────────
 // GEMINI SCAN — DUAL PASS
 // ─────────────────────────────────────────────────────────────
-const scanWithGemini = async (base64Data) => {
+const scanWithGemini = async (base64Data, mimeType = 'image/jpeg') => {
   const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
 
-  // Strip data URI prefix if present
-  const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  // Strip data URI prefix if present and detect mimeType from it
+  let detectedMime = mimeType;
+  const dataUriMatch = base64Data.match(/^data:(image\/[\w+]+);base64,/);
+  if (dataUriMatch) {
+    detectedMime = dataUriMatch[1];
+  }
+  // Gemini only accepts: image/jpeg, image/png, image/webp, image/heic, image/heif
+  const SUPPORTED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  if (!SUPPORTED_MIMES.includes(detectedMime)) {
+    console.warn(`[SCAN] Unsupported MIME type "${detectedMime}", falling back to image/jpeg`);
+    detectedMime = 'image/jpeg';
+  }
+  const cleanBase64 = base64Data.replace(/^data:image\/[\w+]+;base64,/, '');
+
+  console.log(`[SCAN] Using mimeType: ${detectedMime}`);
 
   // ── PASS 1: Extract from image ──
   console.log('[SCAN] Pass 1: Extracting from image...');
-  const pass1Result = await model.generateContent([
-    OCR_EXTRACT_PROMPT,
-    {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanBase64,
+  let pass1Result;
+  try {
+    pass1Result = await model.generateContent([
+      OCR_EXTRACT_PROMPT,
+      {
+        inlineData: {
+          mimeType: detectedMime,
+          data: cleanBase64,
+        },
       },
-    },
-  ]);
+    ]);
+  } catch (geminiErr) {
+    console.error('[SCAN] Gemini Pass 1 API error:', geminiErr?.message || geminiErr);
+    throw geminiErr;
+  }
 
   const pass1Text = pass1Result.response.text();
   const pass1Json = JSON.parse(
@@ -225,46 +244,38 @@ const scanWithGemini = async (base64Data) => {
 };
 
 /**
- * Scan bằng OpenAI Vision API (fallback)
+ * Scan bằng OpenAI Vision API
+ * Single-pass: trích xuất + tự kiểm tra trong 1 lần gọi API → nhanh hơn ~40%
  */
+const COMBINED_OCR_PROMPT = `${OCR_EXTRACT_PROMPT}
+
+── SAU KHI TRÍCH XUẤT, HÃY TỰ KIỂM TRA NGAY (không cần output trung gian):
+1. Tên thuốc: Sửa lỗi chính tả OCR (VD: "Paracetamoi" → "Paracetamol", "Amoxicilin" → "Amoxicillin").
+2. Hàm lượng: Kiểm tra thực tế (Paracetamol thường 500mg, Ibuprofen 200-400mg, nếu thấy 5000mg thì OCR nhầm số 0).
+3. Sessions: Khớp với instructions và rawText đã đọc.
+4. Thêm "verificationNotes": mô tả ngắn những gì đã sửa (nếu không sửa gì thì để chuỗi rỗng).
+
+CHI TRẢ VỀ JSON cuối cùng đã sửa hoàn chỉnh (không markdown, không code block).`;
+
 const scanWithOpenAI = async (imageInput) => {
+  // Single-pass: extract + self-verify trong 1 API call
   const completion = await openai.chat.completions.create({
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    temperature: 0,          // output ổn định, xử lý nhanh hơn
+    max_tokens: 1800,        // đủ cho đơn thuốc VN tối đa 6-8 thuốc
     messages: [{
       role: 'user',
       content: [
-        { type: 'text', text: OCR_EXTRACT_PROMPT },
-        { type: 'image_url', image_url: { url: imageInput } },
+        { type: 'text', text: COMBINED_OCR_PROMPT },
+        { type: 'image_url', image_url: { url: imageInput, detail: 'high' } },
       ],
     }],
     response_format: { type: 'json_object' },
-    max_tokens: 2500,
   });
 
-  const pass1Json = JSON.parse(completion.choices[0].message.content);
-
-  // Verification pass with OpenAI too
-  try {
-    console.log('[SCAN] OpenAI Pass 2: Verifying...');
-    const verifyResult = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      messages: [{
-        role: 'user',
-        content: buildVerificationPrompt(pass1Json),
-      }],
-      response_format: { type: 'json_object' },
-      max_tokens: 2500,
-    });
-    const pass2Json = JSON.parse(verifyResult.choices[0].message.content);
-    return {
-      ...pass2Json,
-      rawText: pass1Json.rawText || pass2Json.rawText || '',
-      verificationNotes: pass2Json.verificationNotes || '',
-    };
-  } catch (err) {
-    console.warn('[SCAN] OpenAI verification failed:', err.message);
-    return pass1Json;
-  }
+  const result = JSON.parse(completion.choices[0].message.content);
+  console.log('[SCAN] OpenAI single-pass SUCCESS. Medications:', result.medications?.length || 0);
+  return result;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -278,15 +289,17 @@ const MAX_BASE64_BYTES = 5 * 1024 * 1024;
  */
 const scanPrescription = async (req, res) => {
   try {
-    const { imageUrl, imageBase64 } = req.body;
+    const { imageUrl, imageBase64, imageMimeType } = req.body;
     const userId = req.user._id;
 
     // Accept either a URL or base64-encoded image
     const rawBase64 = imageBase64
-      ? imageBase64.replace(/^data:image\/\w+;base64,/, '')
+      ? imageBase64.replace(/^data:image\/[\w+]+;base64,/, '')
       : null;
+    // Use client-reported mimeType, or detect from data URI, or default to jpeg
+    const resolvedMimeType = imageMimeType || 'image/jpeg';
     const imageInput = rawBase64
-      ? `data:image/jpeg;base64,${rawBase64}`
+      ? `data:${resolvedMimeType};base64,${rawBase64}`
       : imageUrl;
 
     if (!imageInput && !rawBase64) {
@@ -312,7 +325,7 @@ const scanPrescription = async (req, res) => {
     if (genAI && rawBase64) {
       try {
         console.log('[SCAN] === Starting Gemini Dual-Pass Scan ===');
-        prescriptionData = await scanWithGemini(rawBase64);
+        prescriptionData = await scanWithGemini(rawBase64, resolvedMimeType);
         console.log('[SCAN] Gemini Dual-Pass SUCCESS');
       } catch (geminiError) {
         console.error('[SCAN] Gemini failed:', geminiError.message);
@@ -496,7 +509,7 @@ const updatePrescription = async (req, res) => {
 
     // Auto-create Medication records for active medications
     const sessionToTime = {
-      MORNING: '07:00', NOON: '12:00', AFTERNOON: '15:00', EVENING: '20:00',
+      MORNING: '07:00', NOON: '11:00', AFTERNOON: '15:00', EVENING: '18:00',
     };
 
     for (const med of (medications || [])) {

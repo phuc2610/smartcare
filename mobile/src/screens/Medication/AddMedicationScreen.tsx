@@ -39,6 +39,7 @@ export const AddMedicationScreen = ({ navigation }: any) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [previewBase64, setPreviewBase64] = useState<string | null>(null);
+  const [previewMimeType, setPreviewMimeType] = useState<string>('image/jpeg');
   const [currentStep, setCurrentStep] = useState(0);
   const [showTips, setShowTips] = useState(false);
 
@@ -82,7 +83,8 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       navigation.navigate('PrescriptionView', { loading: true });
 
       // Scan with AI/OCR (dual-pass verification on server)
-      const { prescription } = await scanPrescriptionBase64(previewBase64);
+      // Pass mimeType so backend sends correct Content-Type to Gemini
+      const { prescription } = await scanPrescriptionBase64(previewBase64, previewMimeType);
 
       // Step 3: complete
       setCurrentStep(3);
@@ -96,9 +98,10 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       setIsProcessing(false);
       setPreviewUri(null);
       setPreviewBase64(null);
+      setPreviewMimeType('image/jpeg');
       setCurrentStep(0);
     }
-  }, [previewBase64, advanceSteps, navigation]);
+  }, [previewBase64, previewMimeType, advanceSteps, navigation]);
 
   // ── Capture from camera ──
   const handleOpenCamera = useCallback(async () => {
@@ -108,29 +111,44 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       return;
     }
 
-    launchCamera(
-      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600, includeBase64: true },
-      async (response) => {
-        if (response.didCancel || !response.assets?.[0]) return;
-        const asset = response.assets[0];
+    // Wrap callback in a Promise to ensure proper async handling
+    // on all Android devices (some cameras call callback before file is ready)
+    await new Promise<void>((resolve) => {
+      launchCamera(
+        { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600, includeBase64: true },
+        (response) => {
+          if (response.didCancel || !response.assets?.[0]) {
+            resolve();
+            return;
+          }
+          const asset = response.assets[0];
 
-        // Quality check
-        const qualityIssue = checkImageQuality(asset);
-        if (qualityIssue) {
-          showError('Chất lượng ảnh', qualityIssue);
-          return;
+          // Quality check
+          const qualityIssue = checkImageQuality(asset);
+          if (qualityIssue) {
+            showError('Chất lượng ảnh', qualityIssue);
+            resolve();
+            return;
+          }
+
+          if (!asset.base64) {
+            showError('Lỗi', 'Không thể đọc ảnh. Vui lòng thử lại.');
+            resolve();
+            return;
+          }
+
+          // Detect actual mimeType from asset (camera may return PNG/HEIC on some devices)
+          const detectedMime = (asset.type && asset.type.startsWith('image/'))
+            ? asset.type
+            : 'image/jpeg';
+
+          setPreviewMimeType(detectedMime);
+          setPreviewUri(asset.uri || null);
+          setPreviewBase64(asset.base64);
+          resolve();
         }
-
-        if (!asset.base64) {
-          showError('Lỗi', 'Không thể đọc ảnh. Vui lòng thử lại.');
-          return;
-        }
-
-        // Show preview
-        setPreviewUri(asset.uri || null);
-        setPreviewBase64(asset.base64);
-      }
-    );
+      );
+    });
   }, [checkImageQuality]);
 
   // ── Pick from library ──
@@ -141,32 +159,46 @@ export const AddMedicationScreen = ({ navigation }: any) => {
       return;
     }
 
-    launchImageLibrary(
-      { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600, includeBase64: true },
-      async (response) => {
-        if (response.didCancel || !response.assets?.[0]) return;
-        const asset = response.assets[0];
+    await new Promise<void>((resolve) => {
+      launchImageLibrary(
+        { mediaType: 'photo', quality: 0.8, maxWidth: 1600, maxHeight: 1600, includeBase64: true },
+        (response) => {
+          if (response.didCancel || !response.assets?.[0]) {
+            resolve();
+            return;
+          }
+          const asset = response.assets[0];
 
-        const qualityIssue = checkImageQuality(asset);
-        if (qualityIssue) {
-          showError('Chất lượng ảnh', qualityIssue);
-          return;
+          const qualityIssue = checkImageQuality(asset);
+          if (qualityIssue) {
+            showError('Chất lượng ảnh', qualityIssue);
+            resolve();
+            return;
+          }
+
+          if (!asset.base64) {
+            showError('Lỗi', 'Không thể đọc ảnh. Vui lòng thử lại.');
+            resolve();
+            return;
+          }
+
+          const detectedMime = (asset.type && asset.type.startsWith('image/'))
+            ? asset.type
+            : 'image/jpeg';
+
+          setPreviewMimeType(detectedMime);
+          setPreviewUri(asset.uri || null);
+          setPreviewBase64(asset.base64);
+          resolve();
         }
-
-        if (!asset.base64) {
-          showError('Lỗi', 'Không thể đọc ảnh. Vui lòng thử lại.');
-          return;
-        }
-
-        setPreviewUri(asset.uri || null);
-        setPreviewBase64(asset.base64);
-      }
-    );
+      );
+    });
   }, [checkImageQuality]);
 
   const handleCancelPreview = useCallback(() => {
     setPreviewUri(null);
     setPreviewBase64(null);
+    setPreviewMimeType('image/jpeg');
   }, []);
 
   const handleClose = () => navigation.goBack();

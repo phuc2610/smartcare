@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { createMedication } from '../../services/medication.service';
 import { MedicalDisclaimer } from '../../components/MedicalDisclaimer';
 import { COLORS } from '../../theme/tokens';
-import { showError } from '../../utils/alert';
+import { showError, showSuccess } from '../../utils/alert';
 
 const TEAL = COLORS.primary;
 
@@ -70,9 +70,7 @@ export const ManualMedicationAddScreen = () => {
         startDate: new Date().toISOString(),
       });
 
-      Alert.alert('✅ Thành công', 'Thuốc đã được lưu và lịch nhắc nhở đã được tạo.', [
-        { text: 'OK', onPress: () => navigation.navigate('MedicationManage') },
-      ]);
+      showSuccess('Thành công', 'Thuốc đã được lưu và lịch nhắc nhở đã được tạo.');
     } catch (err) {
       showError('Lỗi', 'Không thể lưu thuốc. Vui lòng thử lại.');
     } finally {

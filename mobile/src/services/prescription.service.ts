@@ -41,8 +41,15 @@ export const scanPrescription = async (imageUrl: string): Promise<{ prescription
   return result.data;
 };
 
-export const scanPrescriptionBase64 = async (imageBase64: string): Promise<{ prescription: Prescription }> => {
-  const result = await api.post<{ prescription: Prescription }>('/api/prescriptions/scan', { imageBase64 }, { timeout: 60000 });
+export const scanPrescriptionBase64 = async (
+  imageBase64: string,
+  imageMimeType: string = 'image/jpeg',
+): Promise<{ prescription: Prescription }> => {
+  const result = await api.post<{ prescription: Prescription }>(
+    '/api/prescriptions/scan',
+    { imageBase64, imageMimeType },
+    { timeout: 60000 },
+  );
   if (!result.ok) throw new Error(result.error || 'Scan prescription failed');
   logger.api('Scan prescription (base64) SUCCESS');
   return result.data;

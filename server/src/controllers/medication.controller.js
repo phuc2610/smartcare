@@ -279,58 +279,120 @@ const deleteReminder = async (req, res) => {
  * - Nếu frequency = EVERY_OTHER_DAY: chỉ tạo nếu số ngày từ startDate là số chẵn
  * - Chỉ tạo nếu chưa có reminder cho giờ đó
  */
+// ─────────────────────────────────────────────────────────────
+// THỜI GIAN NHẮC THUỐC CHUẨN (toàn app dùng chung)
+// Range: sáng 06:00–09:00 | trưa 10:00–14:00 | tối 17:00–20:00
+// ─────────────────────────────────────────────────────────────
+const SESSION_DEFAULT_TIMES = {
+  morning: '07:00',
+  noon:    '11:00',
+  evening: '18:00',
+};
+
+const SESSION_RANGES = {
+  MORNING: { start: '06:00', end: '09:00' },
+  NOON:    { start: '10:00', end: '14:00' },
+  EVENING: { start: '17:00', end: '20:00' },
+};
+
+/** Helper: parse "HH:mm" → Date object hôm nay */
+const buildTodayDate = (timeStr) => {
+  const today = new Date();
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date(today);
+  d.setHours(h, m, 0, 0);
+  return d;
+};
+
+/**
+ * Tạo nhắc nhở trễ (cuối range) cho một session
+ * Chỉ tạo nếu chưa có, nhắc nhở khi người dùng chưa uống thuốc đúng giờ
+ */
+const generateLateReminderForSession = async (medication, session) => {
+  const range = SESSION_RANGES[session];
+  if (!range) return;
+
+  const lateTime = buildTodayDate(range.end);
+
+  // Chỉ tạo late reminder nếu giờ cuối range chưa qua
+  if (lateTime < new Date()) return;
+
+  const existingLate = await Reminder.findOne({
+    medicationId: medication._id,
+    scheduledTime: lateTime,
+  });
+
+  if (!existingLate) {
+    await Reminder.create({
+      medicationId: medication._id,
+      medicationName: medication.name,
+      dosage: medication.dosage,
+      unit: medication.unit,
+      scheduledTime: lateTime,
+      status: 'PENDING',
+      mealTiming: medication.mealTiming || 'NONE',
+      session: session,
+      isLateReminder: true,   // đánh dấu đây là nhắc trễ
+      isSynced: true,
+      lastUpdated: new Date(),
+    });
+  }
+};
+
+/**
+ * Helper: Tự động tạo reminders cho medication
+ * Logic:
+ * - Nếu frequency = DAILY: tạo reminder cho tất cả các giờ trong times
+ * - Nếu frequency = EVERY_OTHER_DAY: chỉ tạo nếu số ngày từ startDate là số chẵn
+ * - Mỗi session tạo 2 reminders: nhắc chính (default time) + nhắc trễ (cuối range)
+ */
 const generateRemindersForMedication = async (medication) => {
   const today = new Date();
   const startDate = new Date(medication.startDate);
-  
+
   // Dừng tạo nhắc nhở nếu ngày hiện tại đã vượt qua ngày kết thúc
   if (medication.endDate) {
     const endDate = new Date(medication.endDate);
     endDate.setHours(23, 59, 59, 999);
-    if (today > endDate) {
-      return; 
-    }
+    if (today > endDate) return;
   }
 
   // Xác định có nên tạo reminder hôm nay không
   let shouldSchedule = false;
   if (medication.frequency === 'DAILY') {
-    // Uống hàng ngày: luôn tạo
     shouldSchedule = true;
   } else if (medication.frequency === 'EVERY_OTHER_DAY') {
-    // Uống cách ngày: chỉ tạo nếu số ngày từ startDate là số chẵn
     const diffTime = Math.abs(today.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     shouldSchedule = diffDays % 2 === 0;
   }
 
-  // Xác định mảng times/sessions cuối cùng để loop
+  // Lấy user preferences (nếu user đã tự chỉnh giờ), fallback về giờ chuẩn
   const User = require('../models/User');
   const userObj = await User.findById(medication.userId);
-  const prefs = userObj?.medicationTimes || { morning: '08:00', noon: '12:00', evening: '20:00' };
+  const prefs = {
+    morning: userObj?.medicationTimes?.morning || SESSION_DEFAULT_TIMES.morning,
+    noon:    userObj?.medicationTimes?.noon    || SESSION_DEFAULT_TIMES.noon,
+    evening: userObj?.medicationTimes?.evening || SESSION_DEFAULT_TIMES.evening,
+  };
 
   let creationTargets = []; // Array of { timeStr, session }
-  
+
   if (medication.sessions && medication.sessions.length > 0) {
     for (const session of medication.sessions) {
       if (session === 'MORNING') creationTargets.push({ timeStr: prefs.morning, session: 'MORNING' });
-      if (session === 'NOON') creationTargets.push({ timeStr: prefs.noon, session: 'NOON' });
+      if (session === 'NOON')    creationTargets.push({ timeStr: prefs.noon,    session: 'NOON' });
       if (session === 'EVENING') creationTargets.push({ timeStr: prefs.evening, session: 'EVENING' });
     }
   } else if (medication.times && medication.times.length > 0) {
-    // Fallback for explicitly specified times
     for (const timeStr of medication.times) {
       creationTargets.push({ timeStr, session: 'CUSTOM' });
     }
   }
 
-  // Nếu cần tạo reminder, duyệt qua tất cả các giờ đã map
   if (shouldSchedule && creationTargets.length > 0) {
     for (const target of creationTargets) {
-      // Parse giờ và phút từ string "HH:mm"
-      const [hours, minutes] = target.timeStr.split(':').map(Number);
-      const scheduleDate = new Date(today);
-      scheduleDate.setHours(hours, minutes, 0, 0);
+      const scheduleDate = buildTodayDate(target.timeStr);
 
       // Kiểm tra đã có reminder cho giờ này chưa (tránh duplicate)
       const existing = await Reminder.findOne({
@@ -338,7 +400,6 @@ const generateRemindersForMedication = async (medication) => {
         scheduledTime: scheduleDate,
       });
 
-      // Nếu chưa có thì tạo reminder mới
       if (!existing) {
         await Reminder.create({
           medicationId: medication._id,
@@ -349,9 +410,15 @@ const generateRemindersForMedication = async (medication) => {
           status: 'PENDING',
           mealTiming: medication.mealTiming || 'NONE',
           session: target.session,
+          isLateReminder: false,
           isSynced: true,
           lastUpdated: new Date(),
         });
+      }
+
+      // Tạo thêm nhắc nhở trễ (cuối range) cho session chuẩn
+      if (['MORNING', 'NOON', 'EVENING'].includes(target.session)) {
+        await generateLateReminderForSession(medication, target.session);
       }
     }
   }
