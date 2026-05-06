@@ -28,7 +28,7 @@ export type AlertType = 'success' | 'error' | 'warning' | 'info';
 
 interface AlertButton {
   text: string;
-  onPress: () => void;
+  onPress?: () => void;
   style?: 'default' | 'cancel' | 'destructive';
 }
 
@@ -126,7 +126,7 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
   }, [visible]);
 
   const handlePress = (btn: AlertButton) => {
-    btn.onPress();
+    if (btn.onPress) btn.onPress();
     onClose();
   };
 

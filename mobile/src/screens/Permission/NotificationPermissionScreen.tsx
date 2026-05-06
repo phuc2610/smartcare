@@ -67,8 +67,7 @@ export const NotificationPermissionScreen: React.FC<NotificationPermissionScreen
       console.error('Error requesting notification permission:', error);
       showError(
         'Lỗi',
-        'Không thể yêu cầu quyền thông báo. Vui lòng thử lại.',
-        [{ text: 'OK' }]
+        'Không thể yêu cầu quyền thông báo. Vui lòng thử lại.'
       );
     } finally {
       setIsRequesting(false);

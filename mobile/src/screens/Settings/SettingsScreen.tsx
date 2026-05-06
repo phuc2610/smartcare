@@ -5,6 +5,8 @@ import {
   StyleSheet,
   Switch,
   ActivityIndicator,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { showError, showSuccess, showAlert } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';

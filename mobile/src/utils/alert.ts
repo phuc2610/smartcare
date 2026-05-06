@@ -4,7 +4,7 @@ import { AlertType } from '../components/CustomAlert';
 let alertContext: {
   showAlert: (type: AlertType, title: string, message: string, buttons?: Array<{
     text: string;
-    onPress: () => void;
+    onPress?: () => void;
     style?: 'default' | 'cancel' | 'destructive';
   }>) => void;
 } | null = null;
@@ -19,7 +19,7 @@ export const showAlert = (
   message: string,
   buttons?: Array<{
     text: string;
-    onPress: () => void;
+    onPress?: () => void;
     style?: 'default' | 'cancel' | 'destructive';
   }>
 ) => {
