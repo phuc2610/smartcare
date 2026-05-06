@@ -9,7 +9,6 @@ export interface RegisterData {
   phone: string;
   password: string;
   role: UserRole;
-  firebaseIdToken: string;
 }
 
 export interface LoginData {
@@ -135,21 +134,21 @@ export const getStoredToken = async (): Promise<string | null> => {
   }
 };
 
-export const forgotPassword = async (phone: string): Promise<{ message: string; phone: string }> => {
-  const result = await api.post<{ message: string; phone: string }>('/api/auth/forgot-password', { phone });
+export const forgotPassword = async (phone: string, name: string): Promise<{ message: string; phone: string; verified: boolean }> => {
+  const result = await api.post<{ message: string; phone: string; verified: boolean }>('/api/auth/forgot-password', { phone, name });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Forgot password failed');
+    throw new Error(result.error || 'Xác minh thất bại');
   }
   
   return result.data;
 };
 
-export const resetPassword = async (phone: string, firebaseIdToken: string, newPassword: string): Promise<AuthResponse> => {
-  const result = await api.post<AuthResponse>('/api/auth/reset-password', { phone, firebaseIdToken, newPassword });
+export const resetPassword = async (phone: string, name: string, newPassword: string): Promise<AuthResponse> => {
+  const result = await api.post<AuthResponse>('/api/auth/reset-password', { phone, name, newPassword });
   
   if (!result.ok) {
-    throw new Error(result.error || 'Reset password failed');
+    throw new Error(result.error || 'Đổi mật khẩu thất bại');
   }
 
   const { user, token } = result.data;

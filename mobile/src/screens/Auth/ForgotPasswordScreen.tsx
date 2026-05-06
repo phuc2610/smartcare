@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import auth from '@react-native-firebase/auth';
 import { COLORS } from '../../utils/constants';
 import { forgotPassword, resetPassword } from '../../services/auth.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,13 +18,13 @@ import { STORAGE_KEYS } from '../../utils/constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { Logo } from '../../components/Logo';
 
-type Step = 'PHONE' | 'OTP' | 'NEW_PASSWORD';
+type Step = 'VERIFY' | 'NEW_PASSWORD';
 
 export const ForgotPasswordScreen = ({ navigation }: any) => {
   const { updateProfile } = useAuth();
-  const [step, setStep] = useState<Step>('PHONE');
+  const [step, setStep] = useState<Step>('VERIFY');
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
+  const [name, setName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -33,57 +32,8 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // OTP state
-  const [confirmObj, setConfirmObj] = useState<any>(null);
-  const [firebaseIdToken, setFirebaseIdToken] = useState('');
-  const [otpCountdown, setOtpCountdown] = useState(0);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup countdown on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, []);
-
-  // Countdown timer
-  useEffect(() => {
-    if (otpCountdown > 0) {
-      countdownInterval.current = setInterval(() => {
-        setOtpCountdown((prev) => {
-          if (prev <= 1) {
-            if (countdownInterval.current) {
-              clearInterval(countdownInterval.current);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    }
-
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, [otpCountdown]);
-
-  const formatCountdown = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatPhoneForFirebase = (p: string) => {
+  const formatPhoneForServer = (p: string) => {
     let cleaned = p.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '84' + cleaned.slice(1);
@@ -93,64 +43,20 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     return '+' + cleaned;
   };
 
-  const handleRequestOTP = async () => {
-    if (!phone) {
-      setError('Vui lòng nhập số điện thoại');
+  const handleVerify = async () => {
+    if (!phone || !name) {
+      setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
-    setOtpLoading(true);
-    setError('');
-    try {
-      // Validate phone number exists in our database
-      await forgotPassword(phone);
-      
-      // Request Firebase OTP
-      const formattedPhone = formatPhoneForFirebase(phone);
-      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
-      setConfirmObj(confirmation);
-      
-      setOtpCountdown(300); // 5 minutes
-      setStep('OTP');
-    } catch (err: any) {
-      console.log('Firebase forgot password OTP error:', err);
-      setError(err?.message || 'Không thể gửi mã OTP qua Firebase');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 6) {
-      setError('Vui lòng nhập mã OTP 6 số');
-      return;
-    }
-
-    if (!confirmObj) {
-      setError('Lỗi phiên làm việc, vui lòng quay lại và thử lại');
-      return;
-    }
-
-    setError('');
     setLoading(true);
-    
+    setError('');
     try {
-      // Verify OTP with Firebase
-      await confirmObj.confirm(otp);
-      
-      const currentUser = auth().currentUser;
-      if (!currentUser) throw new Error('Không thể lấy thông tin user từ Firebase');
-      
-      const token = await currentUser.getIdToken();
-      setFirebaseIdToken(token);
-      
+      const formattedPhone = formatPhoneForServer(phone);
+      await forgotPassword(formattedPhone, name);
       setStep('NEW_PASSWORD');
     } catch (err: any) {
-      console.log('Verify error:', err);
-      const errorMessage = err?.code === 'auth/invalid-verification-code' 
-        ? 'Mã xác thực không đúng' 
-        : err?.message || 'Xác thực thất bại';
-      setError(errorMessage);
+      setError(err?.message || 'Xác minh thất bại');
     } finally {
       setLoading(false);
     }
@@ -176,8 +82,8 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      const formattedPhone = formatPhoneForFirebase(phone);
-      const result = await resetPassword(formattedPhone, firebaseIdToken, newPassword);
+      const formattedPhone = formatPhoneForServer(phone);
+      const result = await resetPassword(formattedPhone, name, newPassword);
       
       // Save auth data
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, result.token);
@@ -198,47 +104,6 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
       setLoading(false);
     }
   };
-
-
-  const otpInputRef = useRef<TextInput>(null);
-
-  const renderOTPInput = () => (
-    <View style={styles.otpWrapper}>
-      <View style={styles.otpContainer}>
-        <TextInput
-          ref={otpInputRef}
-          style={styles.otpInput}
-          placeholder="Nhập mã OTP"
-          placeholderTextColor={COLORS.textSecondary}
-          value={otp}
-          onChangeText={(text) => {
-            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
-            setOtp(cleanedText);
-          }}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus={true}
-          blurOnSubmit={false}
-          selectTextOnFocus={false}
-          returnKeyType="done"
-        />
-      </View>
-      <TouchableOpacity
-        onPress={handleRequestOTP}
-        disabled={otpCountdown > 0 || otpLoading}
-        style={styles.otpButton}
-        activeOpacity={0.7}
-      >
-        {otpLoading ? (
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        ) : otpCountdown > 0 ? (
-          <Text style={styles.otpCountdown}>{formatCountdown(otpCountdown)}</Text>
-        ) : (
-          <Text style={styles.otpResendText}>Gửi lại</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
 
   const PasswordInput = ({
     value,
@@ -278,8 +143,6 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      enabled={step !== 'OTP'}
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -287,12 +150,12 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
         keyboardDismissMode="none"
       >
         <View style={styles.form}>
-          {step === 'PHONE' && (
+          {step === 'VERIFY' && (
             <>
               <Logo size="large" containerStyle={styles.logoContainer} />
               <Text style={styles.title}>Quên mật khẩu</Text>
               <Text style={styles.subtitle}>
-                Nhập số điện thoại để nhận mã OTP
+                Nhập số điện thoại và họ tên để xác minh tài khoản
               </Text>
 
               <TextInput
@@ -305,17 +168,26 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
                 autoCapitalize="none"
               />
 
+              <TextInput
+                style={styles.input}
+                placeholder="Họ và tên (đúng lúc đăng ký)"
+                placeholderTextColor={COLORS.textSecondary}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
               <TouchableOpacity
                 style={[styles.button, styles.primaryButton]}
-                onPress={handleRequestOTP}
-                disabled={loading || otpLoading || !phone}
+                onPress={handleVerify}
+                disabled={loading || !phone || !name}
               >
-                {loading || otpLoading ? (
+                {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.buttonText}>Tiếp tục</Text>
+                  <Text style={styles.buttonText}>Xác minh</Text>
                 )}
               </TouchableOpacity>
 
@@ -325,45 +197,12 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             </>
           )}
 
-          {step === 'OTP' && (
-            <>
-              <Logo size="medium" containerStyle={styles.logoContainer} />
-              <Text style={styles.title}>Xác thực OTP</Text>
-              <Text style={styles.subtitle}>
-                Mã OTP đã được gửi đến số điện thoại {phone}
-              </Text>
-              <Text style={styles.subtitleSmall}>
-                Nếu không nhận được mã, vui lòng nhấn Gửi lại
-              </Text>
-
-              {renderOTPInput()}
-
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-
-              <TouchableOpacity
-                style={[styles.button, styles.primaryButton]}
-                onPress={handleVerifyOTP}
-                disabled={loading || otp.length !== 6}
-              >
-                <Text style={styles.buttonText}>Xác thực</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => {
-                setStep('PHONE');
-                setOtp('');
-                setError('');
-              }}>
-                <Text style={styles.linkText}>Quay lại</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
           {step === 'NEW_PASSWORD' && (
             <>
               <Logo size="medium" containerStyle={styles.logoContainer} />
               <Text style={styles.title}>Đặt mật khẩu mới</Text>
               <Text style={styles.subtitle}>
-                Vui lòng nhập mật khẩu mới cho tài khoản
+                Xác minh thành công! Vui lòng nhập mật khẩu mới
               </Text>
 
               <PasswordInput
@@ -397,7 +236,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => {
-                setStep('OTP');
+                setStep('VERIFY');
                 setNewPassword('');
                 setConfirmPassword('');
                 setError('');
@@ -436,14 +275,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitleSmall: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
     marginBottom: 32,
-    fontStyle: 'italic',
   },
   input: {
     width: '100%',
@@ -473,48 +305,6 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 16,
-  },
-  otpWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  otpContainer: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpInput: {
-    width: '100%',
-    padding: 16,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: 4,
-    color: COLORS.text,
-  },
-  otpButton: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 80,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpResendText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  otpCountdown: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.primary,
   },
   button: {
     width: '100%',
@@ -548,4 +338,3 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
-

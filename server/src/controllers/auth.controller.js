@@ -1,6 +1,7 @@
 /**
  * AUTH CONTROLLER - Xử lý xác thực và đăng nhập
- * Chức năng: Đăng ký, đăng nhập, OTP, quên mật khẩu, đổi mật khẩu
+ * Chức năng: Đăng ký, đăng nhập, quên mật khẩu, đổi mật khẩu
+ * Xác thực: SĐT + Mật khẩu (không OTP)
  */
 
 const User = require('../models/User');
@@ -15,14 +16,13 @@ const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
 const { z } = require('zod');
 
-// Schema validation cho đăng ký: kiểm tra name, phone (format VN), password (tối thiểu 6 ký tự), role
+// Schema validation cho đăng ký: name, phone (format VN), password (tối thiểu 6 ký tự), role
 const registerSchema = z.object({
   body: z.object({
     name: z.string().min(1),
     phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
     password: z.string().min(6),
     role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
-    firebaseIdToken: z.string(),
   }),
 });
 
@@ -35,22 +35,12 @@ const loginSchema = z.object({
 });
 
 /**
- * Tạo mã OTP ngẫu nhiên 4 chữ số (1000-9999)
- * @returns {string} Mã OTP 4 số
- */
-const generateOTP = () => {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-};
-
-const admin = require('../config/firebase');
-
-/**
- * Đăng ký tài khoản mới với Firebase Phone Auth
- * Luồng: Nhận thông tin + firebaseIdToken -> Kiểm tra SĐT chưa tồn tại -> Xác minh token Firebase -> Hash mật khẩu -> Tạo user -> Trả JWT
+ * Đăng ký tài khoản mới (trực tiếp, không OTP)
+ * Luồng: Nhận thông tin -> Kiểm tra SĐT chưa tồn tại -> Hash mật khẩu -> Tạo user -> Trả JWT
  */
 const register = async (req, res) => {
   try {
-    const { name, phone, password, role, firebaseIdToken } = req.body;
+    const { name, phone, password, role } = req.body;
 
     // Kiểm tra số điện thoại đã được đăng ký chưa
     const existingUser = await User.findOne({ phone });
@@ -58,42 +48,16 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Số điện thoại đã được đăng ký.' });
     }
 
-    // Xác minh Firebase ID Token
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-      console.log(`[REGISTER] Firebase token verified for phone: ${decodedToken.phone_number}`);
-    } catch (e) {
-      console.error('[REGISTER] Firebase token verification failed:', e.message);
-      return res.status(401).json({ error: 'Xác thực số điện thoại thất bại hoặc token đã hết hạn.' });
-    }
-
-    // Đảm bảo số điện thoại xác thực khớp với số truyền vào
-    // Firebase phone number format is like +84...
-    const verifiedPhone = decodedToken.phone_number;
-    
-    // Normalize both numbers to compare (remove +, 84, 0 at start)
-    const normalize = (p) => p.replace(/\D/g, '').replace(/^(84|0)/, '');
-    const normalizedVerified = normalize(verifiedPhone || '');
-    const normalizedInput = normalize(phone || '');
-
-    console.log(`[REGISTER] Comparing phones - Verified: ${verifiedPhone} (${normalizedVerified}), Input: ${phone} (${normalizedInput})`);
-
-    if (!verifiedPhone || normalizedVerified !== normalizedInput) {
-      console.error(`[REGISTER] Phone mismatch! Verified: ${normalizedVerified}, Input: ${normalizedInput}`);
-      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực Firebase.' });
-    }
-
     // Hash mật khẩu
     const passwordHash = await hashPassword(password);
 
-    // Tạo user (đã verify)
+    // Tạo user (verified trực tiếp)
     const userData = {
       name,
-      phone, // We use the user-provided phone format for consistency in DB
+      phone,
       passwordHash,
       role,
-      isVerified: true, // Firebase handled verification
+      isVerified: true,
     };
 
     if (role === 'PATIENT') {
@@ -101,6 +65,7 @@ const register = async (req, res) => {
     }
 
     const user = await User.create(userData);
+    console.log(`[REGISTER] New user created: ${user.phone} (${user.role})`);
 
     // Tạo JWT token
     const token = generateToken(user._id);
@@ -120,6 +85,7 @@ const register = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 /**
  * Đăng nhập bằng số điện thoại và mật khẩu
  * Luồng: Tìm user -> Kiểm tra mật khẩu -> Kiểm tra đã verify -> Tạo JWT token -> Trả về user + token
@@ -170,18 +136,21 @@ const login = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 const forgotPasswordSchema = z.object({
   body: z.object({
     phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
+    name: z.string().min(1),
   }),
 });
 
 /**
- * Kiểm tra xem số điện thoại có tồn tại không trước khi gửi OTP quên mật khẩu
+ * Quên mật khẩu - Xác minh bằng tên + SĐT
+ * Luồng: Kiểm tra SĐT tồn tại -> Kiểm tra tên khớp -> Trả về xác nhận
  */
 const forgotPassword = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, name } = req.body;
     
     // Tìm user theo số điện thoại
     const user = await User.findOne({ phone });
@@ -189,7 +158,15 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
     }
 
-    res.json({ message: 'Số điện thoại hợp lệ.', phone });
+    // So sánh tên (không phân biệt hoa thường, bỏ khoảng trắng thừa)
+    const normalizedInputName = name.trim().toLowerCase();
+    const normalizedUserName = user.name.trim().toLowerCase();
+    
+    if (normalizedInputName !== normalizedUserName) {
+      return res.status(400).json({ error: 'Họ tên không khớp với tài khoản.' });
+    }
+
+    res.json({ message: 'Xác minh thành công.', phone, verified: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -198,37 +175,31 @@ const forgotPassword = async (req, res) => {
 const resetPasswordSchema = z.object({
   body: z.object({
     phone: z.string(),
-    firebaseIdToken: z.string(),
+    name: z.string().min(1),
     newPassword: z.string().min(6),
   }),
 });
 
 /**
- * Đặt lại mật khẩu bằng Firebase Token (sau khi quên mật khẩu)
- * Luồng: Nhận token -> Xác minh với Firebase -> Tìm user -> Cập nhật pass -> Trả về JWT
+ * Đặt lại mật khẩu (sau khi xác minh tên + SĐT)
+ * Luồng: Xác minh lại tên + SĐT -> Tìm user -> Cập nhật pass -> Trả về JWT
  */
 const resetPassword = async (req, res) => {
   try {
-    const { phone, firebaseIdToken, newPassword } = req.body;
-
-    // Xác minh Firebase ID Token
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
-    } catch (e) {
-      console.error('Firebase token verification failed:', e);
-      return res.status(401).json({ error: 'Xác thực số điện thoại thất bại.' });
-    }
-
-    const verifiedPhone = decodedToken.phone_number;
-    if (!verifiedPhone || !verifiedPhone.endsWith(phone.slice(-9))) {
-      return res.status(400).json({ error: 'Số điện thoại không khớp với thông tin xác thực.' });
-    }
+    const { phone, name, newPassword } = req.body;
 
     // Tìm user theo số điện thoại
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(404).json({ error: 'Số điện thoại chưa được đăng ký.' });
+    }
+
+    // Xác minh tên lần nữa
+    const normalizedInputName = name.trim().toLowerCase();
+    const normalizedUserName = user.name.trim().toLowerCase();
+    
+    if (normalizedInputName !== normalizedUserName) {
+      return res.status(400).json({ error: 'Họ tên không khớp với tài khoản.' });
     }
 
     // Hash mật khẩu mới và cập nhật vào database
@@ -241,7 +212,6 @@ const resetPassword = async (req, res) => {
     // Tự động đăng nhập sau khi đặt lại mật khẩu
     const token = generateToken(user._id);
 
-    // Trả về thông tin user và token
     res.json({
       message: 'Đổi mật khẩu thành công',
       user: {

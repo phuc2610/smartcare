@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import auth from '@react-native-firebase/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { Logo } from '../../components/Logo';
 
-type Screen = 'LOGIN' | 'REGISTER' | 'REGISTER_OTP';
+type Screen = 'LOGIN' | 'REGISTER';
 
 // Move PasswordInput outside to prevent re-creation on every render
 const PasswordInput = React.memo(({ 
@@ -63,7 +62,6 @@ export const AuthScreen = ({ navigation }: any) => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [otp, setOtp] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.PATIENT);
 
   // UI state
@@ -71,50 +69,8 @@ export const AuthScreen = ({ navigation }: any) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // OTP state
-  const [confirmObj, setConfirmObj] = useState<any>(null);
-  const [otpCountdown, setOtpCountdown] = useState(0);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const countdownInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup countdown on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, []);
-
-  // Countdown timer
-  useEffect(() => {
-    if (otpCountdown > 0) {
-      countdownInterval.current = setInterval(() => {
-        setOtpCountdown((prev) => {
-          if (prev <= 1) {
-            if (countdownInterval.current) {
-              clearInterval(countdownInterval.current);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    }
-
-    return () => {
-      if (countdownInterval.current) {
-        clearInterval(countdownInterval.current);
-      }
-    };
-  }, [otpCountdown]);
-
-  const formatPhoneForFirebase = (p: string) => {
+  const formatPhoneForServer = (p: string) => {
     let cleaned = p.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '84' + cleaned.slice(1);
@@ -122,33 +78,6 @@ export const AuthScreen = ({ navigation }: any) => {
       cleaned = '84' + cleaned;
     }
     return '+' + cleaned;
-  };
-
-  const handleRequestOTP = async () => {
-    if (!phone) {
-      setError('Vui lòng nhập số điện thoại trước');
-      return;
-    }
-
-    setOtpLoading(true);
-    setError('');
-    try {
-      const formattedPhone = formatPhoneForFirebase(phone);
-      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
-      setConfirmObj(confirmation);
-      setOtpCountdown(300); // 5 minutes = 300 seconds
-    } catch (err: any) {
-      console.log('Firebase request OTP error:', err);
-      setError(err?.message || 'Không thể gửi mã OTP qua Firebase');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const formatCountdown = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleLogin = async () => {
@@ -196,119 +125,29 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     
     try {
-      // Step 1: Request OTP via Firebase before creating user on server
-      const formattedPhone = formatPhoneForFirebase(phone);
-      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
-      setConfirmObj(confirmation);
-      
-      setOtpCountdown(300); // 5 minutes
-      setScreen('REGISTER_OTP');
-    } catch (err: any) {
-      console.log('Firebase OTP error:', err);
-      const errorMessage = err?.message || 'Không thể gửi SMS. Vui lòng kiểm tra lại số điện thoại.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (!otp || otp.length !== 6) { // Firebase OTPs are usually 6 digits
-      setError('Vui lòng nhập mã OTP 6 số');
-      return;
-    }
-
-    if (!confirmObj) {
-      setError('Lỗi phiên làm việc, vui lòng quay lại và thử lại');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-    
-    try {
-      // Step 2: Verify OTP with Firebase
-      console.log('Verifying OTP with Firebase...');
-      await confirmObj.confirm(otp);
-      
-      // Get the Firebase ID Token
-      const currentUser = auth().currentUser;
-      if (!currentUser) throw new Error('Không thể lấy thông tin user từ Firebase');
-      
-      const firebaseIdToken = await currentUser.getIdToken();
-      
-      // Step 3: Call our backend to register and get JWT
-      console.log('Calling backend to register...');
-      const formattedPhone = formatPhoneForFirebase(phone);
-      await signUp({ name, phone: formattedPhone, password, role, firebaseIdToken });
+      // Đăng ký trực tiếp, không cần OTP
+      const formattedPhone = formatPhoneForServer(phone);
+      await signUp({ name, phone: formattedPhone, password, role });
       console.log('Registration successful!');
     } catch (err: any) {
-      console.log('Verify error details:', err);
-      let errorMessage = 'Xác thực thất bại';
-      
-      if (err?.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Mã OTP không chính xác. Vui lòng kiểm tra lại.';
-      } else if (err?.code === 'auth/code-expired' || err?.code === 'auth/session-expired') {
-        errorMessage = 'Phiên làm việc hoặc mã OTP đã hết hạn. Vui lòng nhấn "Gửi lại" để nhận mã mới.';
-      } else if (err?.message) {
+      console.log('Register error:', err);
+      let errorMessage = 'Đăng ký thất bại';
+      if (err?.message) {
         errorMessage = err.message;
       } else if (err?.response?.data?.error) {
         errorMessage = err.response.data.error;
       }
-      
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-
-
-  const otpInputRef = useRef<TextInput>(null);
-
-  const renderOTPInput = () => (
-    <View style={styles.otpWrapper}>
-      <View style={styles.otpContainer}>
-        <TextInput
-          ref={otpInputRef}
-          style={styles.otpInput}
-          placeholder="Nhập mã OTP"
-          placeholderTextColor={COLORS.textSecondary}
-          value={otp}
-          onChangeText={(text) => {
-            const cleanedText = text.replace(/[^0-9]/g, '').slice(0, 6);
-            setOtp(cleanedText);
-          }}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus={true}
-          blurOnSubmit={false}
-          selectTextOnFocus={false}
-          returnKeyType="done"
-        />
-      </View>
-      <TouchableOpacity
-        onPress={handleRequestOTP}
-        disabled={otpCountdown > 0 || otpLoading}
-        style={styles.otpButton}
-        activeOpacity={0.7}
-      >
-        {otpLoading ? (
-          <ActivityIndicator size="small" color={COLORS.primary} />
-        ) : otpCountdown > 0 ? (
-          <Text style={styles.otpCountdown}>{formatCountdown(otpCountdown)}</Text>
-        ) : (
-          <Text style={styles.otpResendText}>Gửi lại</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      enabled={screen !== 'REGISTER_OTP'}
     >
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -452,7 +291,7 @@ export const AuthScreen = ({ navigation }: any) => {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Tiếp tục</Text>
+                <Text style={styles.buttonText}>Đăng ký</Text>
               )}
             </TouchableOpacity>
 
@@ -461,43 +300,6 @@ export const AuthScreen = ({ navigation }: any) => {
               setError('');
             }}>
               <Text style={styles.linkText}>Đã có tài khoản? Đăng nhập</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {screen === 'REGISTER_OTP' && (
-          <View style={styles.form}>
-            <Logo size="medium" containerStyle={styles.logoContainer} />
-            <Text style={styles.title}>Xác thực tài khoản</Text>
-            <Text style={styles.subtitle}>
-              Mã OTP đã được gửi đến số điện thoại {phone}
-            </Text>
-            <Text style={styles.subtitleSmall}>
-              Nếu không nhận được mã, vui lòng nhấn Gửi lại
-            </Text>
-
-            {renderOTPInput()}
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleVerifyOTP}
-              disabled={loading || otp.length !== 6}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Xác thực</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => {
-              setScreen('REGISTER');
-              setOtp('');
-              setError('');
-            }}>
-              <Text style={styles.linkText}>Quay lại</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -531,14 +333,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitleSmall: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
     marginBottom: 32,
-    fontStyle: 'italic',
   },
   input: {
     width: '100%',
@@ -568,48 +363,6 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 16,
-  },
-  otpWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  otpContainer: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpInput: {
-    width: '100%',
-    padding: 16,
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: 4,
-    color: COLORS.text,
-  },
-  otpButton: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 80,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-  },
-  otpCountdown: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  otpResendText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   roleSelector: {
     flexDirection: 'row',
