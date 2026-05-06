@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActionSheetIOS, Platform, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary, launchCamera, ImagePickerResponse, MediaType, PhotoQuality } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile as updateProfileAPI } from '../../services/user.service';
 import { uploadImage } from '../../services/upload.service';
+import { deleteAccount } from '../../services/auth.service';
 import { identifyDisease } from '../../services/ai.service';
 import { UserRole } from '../../types';
 import { COLORS } from '../../theme/tokens';
@@ -23,6 +24,11 @@ export const ProfileScreen = ({ navigation, route }: any) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Delete account state
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -93,8 +99,43 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     ]);
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert('Xóa tài khoản', 'Tính năng này đang được phát triển. Vui lòng liên hệ hỗ trợ để xóa tài khoản.', [{ text: 'OK' }]);
+  const handleDeleteAccountPress = () => {
+    Alert.alert(
+      'Cảnh báo nguy hiểm',
+      'Bạn đang yêu cầu XÓA VĨNH VIỄN tài khoản và toàn bộ dữ liệu (đơn thuốc, hồ sơ, lịch hẹn...). Hành động này KHÔNG THỂ hoàn tác.\n\nBạn có chắc chắn muốn tiếp tục?',
+      [
+        { text: 'Hủy bỏ', style: 'cancel' },
+        { 
+          text: 'Tiếp tục xóa', 
+          style: 'destructive', 
+          onPress: () => setDeleteModalVisible(true) 
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu để xác nhận');
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      await deleteAccount(deletePassword);
+      setDeleteModalVisible(false);
+      setDeletePassword('');
+      Alert.alert('Thành công', 'Tài khoản của bạn đã được xóa vĩnh viễn.', [
+        {
+          text: 'Đóng',
+          onPress: () => signOut(),
+        }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Xóa thất bại', error.message || 'Mật khẩu không đúng hoặc có lỗi xảy ra');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const menuItems = [
@@ -102,7 +143,7 @@ export const ProfileScreen = ({ navigation, route }: any) => {
     { icon: 'settings', label: 'Cài đặt', onPress: () => navigation?.navigate('Settings'), color: '#1C1C1E' },
     { icon: 'lock-outline', label: 'Đổi mật khẩu', onPress: () => navigation?.navigate('ChangePassword'), color: '#1C1C1E' },
     { icon: 'info-outline', label: 'Giới thiệu ứng dụng', onPress: () => showInfo('SmartCare', 'Phiên bản 1.0.0\nỨng dụng chăm sóc sức khỏe thông minh'), color: '#1C1C1E' },
-    { icon: 'delete-outline', label: 'Xóa tài khoản', onPress: handleDeleteAccount, color: '#9CA3AF' },
+    { icon: 'delete-outline', label: 'Xóa tài khoản', onPress: handleDeleteAccountPress, color: '#9CA3AF' },
     { icon: 'logout', label: 'Đăng xuất', onPress: handleSignOut, color: '#EF4444' },
   ];
 
@@ -194,6 +235,62 @@ export const ProfileScreen = ({ navigation, route }: any) => {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteModalVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Icon name="warning" size={32} color="#EF4444" />
+              <Text style={s.modalTitle}>Xác nhận xóa tài khoản</Text>
+            </View>
+            
+            <Text style={s.modalMessage}>
+              Vui lòng nhập mật khẩu hiện tại của bạn để xác nhận hành động này.
+            </Text>
+
+            <TextInput
+              style={s.modalInput}
+              placeholder="Nhập mật khẩu..."
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              editable={!deleting}
+            />
+
+            <View style={s.modalActions}>
+              <TouchableOpacity 
+                style={s.modalCancelBtn} 
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setDeletePassword('');
+                }}
+                disabled={deleting}
+              >
+                <Text style={s.modalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={s.modalDeleteBtn} 
+                onPress={confirmDeleteAccount}
+                disabled={deleting || !deletePassword}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={s.modalDeleteText}>Xóa vĩnh viễn</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -244,4 +341,16 @@ const s = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
   divider: { height: 1, backgroundColor: '#F3F4F6' },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 16, width: '100%', padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 5 },
+  modalHeader: { alignItems: 'center', marginBottom: 16, gap: 12 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', textAlign: 'center' },
+  modalMessage: { fontSize: 14, color: '#4B5563', textAlign: 'center', marginBottom: 20, lineHeight: 20 },
+  modalInput: { backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 14, fontSize: 15, color: '#111827', marginBottom: 24 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
+  modalDeleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: '#EF4444', alignItems: 'center' },
+  modalDeleteText: { fontSize: 15, fontWeight: '600', color: '#fff' },
 });
