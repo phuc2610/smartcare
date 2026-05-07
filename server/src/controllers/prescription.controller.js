@@ -7,7 +7,6 @@
 const Prescription = require('../models/Prescription');
 const Medication = require('../models/Medication');
 const openai = require('../config/openai');
-const genAI = require('../config/gemini');
 const { generateRemindersForMedication } = require('./medication.controller');
 const { findBestDrugMatch } = require('../utils/fuzzy');
 const drugDatabase = require('../utils/drug_database.json');
@@ -169,79 +168,7 @@ const calculateQualityScore = (data) => {
     : Math.round(fieldScore * 100) / 100;
 };
 
-// ─────────────────────────────────────────────────────────────
-// GEMINI SCAN — DUAL PASS
-// ─────────────────────────────────────────────────────────────
-const scanWithGemini = async (base64Data, mimeType = 'image/jpeg') => {
-  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
 
-  // Strip data URI prefix if present and detect mimeType from it
-  let detectedMime = mimeType;
-  const dataUriMatch = base64Data.match(/^data:(image\/[\w+]+);base64,/);
-  if (dataUriMatch) {
-    detectedMime = dataUriMatch[1];
-  }
-  // Gemini only accepts: image/jpeg, image/png, image/webp, image/heic, image/heif
-  const SUPPORTED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-  if (!SUPPORTED_MIMES.includes(detectedMime)) {
-    console.warn(`[SCAN] Unsupported MIME type "${detectedMime}", falling back to image/jpeg`);
-    detectedMime = 'image/jpeg';
-  }
-  const cleanBase64 = base64Data.replace(/^data:image\/[\w+]+;base64,/, '');
-
-  console.log(`[SCAN] Using mimeType: ${detectedMime}`);
-
-  // ── PASS 1: Extract from image ──
-  console.log('[SCAN] Pass 1: Extracting from image...');
-  let pass1Result;
-  try {
-    pass1Result = await model.generateContent([
-      OCR_EXTRACT_PROMPT,
-      {
-        inlineData: {
-          mimeType: detectedMime,
-          data: cleanBase64,
-        },
-      },
-    ]);
-  } catch (geminiErr) {
-    console.error('[SCAN] Gemini Pass 1 API error:', geminiErr?.message || geminiErr);
-    throw geminiErr;
-  }
-
-  const pass1Text = pass1Result.response.text();
-  const pass1Json = JSON.parse(
-    pass1Text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  );
-  console.log('[SCAN] Pass 1 complete. Medications found:', pass1Json.medications?.length || 0);
-
-  // ── PASS 2: Verify & correct with text-only prompt ──
-  let verifiedData = pass1Json;
-  try {
-    console.log('[SCAN] Pass 2: Verifying extraction...');
-    const pass2Result = await model.generateContent([
-      buildVerificationPrompt(pass1Json),
-    ]);
-
-    const pass2Text = pass2Result.response.text();
-    const pass2Json = JSON.parse(
-      pass2Text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    );
-
-    // Merge: keep pass2 corrections but preserve pass1 rawText
-    verifiedData = {
-      ...pass2Json,
-      rawText: pass1Json.rawText || pass2Json.rawText || '',
-      verificationNotes: pass2Json.verificationNotes || '',
-    };
-    console.log('[SCAN] Pass 2 complete. Verification notes:', verifiedData.verificationNotes || 'none');
-  } catch (verifyError) {
-    console.warn('[SCAN] Pass 2 verification failed (using Pass 1 result):', verifyError.message);
-    // Fall back to pass 1 result — still better than nothing
-  }
-
-  return verifiedData;
-};
 
 /**
  * Scan bằng OpenAI Vision API
@@ -333,23 +260,12 @@ const scanPrescription = async (req, res) => {
 
     let prescriptionData;
 
-    // Strategy 1: Gemini (primary) — with dual-pass verification
-    if (genAI && rawBase64) {
+    // Scan using OpenAI
+    if (openai && imageInput) {
       try {
-        console.log('[SCAN] === Starting Gemini Dual-Pass Scan ===');
-        prescriptionData = await scanWithGemini(rawBase64, resolvedMimeType);
-        console.log('[SCAN] Gemini Dual-Pass SUCCESS');
-      } catch (geminiError) {
-        console.error('[SCAN] Gemini failed:', geminiError.message);
-      }
-    }
-
-    // Strategy 2: OpenAI (fallback) — also with dual-pass
-    if (!prescriptionData && openai && imageInput) {
-      try {
-        console.log('[SCAN] === Starting OpenAI Dual-Pass Scan ===');
+        console.log('[SCAN] === Starting OpenAI Single-Pass Scan ===');
         prescriptionData = await scanWithOpenAI(imageInput);
-        console.log('[SCAN] OpenAI Dual-Pass SUCCESS');
+        console.log('[SCAN] OpenAI Scan SUCCESS');
       } catch (openaiError) {
         console.error('[SCAN] OpenAI failed:', openaiError.message);
       }
@@ -371,27 +287,37 @@ const scanPrescription = async (req, res) => {
     console.log(`[SCAN] Quality score: ${qualityScore}`);
 
     // ── AUTO-RETRY on very low quality ──
-    if (qualityScore < 0.3 && genAI && rawBase64 && prescriptionData !== DEMO_PRESCRIPTION) {
+    if (qualityScore < 0.3 && openai && imageInput && prescriptionData !== DEMO_PRESCRIPTION) {
       console.log('[SCAN] Quality too low, attempting retry with enhanced prompt...');
       try {
-        const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
-        const retryResult = await model.generateContent([
-          OCR_EXTRACT_PROMPT + '\n\nLƯU Ý THÊM: Ảnh có thể mờ hoặc nghiêng. Hãy cố gắng đọc từng ký tự một cách cẩn thận nhất. Phóng to từng vùng nếu cần. Nếu đọc được một phần, hãy ghi lại phần đó.',
-          {
-            inlineData: {
-              mimeType: 'image/jpeg',
-              data: rawBase64.replace(/^data:image\/\w+;base64,/, ''),
-            },
-          },
-        ]);
-        const retryText = retryResult.response.text();
-        const retryJson = JSON.parse(
-          retryText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-        );
-        const retryScore = calculateQualityScore(retryJson);
+        const completion = await openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          temperature: 0.2,
+          max_tokens: 1800,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: COMBINED_OCR_PROMPT + '\n\nLƯU Ý THÊM: Ảnh có thể mờ hoặc nghiêng. Hãy cố gắng đọc từng ký tự một cách cẩn thận nhất. Phóng to từng vùng nếu cần. Nếu đọc được một phần, hãy ghi lại phần đó.' },
+              { type: 'image_url', image_url: { url: imageInput, detail: 'high' } },
+            ],
+          }],
+          response_format: { type: 'json_object' },
+        });
+
+        const retryResult = JSON.parse(completion.choices[0].message.content);
+        if (retryResult.medications && Array.isArray(retryResult.medications)) {
+          retryResult.medications.forEach(med => {
+            if (med.sessions && Array.isArray(med.sessions)) {
+              med.sessions = med.sessions.map(s => s === 'AFTERNOON' ? 'EVENING' : s);
+              med.sessions = [...new Set(med.sessions)];
+            }
+          });
+        }
+
+        const retryScore = calculateQualityScore(retryResult);
         if (retryScore > qualityScore) {
           console.log(`[SCAN] Retry improved score: ${qualityScore} → ${retryScore}`);
-          prescriptionData = retryJson;
+          prescriptionData = retryResult;
         }
       } catch (retryErr) {
         console.warn('[SCAN] Retry failed:', retryErr.message);

@@ -893,139 +893,129 @@ const TaskItem: React.FC<TaskItemProps> = ({
   readOnly = false,
   isMissed = false,
 }) => {
-  const getIcon = () => {
-    if (type === 'medication') return '💊';
-    if ('type' in item) {
-      return item.type === 'meal' ? '🍽️' : '🏃';
-    }
-    return '📋';
-  };
+  const isOverdue = isMissed && !completed;
 
   const getTitle = () => {
+    let title = '';
     if (type === 'medication') {
-      return (item as Reminder).medicationName;
+      title = (item as Reminder).medicationName;
+    } else {
+      const healthLog = item as HealthLog;
+      if (healthLog.type === 'meal') {
+        title = healthLog.details.foodName || 'Bữa ăn';
+      } else if (healthLog.type === 'exercise') {
+        title = healthLog.details.exerciseType || 'Vận động';
+      } else {
+        title = 'Hoạt động';
+      }
+    }
+    return isOverdue ? `Bỏ lỡ ${title}` : title;
+  };
+
+  const getTimeStr = () => {
+    if (type === 'medication') {
+      return new Date((item as Reminder).scheduledTime).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     }
     const healthLog = item as HealthLog;
-    if (healthLog.type === 'meal') {
-      return healthLog.details.foodName || 'Bữa ăn';
-    } else if (healthLog.type === 'exercise') {
-      return healthLog.details.exerciseType || 'Vận động';
+    if (healthLog.scheduledTime) {
+      if (healthLog.scheduledTime.includes('T')) {
+         return new Date(healthLog.scheduledTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      }
+      return healthLog.scheduledTime;
     }
-    return '';
+    return '--:--';
   };
 
   const getSubtitle = () => {
     if (type === 'medication') {
       const reminder = item as Reminder;
-      const time = new Date(reminder.scheduledTime).toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const sessionLabels: Record<string, string> = { MORNING: '☀️ Sáng', NOON: '🌤️ Trưa', EVENING: '🌙 Tối' };
-      const mealLabels: Record<string, string> = { BEFORE_MEAL: '🍽️ Trước ăn', AFTER_MEAL: '✅ Sau ăn no' };
-      const sessionStr = (reminder as any).session && sessionLabels[(reminder as any).session] ? ` • ${sessionLabels[(reminder as any).session]}` : '';
-      const mealStr = (reminder as any).mealTiming && mealLabels[(reminder as any).mealTiming] ? ` • ${mealLabels[(reminder as any).mealTiming]}` : '';
-      return `${time} • ${reminder.dosage} ${reminder.unit}${sessionStr}${mealStr}`;
+      const sessionLabels: Record<string, string> = { MORNING: 'Buổi sáng', NOON: 'Buổi trưa', EVENING: 'Buổi tối', CUSTOM: 'Tùy chỉnh' };
+      const sessionStr = (reminder as any).session ? sessionLabels[(reminder as any).session] : 'Tùy chỉnh';
+      const statusStr = completed ? 'Đã uống' : (isOverdue ? 'Chưa uống' : 'Sắp tới');
+      return `${sessionStr} · ${statusStr}`;
     }
     const healthLog = item as HealthLog;
     if (healthLog.type === 'meal') {
-      let timeStr = '';
-      if (healthLog.scheduledTime) {
-        // scheduledTime is already in "HH:mm" format
-        timeStr = `${healthLog.scheduledTime} • `;
-      }
-      return `${timeStr}${healthLog.details.calories || 0} kcal`;
+      return `${healthLog.details.calories || 0} kcal · ${completed ? 'Đã ăn' : 'Chưa ăn'}`;
     } else if (healthLog.type === 'exercise') {
-      let timeStr = '';
-      if (healthLog.scheduledTime) {
-        const time = new Date(healthLog.scheduledTime).toLocaleTimeString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        timeStr = `${time} • `;
-      }
-      return `${timeStr}${healthLog.details.durationMinutes || 0} phút • ${healthLog.details.caloriesBurned || 0} kcal`;
+      return `${healthLog.details.durationMinutes || 0} phút · ${completed ? 'Đã tập' : 'Chưa tập'}`;
     }
     return '';
   };
 
-  const isOverdue = isMissed && !completed;
+  const getIconName = () => {
+    const time = getTimeStr();
+    if (time >= '05:00' && time <= '10:59') return 'wb-sunny';
+    return 'schedule';
+  };
+
+  const getIconColor = () => {
+    if (completed) return COLORS.success;
+    if (isOverdue) return COLORS.error;
+    return '#64748B'; // slate-500
+  };
+
+  const timeStr = getTimeStr();
 
   return (
-    <View style={[
-      styles.taskItem,
-      completed && styles.taskItemCompleted,
-      isOverdue && styles.taskItemMissed,
-    ]}>
-      {/* Checkbox */}
-      {!readOnly && (
-        <TouchableOpacity
-          onPress={onCheck}
-          style={styles.checkboxContainer}
-          activeOpacity={0.7}
-        >
-          {completed ? (
-            <Icon name="check-circle" size={24} color={COLORS.success} />
-          ) : (
-            <Icon 
-              name="radio-button-unchecked" 
-              size={24} 
-              color={isOverdue ? COLORS.error : COLORS.textSecondary} 
-            />
-          )}
-        </TouchableOpacity>
-      )}
-      {readOnly && completed && (
-        <View style={styles.checkboxContainer}>
-          <Icon name="check-circle" size={24} color={COLORS.success} />
+    <TouchableOpacity
+      style={[
+        styles.newTaskItem,
+        completed && styles.newTaskItemCompleted,
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={!onPress}
+    >
+      <View style={styles.newLeftCol}>
+        <View style={[
+          styles.newIconWrap,
+          isOverdue ? styles.newIconWrapMissed : (completed ? styles.newIconWrapCompleted : styles.newIconWrapPending)
+        ]}>
+          <Icon name={getIconName()} size={20} color={getIconColor()} />
         </View>
-      )}
-      {readOnly && !completed && (
-        <View style={styles.checkboxContainer}>
-          <Icon name="radio-button-unchecked" size={24} color={COLORS.border} />
-        </View>
-      )}
-
-      {/* Icon */}
-      <View style={styles.taskIcon}>
-        <Text variant="title">{getIcon()}</Text>
+        <Text style={[styles.newTimeText, isOverdue && styles.newTimeTextMissed]}>{timeStr}</Text>
       </View>
 
-      {/* Content - Clickable to view details */}
-      <TouchableOpacity
-        style={styles.taskContent}
-        onPress={onPress}
-        activeOpacity={0.7}
-        disabled={!onPress}
-      >
-        <View style={styles.taskTitleRow}>
-          <Text
-            variant="body"
-            color={isOverdue ? 'error' : completed ? 'textSecondary' : 'text'}
-            style={[styles.taskTitle, completed && styles.taskTitleCompleted]}
-          >
-            {getTitle()}
-          </Text>
-          {isOverdue && (
-            <Chip label="Trễ hẹn" variant="error" style={styles.missedBadge} />
-          )}
-        </View>
+      <View style={styles.newRightCol}>
         <Text 
-          variant="caption" 
-          color={isOverdue ? 'error' : 'textSecondary'} 
-          style={styles.taskSubtitle}
+          variant="body" 
+          semibold 
+          style={[styles.newTitle, completed && styles.newTitleCompleted, isOverdue && styles.newTitleMissed]}
+          numberOfLines={1}
         >
+          {getTitle()}
+        </Text>
+        <Text variant="caption" style={styles.newSubtitle}>
           {getSubtitle()}
         </Text>
-      </TouchableOpacity>
+      </View>
 
-      {/* Actions - Only delete button */}
-      {!completed && !readOnly && onDelete && (
-        <TouchableOpacity onPress={onDelete} style={styles.taskActionButton}>
-          <Icon name="delete" size={18} color={COLORS.error} />
-        </TouchableOpacity>
-      )}
-    </View>
+      <View style={styles.newActionRow}>
+        {!readOnly && (
+          <TouchableOpacity onPress={onCheck} style={styles.newActionBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            {completed ? (
+              <Icon name="check-circle" size={26} color={COLORS.success} />
+            ) : (
+              <Icon name="radio-button-unchecked" size={26} color={isOverdue ? COLORS.error : '#CBD5E1'} />
+            )}
+          </TouchableOpacity>
+        )}
+        {readOnly && completed && (
+          <View style={styles.newActionBtn}>
+            <Icon name="check-circle" size={26} color={COLORS.success} />
+          </View>
+        )}
+        {!completed && !readOnly && onDelete && (
+          <TouchableOpacity onPress={onDelete} style={[styles.newActionBtn, { marginLeft: 8 }]} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Icon name="delete-outline" size={22} color="#EF4444" />
+          </TouchableOpacity>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 };
 
@@ -1231,33 +1221,90 @@ const styles = StyleSheet.create({
 
   // ===== Task Items =====
   taskSection: {
-    gap: SPACING.sm,
+    gap: 12,
   },
-  taskItem: {
+  newTaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9', // slate-100
+    ...SHADOWS.soft,
   },
-  taskItemCompleted: {
-    opacity: 0.5,
+  newTaskItemCompleted: {
+    opacity: 0.6,
   },
-  checkboxContainer: {
-    marginRight: SPACING.sm,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
+  newLeftCol: {
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    width: 44,
   },
-  taskIcon: {
+  newIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.background,
+    borderRadius: 20,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
+    marginBottom: 4,
+  },
+  newIconWrapMissed: {
+    borderColor: COLORS.error,
+    backgroundColor: '#FEF2F2', // very light red
+  },
+  newIconWrapCompleted: {
+    borderColor: COLORS.success,
+    backgroundColor: '#F0FDF4', // very light green
+  },
+  newIconWrapPending: {
+    borderColor: '#E2E8F0', // slate-200
+    backgroundColor: '#F8FAFC',
+  },
+  newTimeText: {
+    fontSize: 12,
+    color: '#64748B', // slate-500
+    fontWeight: '500',
+  },
+  newTimeTextMissed: {
+    color: COLORS.error,
+  },
+  newRightCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  newTitle: {
+    fontSize: 16,
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  newTitleCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#94A3B8',
+  },
+  newTitleMissed: {
+    // optional styling for missed title
+  },
+  newSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  newActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  newActionBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ===== Sections =====
+  section: {
+    marginTop: SPACING.md,
+    marginBottom: 24,
   },
   taskContent: {
     flex: 1,
@@ -1267,43 +1314,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs / 2,
     flexShrink: 1,
   },
-  taskTitleCompleted: {
-    textDecorationLine: 'line-through',
-  },
   taskSubtitle: {},
-  taskTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs / 2,
-  },
-  missedBadge: {
-    marginLeft: 0,
-  },
-  taskItemMissed: {
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.error,
-    backgroundColor: COLORS.error + '08',
-    paddingLeft: SPACING.sm,
-    borderRadius: RADIUS.sm,
-  },
-  taskActions: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  taskActionButton: {
-    padding: SPACING.xs,
-  },
-  taskCheck: {
-    marginLeft: SPACING.sm,
-  },
-
-  // ===== Sections =====
-  section: {
-    marginTop: SPACING.md,
-    marginBottom: 24,
-  },
   takeAllCard: { marginBottom: 16, backgroundColor: '#E0F2F1', borderColor: '#B2DFDB', borderWidth: 1 },
   takeAllContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
   takeAllInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 12 },
