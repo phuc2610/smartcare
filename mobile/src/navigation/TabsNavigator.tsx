@@ -47,6 +47,7 @@ import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEdit
 import { DependentsScreen } from '../screens/Profile/DependentsScreen';
 import { MedicationManageScreen } from '../screens/Medication/MedicationManageScreen';
 import { ManualMedicationAddScreen } from '../screens/Medication/ManualMedicationAddScreen';
+import { FloatingAIChatButton } from '../components/FloatingAIChatButton';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -120,17 +121,18 @@ const MainTabs = () => {
   const isCaregiver = user?.role === UserRole.CAREGIVER;
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
-        tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarIconStyle: styles.tabBarIcon,
-        tabBarHideOnKeyboard: true,
-      }}
-    >
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: COLORS.primary,
+          tabBarInactiveTintColor: COLORS.textSecondary,
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.tabBarLabel,
+          tabBarIconStyle: styles.tabBarIcon,
+          tabBarHideOnKeyboard: true,
+        }}
+      >
       <Tab.Screen
         name="Home"
         component={isCaregiver ? CaregiverDashboardScreen : DashboardStack}
@@ -192,7 +194,9 @@ const MainTabs = () => {
           ),
         }}
       />
-    </Tab.Navigator>
+      </Tab.Navigator>
+      <FloatingAIChatButton />
+    </View>
   );
 };
 

@@ -94,7 +94,7 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
             {/* Messages */}
             <View style={styles.iconBadgeWrap}>
               <AnimatedIconButton
-                icon="chat-bubble-outline"
+                icon="message"
                 onPress={() => handleNavigate('ConversationList')}
                 color={COLORS.text}
               />
@@ -146,13 +146,6 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
                 </View>
               )}
               
-              {/* Chat AI Icon */}
-              <AnimatedIconButton
-                icon="chat-bubble-outline"
-                onPress={() => handleNavigate('Chat')}
-                color={COLORS.text}
-              />
-              
               {/* Messages Icon */}
               <View style={styles.badgeContainer}>
                 <AnimatedIconButton
@@ -162,6 +155,13 @@ const AppHeaderComponent: React.FC<AppHeaderProps> = ({ title, showBack, onBack,
                 />
                 <ChatBadge />
               </View>
+
+              {/* Wellness / Leaf */}
+              <AnimatedIconButton
+                icon="spa"
+                onPress={() => handleNavigate('Wellness')}
+                color={COLORS.text}
+              />
             </>
           )}
         </View>
