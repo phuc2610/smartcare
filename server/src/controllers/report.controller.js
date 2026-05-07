@@ -394,12 +394,112 @@ const exportPDF = async (req, res) => {
       doc.text(`• Tổng thời gian: ${Math.round(totalSeconds / 60)} phút`);
     }
 
+    // ─── Section 5: Chi tiết lịch sử uống thuốc từng loại ───
+    if (reminders.length > 0) {
+      drawSectionHeader('5. CHI TIẾT LỊCH SỬ UỐNG THUỐC TỪNG LOẠI');
+
+      // Group reminders by medicationName
+      const medGroups = {};
+      reminders.forEach(r => {
+        const key = r.medicationName || 'Không rõ';
+        if (!medGroups[key]) {
+          medGroups[key] = { name: key, dosage: r.dosage || '', unit: r.unit || '', taken: [], skipped: [], pending: [] };
+        }
+        if (r.status === 'TAKEN') medGroups[key].taken.push(r);
+        else if (r.status === 'SKIPPED') medGroups[key].skipped.push(r);
+        else medGroups[key].pending.push(r);
+      });
+
+      const fmtT = (date) => {
+        const d = new Date(date);
+        return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      };
+      const fmtD = (date) => {
+        const d = new Date(date);
+        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+      };
+
+      let medIndex = 0;
+      for (const [, med] of Object.entries(medGroups)) {
+        medIndex++;
+        const total = med.taken.length + med.skipped.length + med.pending.length;
+        const rate = total > 0 ? Math.round((med.taken.length / total) * 100) : 0;
+        const rateColor = rate >= 80 ? '#10B981' : rate >= 50 ? '#F59E0B' : '#EF4444';
+
+        if (doc.y > doc.page.height - 160) { doc.addPage(); doc.x = 50; }
+
+        doc.moveDown(0.8);
+        doc.font('CustomBold').fillColor('#111827').fontSize(13)
+           .text(`${medIndex}. ${med.name}  `, 50, doc.y, { continued: true });
+        doc.fillColor(rateColor).fontSize(11)
+           .text(`[Tuan thu: ${rate}%]`, { continued: false });
+        doc.font('CustomRegular').fillColor('#6B7280').fontSize(11)
+           .text(`   Lieu dung: ${med.dosage} ${med.unit}  |  Da uong: ${med.taken.length}  |  Bo qua: ${med.skipped.length}  |  Chua uong: ${med.pending.length}`, 50);
+        doc.moveDown(0.4);
+
+        // Table columns
+        const c1 = 70, c2 = 160, c3 = 260, c4 = 390;
+
+        // Table header row
+        const thY = doc.y;
+        doc.roundedRect(65, thY - 2, doc.page.width - 115, 17, 3).fill('#EFF6FF');
+        doc.font('CustomBold').fillColor('#1E40AF').fontSize(10);
+        doc.text('Ngay',            c1, thY, { width: 85 });
+        doc.text('Gio len lich',    c2, thY, { width: 95 });
+        doc.text('Trang thai',      c3, thY, { width: 125 });
+        doc.text('Gio thuc uong',   c4, thY, { width: 95 });
+        doc.moveDown(0.7);
+
+        // Data rows: taken + skipped + first 5 pending
+        const rowsToShow = [
+          ...med.taken,
+          ...med.skipped,
+          ...med.pending.slice(0, 5),
+        ].sort((a, b) => new Date(b.scheduledTime) - new Date(a.scheduledTime));
+
+        rowsToShow.forEach((r, rIdx) => {
+          if (doc.y > doc.page.height - 80) { doc.addPage(); doc.x = 50; doc.moveDown(1); }
+          const sched = new Date(r.scheduledTime);
+          const takenAt = r.takenAt ? new Date(r.takenAt) : null;
+          const diffMin = takenAt ? Math.round((takenAt - sched) / 60000) : null;
+
+          let statusLabel, statusColor;
+          if (r.status === 'TAKEN') {
+            statusLabel = (diffMin !== null && diffMin <= 15) ? 'Dung gio' : `Tre ${diffMin} phut`;
+            statusColor = (diffMin !== null && diffMin <= 15) ? '#10B981' : '#F59E0B';
+          } else if (r.status === 'SKIPPED') {
+            statusLabel = 'Bo qua'; statusColor = '#F59E0B';
+          } else {
+            statusLabel = 'Chua uong'; statusColor = '#EF4444';
+          }
+
+          const rowY = doc.y;
+          if (rIdx % 2 === 0) {
+            doc.rect(65, rowY - 2, doc.page.width - 115, 15).fill('#F9FAFB');
+          }
+          doc.font('CustomRegular').fillColor('#374151').fontSize(10);
+          doc.text(fmtD(sched),                  c1, rowY, { width: 85 });
+          doc.text(fmtT(sched),                  c2, rowY, { width: 95 });
+          doc.fillColor(statusColor)
+             .text(statusLabel,                  c3, rowY, { width: 125 });
+          doc.fillColor('#374151')
+             .text(takenAt ? fmtT(takenAt) : '—', c4, rowY, { width: 95 });
+          doc.moveDown(0.3);
+        });
+
+        if (med.pending.length > 5) {
+          doc.font('CustomRegular').fillColor('#9CA3AF').fontSize(9)
+             .text(`   ... va ${med.pending.length - 5} lieu chua uong khac`, 70);
+        }
+      }
+    }
+
     // Footer
     const now = new Date();
     const formatTime = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     doc.rect(0, doc.page.height - 40, doc.page.width, 40).fill('#F3F4F6');
     doc.fillColor('#9CA3AF').fontSize(10).text(
-      `Trích xuất tự động từ hệ thống SmartCare lúc ${formatTime(now)} ngày ${formatDateStr(now)}`,
+      `Trich xuat tu dong tu he thong SmartCare luc ${formatTime(now)} ngay ${formatDateStr(now)}`,
       0, doc.page.height - 25, { align: 'center' }
     );
 
