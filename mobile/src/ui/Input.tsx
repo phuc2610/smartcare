@@ -44,6 +44,8 @@ export const Input: React.FC<InputProps> = ({
             style,
           ]}
           placeholderTextColor={COLORS.textSecondary}
+          autoCorrect={false}
+          spellCheck={false}
           {...props}
         />
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
@@ -86,6 +88,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     paddingVertical: SPACING.md,
+    includeFontPadding: false,
   },
   inputWithLeftIcon: {
     paddingLeft: SPACING.sm,

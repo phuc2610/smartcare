@@ -309,7 +309,11 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         <Text style={styles.headerTitle}>Theo dõi sức khỏe</Text>
         <View style={styles.headerBtn} />
       </View>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+      >
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'meal' && styles.tabActive]}
@@ -355,6 +359,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
               <TextInput
                 style={[styles.input, styles.flex1]}
                 placeholder="Phở bò, Cơm tấm..."
+                placeholderTextColor="#9CA3AF"
                 value={foodName}
                 onChangeText={setFoodName}
               />
@@ -372,6 +377,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Ví dụ: 500"
+              placeholderTextColor="#9CA3AF"
               value={calories}
               onChangeText={setCalories}
               keyboardType="numeric"
@@ -395,6 +401,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Chạy bộ, Gym, Yoga..."
+              placeholderTextColor="#9CA3AF"
               value={exerciseType}
               onChangeText={setExerciseType}
             />
@@ -402,6 +409,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="30"
+              placeholderTextColor="#9CA3AF"
               value={duration}
               onChangeText={setDuration}
               keyboardType="numeric"
@@ -411,6 +419,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
               <TextInput
                 style={[styles.input, styles.flex1]}
                 placeholder="Ví dụ: 200"
+                placeholderTextColor="#9CA3AF"
                 value={caloriesBurned}
                 onChangeText={setCaloriesBurned}
                 keyboardType="numeric"
@@ -441,6 +450,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Đau đầu, Chóng mặt..."
+              placeholderTextColor="#9CA3AF"
               value={symptomName}
               onChangeText={setSymptomName}
             />
@@ -511,6 +521,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Xảy ra sau khi uống thuốc..."
+              placeholderTextColor="#9CA3AF"
               value={note}
               onChangeText={setNote}
               multiline
@@ -534,6 +545,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Nhập tên bác sĩ"
+              placeholderTextColor="#9CA3AF"
               value={doctorName}
               onChangeText={setDoctorName}
             />
@@ -541,6 +553,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="VD: Tim mạch, Nội tiết..."
+              placeholderTextColor="#9CA3AF"
               value={doctorSpecialty}
               onChangeText={setDoctorSpecialty}
             />
@@ -548,6 +561,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Nhập tên bệnh viện"
+              placeholderTextColor="#9CA3AF"
               value={hospitalName}
               onChangeText={setHospitalName}
             />
@@ -575,6 +589,7 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.input}
               placeholder="Nhập ghi chú (tùy chọn)"
+              placeholderTextColor="#9CA3AF"
               value={appointmentNotes}
               onChangeText={setAppointmentNotes}
               multiline
@@ -654,6 +669,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
+    color: '#111827',
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
