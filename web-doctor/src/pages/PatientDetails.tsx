@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Activity, AlertTriangle, Apple, FileText, Calendar, MessageSquare, Send, X, Clock, Stethoscope, ChevronDown, ChevronUp, Pill, RefreshCw, TrendingUp, Download, BarChart3, ClipboardList, Building2, Heart, XCircle, CheckCircle, FileEdit, CalendarCheck, Utensils } from 'lucide-react';
+import { ArrowLeft, Activity, AlertTriangle, Apple, FileText, Calendar, MessageSquare, Send, X, Clock, Stethoscope, ChevronDown, ChevronUp, Pill, RefreshCw, TrendingUp, BarChart3, ClipboardList, Building2, Heart, XCircle, CheckCircle, FileEdit, CalendarCheck, Utensils } from 'lucide-react';
 
 export default function PatientDetails() {
   const { patientId } = useParams();
