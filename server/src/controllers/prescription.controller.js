@@ -510,15 +510,21 @@ const deletePrescription = async (req, res) => {
     const medications = await Medication.find({ prescriptionId });
     const medicationIds = medications.map(m => m._id);
 
-    // Delete reminders for these medications
+    // Soft delete: keep history. Only delete pending reminders.
     const Reminder = require('../models/Reminder');
-    await Reminder.deleteMany({ medicationId: { $in: medicationIds } });
+    await Reminder.deleteMany({ 
+      medicationId: { $in: medicationIds },
+      status: 'PENDING'
+    });
 
-    // Delete the medications
-    await Medication.deleteMany({ prescriptionId });
+    // Soft delete the medications
+    await Medication.updateMany(
+      { prescriptionId },
+      { $set: { isActive: false, isDeleted: true } }
+    );
 
-    // Delete the prescription itself
-    await Prescription.findByIdAndDelete(prescriptionId);
+    // Soft delete the prescription itself
+    await Prescription.findByIdAndUpdate(prescriptionId, { status: 'archived' });
 
     res.json({ message: 'Prescription and associated medications deleted completely' });
   } catch (error) {

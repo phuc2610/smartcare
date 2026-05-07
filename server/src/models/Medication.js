@@ -8,6 +8,7 @@ const medicationSchema = new mongoose.Schema({
   unit: { type: String, default: 'mg' },
   notes: { type: String, default: null },
   isActive: { type: Boolean, default: true },
+  isDeleted: { type: Boolean, default: false },
   prescribedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   frequency: { type: String, enum: ['DAILY', 'EVERY_OTHER_DAY'], required: true },
   sessions: [{ type: String, enum: ['MORNING', 'NOON', 'EVENING'] }],

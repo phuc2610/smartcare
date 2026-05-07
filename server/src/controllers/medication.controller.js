@@ -65,7 +65,7 @@ const getTodayReminders = async (req, res) => {
     const targetUserId = req.query.userId || req.user._id.toString();
 
     // Lấy tất cả medications đang active của user
-    const medications = await Medication.find({ userId: targetUserId, isActive: true });
+    const medications = await Medication.find({ userId: targetUserId, isActive: true, isDeleted: { $ne: true } });
     const medicationIds = medications.map(m => m._id);
 
     // Tính thời gian bắt đầu và kết thúc của ngày hôm nay
@@ -207,7 +207,7 @@ const updateReminder = async (req, res) => {
 
 const getMedications = async (req, res) => {
   try {
-    const filter = { userId: req.user._id };
+    const filter = { userId: req.user._id, isDeleted: { $ne: true } };
     if (req.query.prescriptionId) {
       filter.prescriptionId = req.query.prescriptionId;
     }
@@ -223,8 +223,8 @@ const getMedications = async (req, res) => {
 const deleteMedication = async (req, res) => {
   try {
     const { id } = req.params;
-    await Medication.findByIdAndDelete(id);
-    await Reminder.deleteMany({ medicationId: id });
+    await Medication.findByIdAndUpdate(id, { isActive: false, isDeleted: true });
+    await Reminder.deleteMany({ medicationId: id, status: 'PENDING' });
     res.json({ message: 'Medication deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -238,11 +238,11 @@ const batchDeleteMedications = async (req, res) => {
       return res.status(400).json({ error: 'medicationIds array is required' });
     }
 
-    // Xóa reminders liên quan
-    await Reminder.deleteMany({ medicationId: { $in: medicationIds } });
+    // Xóa reminders PENDING liên quan
+    await Reminder.deleteMany({ medicationId: { $in: medicationIds }, status: 'PENDING' });
     
-    // Xóa medications (ensure they belong to user)
-    await Medication.deleteMany({ _id: { $in: medicationIds }, userId: req.user._id });
+    // Xóa mềm medications (ensure they belong to user)
+    await Medication.updateMany({ _id: { $in: medicationIds }, userId: req.user._id }, { $set: { isActive: false, isDeleted: true } });
     
     res.json({ deleted: medicationIds.length });
   } catch (error) {
