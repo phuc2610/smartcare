@@ -37,6 +37,7 @@ export default function PatientDetails() {
   const [medRecords, setMedRecords] = useState<any[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
+  const [previewRecord, setPreviewRecord] = useState<any>(null);
 
   // Adherence
   const [adherence, setAdherence] = useState<any>(null);
@@ -668,33 +669,14 @@ export default function PatientDetails() {
                           )}
 
                           {/* Nút Xuất PDF (M7) */}
-                          <button onClick={async (e) => {
+                          <button onClick={(e) => {
                             e.stopPropagation();
-                            const btn = e.currentTarget;
-                            btn.disabled = true;
-                            btn.textContent = '⏳ Đang tạo PDF...';
-                            try {
-                              const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}/${rec._id}/pdf`, { responseType: 'blob' });
-                              const blob = new Blob([res.data], { type: 'application/pdf' });
-                              const url = window.URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `DonThuoc_${patient.name?.replace(/\s+/g, '_')}_${new Date(rec.createdAt).toISOString().split('T')[0]}.pdf`;
-                              document.body.appendChild(a);
-                              a.click();
-                              window.URL.revokeObjectURL(url);
-                              document.body.removeChild(a);
-                            } catch (err: any) {
-                              alert(err.response?.data?.error || 'Lỗi khi tạo PDF');
-                            } finally {
-                              btn.disabled = false;
-                              btn.innerHTML = '';
-                            }
+                            setPreviewRecord(rec);
                           }}
                             style={{ width: '100%', padding: '0.85rem', background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(30,64,175,0.3)', transition: 'all 0.2s' }}
                             onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                             onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                            <Download size={18} /> Xuất PDF Đơn Thuốc
+                            <FileText size={18} /> Xem & Xuất Đơn Thuốc
                           </button>
                         </div>
                       )}
@@ -1137,6 +1119,126 @@ export default function PatientDetails() {
               style={{ background: chatInput.trim() ? 'linear-gradient(135deg, #1E40AF, #3B82F6)' : '#E5E7EB', border: 'none', borderRadius: '12px', padding: '0.7rem', cursor: chatInput.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', transition: 'all 0.2s', boxShadow: chatInput.trim() ? '0 4px 12px rgba(30,64,175,0.3)' : 'none' }}>
               <Send size={20} color={chatInput.trim() ? 'white' : '#9CA3AF'} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== PREVIEW MODAL ===== */}
+      {previewRecord && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: '1rem' }} onClick={() => setPreviewRecord(null)}>
+          <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideIn 0.2s ease' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: '16px 16px 0 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', borderRadius: '8px', color: 'white' }}>
+                  <FileText size={18} />
+                </div>
+                <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#1E293B' }}>Xem trước Đơn Thuốc</h2>
+              </div>
+              <button onClick={() => setPreviewRecord(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', display: 'flex', padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content (Scrollable) */}
+            <div style={{ padding: '2rem', overflowY: 'auto', flex: 1, backgroundColor: '#F1F5F9' }}>
+              <div style={{ background: 'white', padding: '2rem', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ textAlign: 'center', fontSize: '1.5rem', color: '#1E293B', marginBottom: '1.5rem' }}>ĐƠN THUỐC</h3>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', color: '#374151' }}>
+                  <div><strong>Bệnh nhân:</strong> {patient?.name}</div>
+                  <div><strong>Ngày xuất:</strong> {new Date(previewRecord.createdAt).toLocaleDateString('vi-VN')}</div>
+                </div>
+                <div style={{ marginBottom: '1.5rem', color: '#374151' }}>
+                  <strong>Chẩn đoán:</strong> {previewRecord.diagnosis} {previewRecord.icdCode ? `(${previewRecord.icdCode})` : ''}
+                </div>
+
+                <div style={{ borderTop: '2px solid #E2E8F0', margin: '1.5rem 0' }}></div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {previewRecord.prescriptionIds?.map((med: any, idx: number) => (
+                    <div key={idx} style={{ paddingBottom: '1rem', borderBottom: idx < previewRecord.prescriptionIds.length - 1 ? '1px dashed #E2E8F0' : 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: '600', color: '#1E293B', fontSize: '1.05rem' }}>{idx + 1}. {med.name} {med.dosage}</span>
+                        <span style={{ fontWeight: '500', color: '#4B5563' }}>SL: Theo toa</span>
+                      </div>
+                      <div style={{ paddingLeft: '1.25rem', color: '#4B5563', fontSize: '0.95rem' }}>
+                        Một ngày uống {med.sessions?.length || 1} lần. Các buổi: {med.sessions?.map((s: string) => ({ MORNING: 'Sáng', NOON: 'Trưa', EVENING: 'Tối' }[s] || s)).join(', ')}. {({ BEFORE_MEAL: 'Trước khi ăn', AFTER_MEAL: 'Sau khi ăn', NONE: '' }[med.mealTiming as string] || '')}
+                      </div>
+                      {med.notes && <div style={{ paddingLeft: '1.25rem', color: '#6B7280', fontSize: '0.9rem', fontStyle: 'italic', marginTop: '4px' }}>Chú ý: {med.notes}</div>}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ borderTop: '2px solid #E2E8F0', margin: '1.5rem 0' }}></div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', color: '#374151', fontSize: '0.95rem' }}>
+                  <div>
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>Tái khám ngày: <span style={{ fontWeight: '400' }}>{previewRecord.followUpDate ? new Date(previewRecord.followUpDate).toLocaleDateString('vi-VN') : '...../...../..........'}</span></div>
+                    <div style={{ fontWeight: '600', marginBottom: '1rem' }}>Tại: <span style={{ fontWeight: '400' }}>Phòng khám.</span></div>
+                    {previewRecord.note && <div><strong>Lời dặn:</strong> {previewRecord.note}</div>}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>Bác sĩ điều trị</div>
+                    <div style={{ fontStyle: 'italic', color: '#9CA3AF', marginBottom: '3rem' }}>(Ký tên)</div>
+                    <div style={{ fontWeight: '700' }}>BS. {previewRecord.doctorId?.name || 'SmartCare'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid #E2E8F0', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: 'white', borderRadius: '0 0 16px 16px' }}>
+              <button onClick={() => navigate(`/prescribe/${patientId}?represcribe=${previewRecord._id}`)}
+                style={{ padding: '0.75rem 1.25rem', border: '1.5px solid #CBD5E1', borderRadius: '10px', backgroundColor: 'white', color: '#475569', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                <FileEdit size={16} /> Chỉnh sửa (Tạo mới)
+              </button>
+              
+              <button onClick={async (e) => {
+                  const btn = e.currentTarget;
+                  btn.disabled = true;
+                  btn.innerText = '⏳ Đang tạo...';
+                  try {
+                    const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}/${previewRecord._id}/pdf`, { responseType: 'blob' });
+                    const blob = new Blob([res.data], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+                    const iframe = document.createElement('iframe');
+                    iframe.style.display = 'none';
+                    iframe.src = url;
+                    document.body.appendChild(iframe);
+                    iframe.onload = () => {
+                      iframe.contentWindow?.print();
+                      setTimeout(() => document.body.removeChild(iframe), 5000); // cleanup
+                    };
+                  } catch (err: any) { alert('Lỗi: ' + (err.response?.data?.error || err.message)); }
+                  finally { btn.disabled = false; btn.innerText = 'In Đơn Thuốc'; }
+                }}
+                style={{ padding: '0.75rem 1.25rem', border: 'none', borderRadius: '10px', background: 'linear-gradient(135deg, #059669, #10B981)', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16,185,129,0.3)' }}>
+                In Đơn Thuốc
+              </button>
+
+              <button onClick={async (e) => {
+                  const btn = e.currentTarget;
+                  btn.disabled = true;
+                  btn.innerText = '⏳ Đang tải...';
+                  try {
+                    const res = await axios.get(`https://smartcare-uqgi.onrender.com/api/medical-records/${patientId}/${previewRecord._id}/pdf`, { responseType: 'blob' });
+                    const blob = new Blob([res.data], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `DonThuoc_${patient.name?.replace(/\s+/g, '_')}_${new Date(previewRecord.createdAt).toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  } catch (err: any) { alert('Lỗi: ' + (err.response?.data?.error || err.message)); }
+                  finally { btn.disabled = false; btn.innerText = 'Xuất PDF'; }
+                }}
+                style={{ padding: '0.75rem 1.25rem', border: 'none', borderRadius: '10px', background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', color: 'white', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(37,99,235,0.3)' }}>
+                Xuất PDF
+              </button>
+            </div>
           </div>
         </div>
       )}

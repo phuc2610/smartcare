@@ -416,7 +416,7 @@ export default function Prescribe() {
 
       {/* Navbar */}
       <nav style={{ backgroundColor: '#1E3A8A', color: 'white', padding: '1rem 2rem', boxShadow: '0 4px 6px rgba(0,0,0,0.15)', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={() => navigate(`/patients/${patientId}`)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: '500' }}
             onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
             onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}>
@@ -434,7 +434,7 @@ export default function Prescribe() {
 
       {/* Re-prescribe Banner (M4) */}
       {isReprescribe && (
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0.5rem 2rem 0' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '0.5rem 2rem 0' }}>
           <div style={{ background: 'linear-gradient(135deg, #7C3AED, #A855F7)', color: 'white', padding: '0.9rem 1.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 12px rgba(124,58,237,0.3)' }}>
             <RefreshCw size={20} />
             <div>
@@ -445,7 +445,7 @@ export default function Prescribe() {
         </div>
       )}
 
-      <main style={{ padding: '0 2rem', maxWidth: '1100px', margin: '0 auto', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
+      <main style={{ padding: '0 2rem', maxWidth: '1440px', margin: '0 auto', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
         <form onSubmit={handleSubmit} style={{ height: '100%' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '2rem', alignItems: 'start', height: '100%' }}>
 
