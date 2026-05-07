@@ -323,6 +323,80 @@ export const ReportScreen = ({ route }: any) => {
         )}
       </View>
 
+      {/* Medication History */}
+      {report.reminders && report.reminders.length > 0 && (() => {
+        // Group reminders by medicationName
+        const grouped: Record<string, { name: string; taken: number; skipped: number; pending: number; entries: any[] }> = {};
+        report.reminders.forEach((r: any) => {
+          const key = r.medicationName || 'Không rõ';
+          if (!grouped[key]) {
+            grouped[key] = { name: key, taken: 0, skipped: 0, pending: 0, entries: [] };
+          }
+          if (r.status === 'TAKEN') grouped[key].taken++;
+          else if (r.status === 'SKIPPED') grouped[key].skipped++;
+          else grouped[key].pending++;
+          grouped[key].entries.push(r);
+        });
+
+        return (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💊 Lịch sử uống thuốc</Text>
+            {Object.values(grouped).map((med, idx) => {
+              const totalMed = med.taken + med.skipped + med.pending;
+              const rate = totalMed > 0 ? Math.round((med.taken / totalMed) * 100) : 0;
+              const rateColor = rate >= 80 ? '#10B981' : rate >= 50 ? '#F59E0B' : '#EF4444';
+              return (
+                <View key={idx} style={styles.medHistCard}>
+                  <View style={styles.medHistHeader}>
+                    <Text style={styles.medHistName} numberOfLines={1}>{med.name}</Text>
+                    <View style={[styles.medHistRateBadge, { backgroundColor: rateColor + '20' }]}>
+                      <Text style={[styles.medHistRateText, { color: rateColor }]}>{rate}%</Text>
+                    </View>
+                  </View>
+                  <View style={styles.medHistStats}>
+                    <View style={styles.medHistStat}>
+                      <Text style={styles.medHistStatVal}>{med.taken}</Text>
+                      <Text style={[styles.medHistStatLabel, { color: '#10B981' }]}>Đã uống</Text>
+                    </View>
+                    <View style={styles.medHistDivider} />
+                    <View style={styles.medHistStat}>
+                      <Text style={styles.medHistStatVal}>{med.skipped}</Text>
+                      <Text style={[styles.medHistStatLabel, { color: '#F59E0B' }]}>Bỏ qua</Text>
+                    </View>
+                    <View style={styles.medHistDivider} />
+                    <View style={styles.medHistStat}>
+                      <Text style={styles.medHistStatVal}>{med.pending}</Text>
+                      <Text style={[styles.medHistStatLabel, { color: '#6B7280' }]}>Chờ</Text>
+                    </View>
+                  </View>
+                  {/* Show last 3 taken entries */}
+                  {med.entries
+                    .filter((e: any) => e.status === 'TAKEN' && e.takenAt)
+                    .slice(0, 3)
+                    .map((e: any, eIdx: number) => {
+                      const taken = new Date(e.takenAt);
+                      const scheduled = new Date(e.scheduledTime);
+                      const diffMin = Math.round((taken.getTime() - scheduled.getTime()) / 60000);
+                      const diffStr = diffMin <= 15 ? '✓ Đúng giờ' : `⏱ Trễ ${diffMin} phút`;
+                      return (
+                        <View key={eIdx} style={styles.medHistEntry}>
+                          <Text style={styles.medHistEntryTime}>
+                            {scheduled.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            {selectedRange !== 'today' && ` • ${scheduled.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`}
+                          </Text>
+                          <Text style={[styles.medHistEntryStatus, { color: diffMin <= 15 ? '#10B981' : '#F59E0B' }]}>
+                            {diffStr}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
+
       {/* AI Notes - Only for week and month */}
       {(selectedRange === 'week' || selectedRange === 'month') && (
         <View style={styles.section}>
@@ -343,6 +417,7 @@ export const ReportScreen = ({ route }: any) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -602,6 +677,79 @@ const styles = StyleSheet.create({
   },
   exportButton: {
     padding: 8,
+  },
+  // Medication History
+  medHistCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  medHistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  medHistName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  medHistRateBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  medHistRateText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  medHistStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  medHistStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  medHistStatVal: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  medHistStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  medHistDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: COLORS.border || '#E5E7EB',
+  },
+  medHistEntry: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  medHistEntryTime: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  medHistEntryStatus: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
 
