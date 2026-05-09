@@ -36,8 +36,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [editingTask, setEditingTask] = useState<Reminder | HealthLog | null>(null);
-  const [editingType, setEditingType] = useState<'medication' | 'health'>('medication');
+  const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [editingType, setEditingType] = useState<'medication' | 'health' | 'appointment'>('medication');
   const [filter, setFilter] = useState<'all' | 'medication' | 'meal' | 'exercise' | 'appointment'>('all');
   const [timeOfDay, setTimeOfDay] = useState<'all' | 'morning' | 'noon' | 'afternoon' | 'evening'>('all');
   const [missedReminderIds, setMissedReminderIds] = useState<Set<string>>(new Set());
@@ -215,12 +215,42 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       const log = healthLogs.find(h => h._id === id);
       if (!log) return;
       const willBeCompleted = !log.isCompleted;
-      // Cancel notifications if health log will be completed
-      if (willBeCompleted && log.notificationIds && log.notificationIds.length > 0) {
-        await cancelNotifications(log.notificationIds);
+
+      const proceedUpdate = async () => {
+        // Cancel notifications if health log will be completed
+        if (willBeCompleted && log.notificationIds && log.notificationIds.length > 0) {
+          await cancelNotifications(log.notificationIds);
+        }
+        await updateHealthLog(id, { isCompleted: willBeCompleted });
+        fetchData();
+      };
+
+      if (willBeCompleted && (log.type === 'meal' || log.type === 'exercise')) {
+        let scheduledDateTime = new Date();
+        if (log.scheduledDate && log.scheduledTime) {
+          scheduledDateTime = new Date(`${log.scheduledDate}T${log.scheduledTime}`);
+        } else if (log.scheduledTime) {
+          const dateStr = typeof log.date === 'string' ? log.date.split('T')[0] : new Date(log.date).toISOString().split('T')[0];
+          scheduledDateTime = new Date(`${dateStr}T${log.scheduledTime}`);
+        }
+
+        const now = new Date();
+        const diffMinutes = (now.getTime() - scheduledDateTime.getTime()) / 60000;
+        if (Math.abs(diffMinutes) > 30) {
+          const isLate = diffMinutes > 30;
+          const { showConfirm } = require('../../utils/alert');
+          showConfirm(
+            'Cảnh báo',
+            `Bạn đang ghi nhận ${isLate ? 'trễ' : 'sớm'} hơn kế hoạch. Bạn có chắc đã hoàn thành thực tế?`,
+            async () => {
+              await proceedUpdate();
+            }
+          );
+          return;
+        }
       }
-      await updateHealthLog(id, { isCompleted: willBeCompleted });
-      fetchData();
+
+      await proceedUpdate();
     } catch (error) {
       console.error('Failed to update health log:', error);
       showError('Lỗi', 'Không thể cập nhật');
@@ -264,6 +294,62 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       console.error('Failed to update health log:', error);
       throw error;
     }
+  };
+
+  const handleCheckAppointment = async (id: string) => {
+    if (readOnly) return;
+    try {
+      const appointment = appointments.find(a => a._id === id);
+      if (!appointment) return;
+      const willBeCompleted = !appointment.isCompleted;
+      const { updateAppointment } = require('../../services/appointment.service');
+      await updateAppointment(id, { isCompleted: willBeCompleted });
+      fetchData();
+    } catch (error) {
+      console.error('Failed to update appointment:', error);
+      showError('Lỗi', 'Không thể cập nhật');
+    }
+  };
+
+  const handleEditAppointment = (id: string) => {
+    if (readOnly) return;
+    const appointment = appointments.find(a => a._id === id);
+    if (appointment) {
+      setEditingTask(appointment);
+      setEditingType('appointment');
+    }
+  };
+
+  const handleSaveAppointment = async (data: any) => {
+    if (!editingTask || editingType !== 'appointment') return;
+    try {
+      const { updateAppointment } = require('../../services/appointment.service');
+      await updateAppointment(editingTask._id, data);
+      setEditingTask(null);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to update appointment:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteAppointment = async (id: string) => {
+    if (readOnly) return;
+    const { showConfirm } = require('../../utils/alert');
+    showConfirm(
+      'Xác nhận',
+      'Bạn có chắc muốn xóa lịch hẹn này?',
+      async () => {
+        try {
+          const { deleteAppointment } = require('../../services/appointment.service');
+          await deleteAppointment(id);
+          fetchData();
+        } catch (error) {
+          console.error('Failed to delete appointment:', error);
+          showError('Lỗi', 'Không thể xóa');
+        }
+      }
+    );
   };
 
   const pendingReminders = reminders.filter(r => r.status !== ReminderStatus.TAKEN);
@@ -794,49 +880,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           {filteredAppointments.length > 0 ? (
             <>
               {filteredAppointments.map(appointment => (
-                <Card key={appointment._id} style={styles.taskCard}>
-                  <View style={styles.taskContent}>
-                    <View style={styles.taskInfo}>
-                      <View style={styles.taskHeader}>
-                        <View style={styles.iconContainer}>
-                          <Icon name="event" size={20} color={COLORS.primary} />
-                        </View>
-                        <Text variant="body" color="text" semibold style={styles.taskTitle}>
-                          {appointment.doctorName}
-                        </Text>
-                      </View>
-                      {appointment.doctorSpecialty && (
-                        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
-                          {appointment.doctorSpecialty}
-                        </Text>
-                      )}
-                      {appointment.hospitalName && (
-                        <Text variant="caption" color="textSecondary" style={styles.taskSubtitle}>
-                          {appointment.hospitalName}
-                        </Text>
-                      )}
-                      <View style={styles.taskMeta}>
-                        <View style={styles.iconContainerSmall}>
-                          <Icon name="schedule" size={14} color={COLORS.textSecondary} />
-                        </View>
-                        <Text variant="caption" color="textSecondary" style={styles.taskMetaText}>
-                          {new Date(appointment.appointmentDate).toLocaleDateString('vi-VN', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                          {appointment.appointmentTime && ` • ${appointment.appointmentTime}`}
-                        </Text>
-                      </View>
-                      {appointment.notes && (
-                        <Text variant="caption" color="textSecondary" style={styles.taskNotes}>
-                          {appointment.notes}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </Card>
+                <TaskItem
+                  key={appointment._id}
+                  type="appointment"
+                  item={appointment}
+                  completed={appointment.isCompleted}
+                  onCheck={() => handleCheckAppointment(appointment._id)}
+                  onPress={() => handleEditAppointment(appointment._id)}
+                  onDelete={() => handleDeleteAppointment(appointment._id)}
+                  readOnly={readOnly}
+                />
               ))}
             </>
           ) : filter === 'appointment' ? (
@@ -863,7 +916,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
       <EditTaskModal
         visible={editingTask !== null}
         onClose={() => setEditingTask(null)}
-        onSave={editingType === 'medication' ? handleSaveReminder : handleSaveHealthLog}
+        onSave={editingType === 'medication' ? handleSaveReminder : editingType === 'health' ? handleSaveHealthLog : handleSaveAppointment}
         task={editingTask}
         type={editingType}
       />
@@ -873,8 +926,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
 // Task Item Component
 interface TaskItemProps {
-  type: 'medication' | 'health';
-  item: Reminder | HealthLog;
+  type: 'medication' | 'health' | 'appointment';
+  item: any;
   completed?: boolean;
   onCheck?: () => void;
   onPress?: () => void;
@@ -899,6 +952,8 @@ const TaskItem: React.FC<TaskItemProps> = ({
     let title = '';
     if (type === 'medication') {
       title = (item as Reminder).medicationName;
+    } else if (type === 'appointment') {
+      title = item.doctorName || 'Lịch hẹn';
     } else {
       const healthLog = item as HealthLog;
       if (healthLog.type === 'meal') {
@@ -919,6 +974,9 @@ const TaskItem: React.FC<TaskItemProps> = ({
         minute: '2-digit',
       });
     }
+    if (type === 'appointment') {
+      return item.appointmentTime || '--:--';
+    }
     const healthLog = item as HealthLog;
     if (healthLog.scheduledTime) {
       if (healthLog.scheduledTime.includes('T')) {
@@ -937,6 +995,9 @@ const TaskItem: React.FC<TaskItemProps> = ({
       const statusStr = completed ? 'Đã uống' : (isOverdue ? 'Chưa uống' : 'Sắp tới');
       return `${sessionStr} · ${statusStr}`;
     }
+    if (type === 'appointment') {
+      return `${item.doctorSpecialty || 'Khám bệnh'} · ${item.hospitalName || ''}`;
+    }
     const healthLog = item as HealthLog;
     if (healthLog.type === 'meal') {
       return `${healthLog.details.calories || 0} kcal · ${completed ? 'Đã ăn' : 'Chưa ăn'}`;
@@ -947,6 +1008,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   const getIconName = () => {
+    if (type === 'appointment') return 'event';
     const time = getTimeStr();
     if (time >= '05:00' && time <= '10:59') return 'wb-sunny';
     return 'schedule';

@@ -19,8 +19,8 @@ interface EditTaskModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
-  task: Reminder | HealthLog | null;
-  type: 'medication' | 'health';
+  task: any | null;
+  type: 'medication' | 'health' | 'appointment';
 }
 
 export const EditTaskModal: React.FC<EditTaskModalProps> = ({
@@ -36,6 +36,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [scheduledTime, setScheduledTime] = useState('');
   const [dosage, setDosage] = useState('');
   const [unit, setUnit] = useState('');
+  const [medicationName, setMedicationName] = useState('');
 
   // Health log fields
   const [scheduledDate, setScheduledDate] = useState('');
@@ -45,6 +46,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [exerciseType, setExerciseType] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [caloriesBurned, setCaloriesBurned] = useState('');
+
+  // Appointment fields
+  const [doctorName, setDoctorName] = useState('');
+  const [doctorSpecialty, setDoctorSpecialty] = useState('');
+  const [hospitalName, setHospitalName] = useState('');
+  const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [reminderBefore, setReminderBefore] = useState('');
 
   useEffect(() => {
     if (task && visible) {
@@ -57,7 +65,8 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         setScheduledTime(time);
         setDosage(reminder.dosage);
         setUnit(reminder.unit);
-      } else {
+        setMedicationName(reminder.medicationName);
+      } else if (type === 'health') {
         const healthLog = task as HealthLog;
         if (healthLog.scheduledDate) {
           const date = new Date(healthLog.scheduledDate);
@@ -76,6 +85,18 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           setDurationMinutes(String(healthLog.details.durationMinutes || 0));
           setCaloriesBurned(String(healthLog.details.caloriesBurned || 0));
         }
+      } else if (type === 'appointment') {
+        const appointment = task as any;
+        if (appointment.appointmentDate) {
+          const date = new Date(appointment.appointmentDate);
+          setScheduledDate(date.toISOString().split('T')[0]);
+        }
+        setHealthScheduledTime(appointment.appointmentTime || '08:00');
+        setDoctorName(appointment.doctorName || '');
+        setDoctorSpecialty(appointment.doctorSpecialty || '');
+        setHospitalName(appointment.hospitalName || '');
+        setAppointmentNotes(appointment.notes || '');
+        setReminderBefore(String(appointment.reminderBefore || 24));
       }
     }
   }, [task, visible, type]);
@@ -96,8 +117,9 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           scheduledTime: scheduledDateTime.toISOString(),
           dosage,
           unit,
+          medicationName,
         });
-      } else {
+      } else if (type === 'health') {
         const healthLog = task as HealthLog;
         const updateData: any = {
           scheduledDate,
@@ -118,6 +140,16 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         }
 
         await onSave(updateData);
+      } else if (type === 'appointment') {
+        await onSave({
+          doctorName,
+          doctorSpecialty,
+          hospitalName,
+          appointmentDate: scheduledDate,
+          appointmentTime: healthScheduledTime,
+          notes: appointmentNotes,
+          reminderBefore: Number(reminderBefore) || 24,
+        });
       }
 
       onClose();
@@ -130,12 +162,16 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   };
 
   const renderMedicationForm = () => {
-    const reminder = task as Reminder;
     return (
       <ScrollView style={styles.form}>
         <View style={styles.field}>
           <Text style={styles.label}>Tên thuốc</Text>
-          <Text style={styles.readOnlyText}>{reminder.medicationName}</Text>
+          <TextInput
+            style={styles.input}
+            value={medicationName}
+            onChangeText={setMedicationName}
+            placeholder="Nhập tên thuốc"
+          />
         </View>
 
         <View style={styles.field}>
@@ -270,6 +306,41 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     return null;
   };
 
+  const renderAppointmentForm = () => {
+    return (
+      <ScrollView style={styles.form}>
+        <View style={styles.field}>
+          <Text style={styles.label}>Ngày hẹn</Text>
+          <DatePicker value={scheduledDate} onChange={setScheduledDate} />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Giờ hẹn</Text>
+          <TimePicker value={healthScheduledTime} onChange={setHealthScheduledTime} />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Tên bác sĩ</Text>
+          <TextInput style={styles.input} value={doctorName} onChangeText={setDoctorName} placeholder="Tên bác sĩ" />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Chuyên khoa</Text>
+          <TextInput style={styles.input} value={doctorSpecialty} onChangeText={setDoctorSpecialty} placeholder="VD: Tim mạch..." />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Bệnh viện/Phòng khám</Text>
+          <TextInput style={styles.input} value={hospitalName} onChangeText={setHospitalName} placeholder="Tên bệnh viện" />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Nhắc nhở trước (giờ)</Text>
+          <TextInput style={styles.input} value={reminderBefore} onChangeText={setReminderBefore} placeholder="24" keyboardType="numeric" />
+        </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>Ghi chú</Text>
+          <TextInput style={styles.input} value={appointmentNotes} onChangeText={setAppointmentNotes} placeholder="Ghi chú" multiline />
+        </View>
+      </ScrollView>
+    );
+  };
+
   if (!task) return null;
 
   return (
@@ -283,14 +354,14 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              {type === 'medication' ? 'Sửa lịch uống thuốc' : 'Sửa bữa ăn/vận động'}
+              {type === 'medication' ? 'Sửa lịch uống thuốc' : type === 'health' ? 'Sửa bữa ăn/vận động' : 'Sửa lịch hẹn'}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Icon name="close" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
 
-          {type === 'medication' ? renderMedicationForm() : renderHealthLogForm()}
+          {type === 'medication' ? renderMedicationForm() : type === 'health' ? renderHealthLogForm() : renderAppointmentForm()}
 
           <View style={styles.actions}>
             <TouchableOpacity

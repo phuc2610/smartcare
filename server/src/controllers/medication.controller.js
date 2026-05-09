@@ -174,13 +174,14 @@ const updateReminderSchema = z.object({
     scheduledTime: z.string().datetime().optional(),
     dosage: z.string().optional(),
     unit: z.string().optional(),
+    medicationName: z.string().optional(),
   }),
 });
 
 const updateReminder = async (req, res) => {
   try {
     const { id } = req.params;
-    const { scheduledTime, dosage, unit } = req.body;
+    const { scheduledTime, dosage, unit, medicationName } = req.body;
 
     const reminder = await Reminder.findById(id);
     if (!reminder) {
@@ -196,8 +197,31 @@ const updateReminder = async (req, res) => {
     if (unit !== undefined) {
       reminder.unit = unit;
     }
+    if (medicationName !== undefined) {
+      reminder.medicationName = medicationName;
+    }
     reminder.lastUpdated = new Date();
     await reminder.save();
+
+    // If medication details are changed, cascade to Medication and other PENDING reminders
+    const hasMedicationChanges = medicationName !== undefined || dosage !== undefined || unit !== undefined;
+    if (hasMedicationChanges) {
+      const updateMed = {};
+      if (medicationName !== undefined) updateMed.name = medicationName;
+      if (dosage !== undefined) updateMed.dosage = dosage;
+      if (unit !== undefined) updateMed.unit = unit;
+      await Medication.findByIdAndUpdate(reminder.medicationId, updateMed);
+      
+      const updateRems = {};
+      if (medicationName !== undefined) updateRems.medicationName = medicationName;
+      if (dosage !== undefined) updateRems.dosage = dosage;
+      if (unit !== undefined) updateRems.unit = unit;
+      
+      await Reminder.updateMany(
+        { medicationId: reminder.medicationId, status: 'PENDING', _id: { $ne: reminder._id } },
+        updateRems
+      );
+    }
 
     res.json({ reminder });
   } catch (error) {
