@@ -247,56 +247,76 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
       let scheduledDateToUse: string | undefined;
       let scheduledTimeToUse: string | undefined;
       
-      let isCompletedToUse: boolean | undefined;
-      
       if (activeTab === 'symptom') {
-        // For symptom: use symptomDate as the date field
         dateToUse = symptomDate;
-        isCompletedToUse = true; // Symptoms are inherently completed
       } else if (activeTab === 'meal') {
-        // For meal: use mealDate and mealTime
         scheduledDateToUse = mealDate;
         scheduledTimeToUse = mealTime;
-        isCompletedToUse = true; // Meals are logged after eating
       } else if (activeTab === 'exercise') {
-        // For exercise: use exerciseDate and exerciseTime
         scheduledDateToUse = exerciseDate;
         scheduledTimeToUse = exerciseTime;
-        isCompletedToUse = true; // Exercises are logged after doing
       }
       
-      const response = await createHealthLog(
-        activeTab, 
-        details,
-        dateToUse, // date field (only for symptom)
-        scheduledDateToUse, // scheduledDate (for meal and exercise)
-        scheduledTimeToUse, // scheduledTime (for meal and exercise)
-        isCompletedToUse // isCompleted
-      );
-
-      // Workaround: Since the Render backend might not support setting isCompleted on creation yet,
-      // we immediately update it if it's meant to be completed.
-      if (isCompletedToUse && response?.healthLog?._id) {
+      const proceedCreate = async (finalIsCompleted: boolean) => {
         try {
-          await updateHealthLog(response.healthLog._id, { isCompleted: true });
-        } catch (e) {
-          console.log('Failed to auto-complete health log', e);
+          const response = await createHealthLog(
+            activeTab, 
+            details,
+            dateToUse,
+            scheduledDateToUse,
+            scheduledTimeToUse,
+            finalIsCompleted
+          );
+
+          if (finalIsCompleted && response?.healthLog?._id) {
+            try {
+              await updateHealthLog(response.healthLog._id, { isCompleted: true });
+            } catch (e) {
+              console.log('Failed to auto-complete health log', e);
+            }
+          }
+
+          const { showSuccess } = require('../../utils/alert');
+          showSuccess('Thành công', 'Đã ghi nhận');
+          // Reset form
+          setFoodName('');
+          setCalories('');
+          setExerciseType('');
+          setDuration('');
+          setCaloriesBurned('');
+          setSymptomName('');
+          setSeverity(5);
+          setNote('');
+        } catch (error: any) {
+          showError('Lỗi', error.response?.data?.error || 'Không thể lưu');
+        }
+      };
+
+      if (activeTab === 'meal' || activeTab === 'exercise') {
+        const scheduledDateTime = new Date(`${scheduledDateToUse}T${scheduledTimeToUse}`);
+        const now = new Date();
+        const diffMinutes = (now.getTime() - scheduledDateTime.getTime()) / 60000;
+        
+        if (Math.abs(diffMinutes) > 30) {
+          const isLate = diffMinutes > 30;
+          const { showAlert } = require('../../utils/alert');
+          showAlert(
+            'warning',
+            'Xác nhận ghi nhận',
+            `Bạn đang ghi nhận ${isLate ? 'trễ' : 'sớm'} hơn thời gian hiện tại. Bạn muốn lưu dưới dạng lên kế hoạch hay đã hoàn thành?`,
+            [
+              { text: 'Hủy', style: 'cancel' },
+              { text: 'Kế hoạch', onPress: () => proceedCreate(false) },
+              { text: 'Hoàn thành', onPress: () => proceedCreate(true), style: 'default' },
+            ]
+          );
+          return;
         }
       }
 
-      const { showSuccess } = require('../../utils/alert');
-      showSuccess('Thành công', 'Đã ghi nhận');
-      // Reset form
-      setFoodName('');
-      setCalories('');
-      setExerciseType('');
-      setDuration('');
-      setCaloriesBurned('');
-      setSymptomName('');
-      setSeverity(5);
-      setNote('');
+      await proceedCreate(true);
     } catch (error: any) {
-      showError('Lỗi', error.response?.data?.error || 'Không thể lưu');
+      showError('Lỗi', error.response?.data?.error || 'Lỗi không xác định');
     }
   };
 
