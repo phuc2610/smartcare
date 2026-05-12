@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartCare — Trợ lý Y tế AI & Quản lý Sức khỏe Cá nhân</title>
+    <meta name="description" content="Ứng dụng theo dõi sức khỏe thông minh tích hợp AI. Quản lý thuốc, theo dõi dinh dưỡng, phân tích bệnh lý và chăm sóc người thân từ xa." />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar glass">
+      <div class="container">
+        <div class="logo">
+          <span class="logo-icon">🌿</span>
+          <span class="logo-text">SmartCare</span>
+        </div>
+        <ul class="nav-links">
+          <li><a href="#features">Tính năng</a></li>
+          <li><a href="#how-it-works">Cách dùng</a></li>
+          <li><a href="#download" class="btn-outline">Tải ứng dụng</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="hero-bg"></div>
+      <div class="container hero-container">
+        <div class="hero-content">
+          <span class="badge">Trí tuệ nhân tạo y tế 🤖</span>
+          <h1 class="hero-title">Quản lý sức khỏe cá nhân thông minh</h1>
+          <p class="hero-desc">
+            SmartCare không chỉ nhắc nhở uống thuốc đúng giờ, mà còn giúp bạn theo dõi dinh dưỡng, vận động, giải đáp thắc mắc sức khỏe qua trợ lý AI và kết nối chăm sóc người thân từ xa.
+          </p>
+          <div class="hero-actions-container">
+            <div class="hero-actions">
+              <a href="#" id="download-btn" class="btn btn-primary">
+                <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <div class="btn-text-wrapper">
+                  <span class="text">Tải APK miễn phí</span>
+                  <small id="version-text">Đang tải bản mới nhất...</small>
+                </div>
+              </a>
+              <a href="https://github.com/phuc2610/smartcare" target="_blank" class="btn btn-github">
+                <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                <span class="text">Xem trên GitHub</span>
+              </a>
+            </div>
+            <div class="qr-code-box">
+              <img id="qr-code-img" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://github.com/phuc2610/smartcare/releases/latest" alt="QR Code">
+              <small>Quét mã để tải</small>
+            </div>
+          </div>
+          <div class="hero-trust">
+            <p>Hỗ trợ hoàn toàn Tiếng Việt. An toàn & Bảo mật dữ liệu.</p>
+          </div>
+        </div>
+        <div class="hero-image">
+          <div class="glass-panel image-wrapper">
+            <img src="/hero_mockup.png" alt="SmartCare App Mockup" />
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="features section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">Chăm sóc toàn diện trong tầm tay</h2>
+          <p class="section-subtitle">Tất cả những gì bạn cần để sống khỏe mạnh hơn mỗi ngày, được tối ưu hóa bởi Trí tuệ Nhân tạo.</p>
+        </div>
+        
+        <div class="feature-grid">
+          <div class="feature-card glass-card">
+            <div class="feature-icon">🤖</div>
+            <h3>Trợ lý AI Y Tế</h3>
+            <p>Giải đáp thắc mắc y tế, phân tích đơn thuốc qua hình ảnh và tự động nhận diện tình trạng bệnh lý một cách chuẩn xác.</p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="feature-icon">💊</div>
+            <h3>Nhắc Nhở Uống Thuốc</h3>
+            <p>Cài đặt lịch linh hoạt, thông báo nhiều lần trước giờ uống. Cảnh báo trễ hẹn để bạn không bao giờ quên liều.</p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="feature-icon">👨‍👩‍👧‍👦</div>
+            <h3>Chế Độ Caregiver</h3>
+            <p>Liên kết với người lớn tuổi trong gia đình để theo dõi sức khỏe và nhận cảnh báo y tế khẩn cấp từ xa.</p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="feature-icon">🥗</div>
+            <h3>Nhật Ký Sức Khỏe</h3>
+            <p>Ghi nhận bữa ăn, tính toán calo tiêu thụ và theo dõi mức độ các triệu chứng bệnh từng ngày.</p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="feature-icon">📅</div>
+            <h3>Quản Lý Lịch Hẹn</h3>
+            <p>Lên lịch khám bệnh với bác sĩ, nhận thông báo nhắc nhở 24h trước khi đến hẹn.</p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="feature-icon">🎵</div>
+            <h3>Thư Giãn & Wellness</h3>
+            <p>Giảm căng thẳng với các bài tập thở và âm thanh thiên nhiên (Mưa, Rừng, Biển) ngay trong ứng dụng.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how-it-works" class="how-it-works section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">Cài đặt dễ dàng trong 3 bước</h2>
+        </div>
+        <div class="steps">
+          <div class="step glass-card">
+            <div class="step-num">1</div>
+            <h3>Tải file APK</h3>
+            <p>Nhấn nút "Tải APK" trên trang này để tải về bản cập nhật mới nhất an toàn từ GitHub của chúng tôi.</p>
+          </div>
+          <div class="step glass-card">
+            <div class="step-num">2</div>
+            <h3>Cho phép cài đặt</h3>
+            <p>Khi Android hỏi, hãy vào Cài đặt > Bảo mật > bật "Nguồn không xác định" để cho phép trình duyệt cài ứng dụng.</p>
+          </div>
+          <div class="step glass-card">
+            <div class="step-num">3</div>
+            <h3>Bắt đầu trải nghiệm</h3>
+            <p>Mở SmartCare, đăng ký tài khoản miễn phí bằng số điện thoại và thiết lập hồ sơ sức khỏe của bạn.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer glass">
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-brand">
+            <div class="logo">
+              <span class="logo-icon">🌿</span>
+              <span class="logo-text">SmartCare</span>
+            </div>
+            <p>Nâng tầm sức khỏe, kết nối yêu thương.</p>
+          </div>
+          <div class="footer-links">
+            <p><strong>Lưu ý an toàn:</strong> Chỉ tải APK từ trang này hoặc repository GitHub chính thức. Chúng tôi cam kết bảo mật mọi dữ liệu sức khỏe của bạn.</p>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; 2026 SmartCare Team. All rights reserved.</p>
+          <a href="https://github.com/phuc2610/smartcare" target="_blank">Mã nguồn trên GitHub</a>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
