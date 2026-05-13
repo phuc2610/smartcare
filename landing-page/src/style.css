@@ -317,6 +317,7 @@ a {
 }
 
 .hero-image .glass-panel {
+  position: relative;
   padding: 16px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 32px;
@@ -324,17 +325,41 @@ a {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   transform: rotateY(-15deg) rotateX(5deg);
   transition: transform 0.5s ease;
+  display: flex;
 }
 
 .hero-image:hover .glass-panel {
   transform: rotateY(0deg) rotateX(0deg);
 }
 
-.hero-image img {
-  width: 100%;
-  max-width: 320px;
-  border-radius: 24px;
+.app-screenshot {
+  border-radius: 20px;
   display: block;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+.main-screen {
+  width: 100%;
+  max-width: 250px;
+  position: relative;
+  z-index: 2;
+}
+
+.floating-screen {
+  width: 100%;
+  max-width: 200px;
+  position: absolute;
+  top: 10%;
+  right: -30%;
+  z-index: 1;
+  transform: translateZ(-30px);
+  opacity: 0.85;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.hero-image:hover .floating-screen {
+  opacity: 1;
+  transform: translateZ(20px) translateX(10px);
 }
 
 /* Sections Common */

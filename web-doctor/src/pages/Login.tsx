@@ -40,6 +40,7 @@ export default function Login() {
       {/* Cột trái: Banner giới thiệu */}
       <div style={{ flex: 1, background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', padding: '3rem' }}>
         <div style={{ maxWidth: '600px', textAlign: 'center' }}>
+          <img src="/src/assets/logo.png" alt="SmartCare Logo" style={{ height: '80px', marginBottom: '1rem' }} />
           <h1 style={{ fontSize: '3.5rem', fontWeight: '800', marginBottom: '1.5rem', letterSpacing: '-1px' }}>SmartCare Clinical</h1>
           <p style={{ fontSize: '1.25rem', lineHeight: '1.7', opacity: 0.9 }}>
             Nền tảng quản lý y tế chuyên nghiệp. Kết nối trực tiếp với bệnh nhân, theo dõi chỉ số sinh tồn và phát hành đơn thuốc điện tử một cách bảo mật, nhanh chóng.

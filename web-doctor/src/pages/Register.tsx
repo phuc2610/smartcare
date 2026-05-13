@@ -50,7 +50,8 @@ export default function Register() {
       {/* Cột trái: Banner giới thiệu */}
       <div style={{ flex: 1, background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', padding: '3rem' }}>
         <div style={{ maxWidth: '600px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '3.5rem', fontWeight: '800', marginBottom: '1.5rem', letterSpacing: '-1px' }}>Phòng khám Thông minh</h1>
+          <img src="/src/assets/logo.png" alt="SmartCare Logo" style={{ height: '80px', marginBottom: '1rem' }} />
+          <h1 style={{ fontSize: '3.5rem', fontWeight: '800', marginBottom: '1.5rem', letterSpacing: '-1px' }}>SmartCare Clinical</h1>
           <p style={{ fontSize: '1.25rem', lineHeight: '1.7', opacity: 0.9 }}>
             Khởi tạo không gian làm việc số cho chuyên gia y tế. Quản lý hồ sơ bệnh nhân, chia sẻ y bạ bảo mật tuyệt đối, kê đơn thuốc và theo dõi tiến trình hồi phục chuẩn Y khoa.
           </p>

@@ -79,7 +79,7 @@ export default function Dashboard() {
       <nav style={{ backgroundColor: '#1E3A8A', color: 'white', padding: '1rem 2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
         <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Activity size={32} color="#60A5FA" />
+            <img src="/src/assets/logo.png" alt="SmartCare Logo" style={{ height: '32px', width: 'auto' }} />
             SmartCare <span style={{ fontWeight: '400', opacity: 0.8, marginLeft: '4px' }}>Clinical</span>
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
