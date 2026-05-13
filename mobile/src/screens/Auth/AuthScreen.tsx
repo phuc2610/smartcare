@@ -163,9 +163,18 @@ export const AuthScreen = ({ navigation }: any) => {
     try {
       await verifyOTPAPI(email, otpCode);
       setEmailVerified(true);
-      setScreen('REGISTER');
+      // Khi verify xong, gọi signUp luôn
+      const formattedPhone = formatPhoneForServer(phone);
+      await signUp({ name, phone: formattedPhone, password, role, email });
+      console.log('Registration successful!');
     } catch (err: any) {
-      setError(err?.message || 'Mã OTP không đúng hoặc đã hết hạn');
+      let errorMessage = 'Mã OTP không đúng hoặc đã hết hạn';
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -174,11 +183,6 @@ export const AuthScreen = ({ navigation }: any) => {
   const handleRegister = async () => {
     if (!name || !phone || !password || !confirmPassword || !email) {
       setError('Vui lòng nhập đầy đủ thông tin');
-      return;
-    }
-
-    if (!emailVerified) {
-      setError('Vui lòng xác thực email trước khi đăng ký');
       return;
     }
 
@@ -198,16 +202,23 @@ export const AuthScreen = ({ navigation }: any) => {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Email không hợp lệ');
+      return;
+    }
+
     setError('');
     setLoading(true);
     
     try {
-      const formattedPhone = formatPhoneForServer(phone);
-      await signUp({ name, phone: formattedPhone, password, role, email });
-      console.log('Registration successful!');
+      // Gửi OTP thay vì đăng ký luôn
+      await sendOTPAPI(email);
+      setOtpCountdown(60);
+      setScreen('OTP_VERIFY');
     } catch (err: any) {
-      console.log('Register error:', err);
-      let errorMessage = 'Đăng ký thất bại';
+      console.log('Send OTP error:', err);
+      let errorMessage = 'Không thể gửi OTP. Vui lòng thử lại.';
       if (err?.message) {
         errorMessage = err.message;
       } else if (err?.response?.data?.error) {
@@ -364,42 +375,16 @@ export const AuthScreen = ({ navigation }: any) => {
               autoCapitalize="none"
             />
 
-            {/* Email + OTP verification */}
-            <View style={styles.emailRow}>
-              <TextInput
-                style={[styles.input, styles.emailInput, emailVerified && styles.inputVerified]}
-                placeholder="Email"
-                placeholderTextColor={COLORS.textSecondary}
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (emailVerified) setEmailVerified(false);
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!emailVerified}
-              />
-              {emailVerified ? (
-                <View style={styles.verifiedBadge}>
-                  <Icon name="check-circle" size={20} color="#10B981" />
-                  <Text style={styles.verifiedText}>Đã xác thực</Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.otpButton, (otpSending || otpCountdown > 0) && styles.otpButtonDisabled]}
-                  onPress={handleSendOTP}
-                  disabled={otpSending || otpCountdown > 0}
-                >
-                  {otpSending ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.otpButtonText}>
-                      {otpCountdown > 0 ? `${otpCountdown}s` : 'Gửi mã'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
+            {/* Email field (now regular field, no verify button here) */}
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={COLORS.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
             <PasswordInput
               value={password}
