@@ -1,7 +1,7 @@
 /**
  * AUTH CONTROLLER - Xử lý xác thực và đăng nhập
- * Chức năng: Đăng ký, đăng nhập, quên mật khẩu, đổi mật khẩu
- * Xác thực: SĐT + Mật khẩu (không OTP)
+ * Chức năng: Đăng ký, đăng nhập, quên mật khẩu, đổi mật khẩu, OTP email, Google Sign-In
+ * Xác thực: SĐT + Mật khẩu, Email OTP, Google OAuth
  */
 
 const User = require('../models/User');
@@ -15,6 +15,7 @@ const Alert = require('../models/Alert');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
 const { z } = require('zod');
+const { sendOTPEmail } = require('../services/email.service');
 
 // Schema validation cho đăng ký: name, phone (format VN), password (tối thiểu 6 ký tự), role
 const registerSchema = z.object({
@@ -23,6 +24,7 @@ const registerSchema = z.object({
     phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
     password: z.string().min(6),
     role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
+    email: z.string().email().optional(),
   }),
 });
 
@@ -57,12 +59,10 @@ const register = async (req, res) => {
       phone,
       passwordHash,
       role,
+      email: req.body.email || null,
       isVerified: true,
+      isEmailVerified: !!req.body.email,
     };
-
-    if (role === 'PATIENT') {
-      userData.medicalCondition = null;
-    }
 
     const user = await User.create(userData);
     console.log(`[REGISTER] New user created: ${user.phone} (${user.role})`);
@@ -330,6 +330,186 @@ const deleteAccount = async (req, res) => {
   }
 };
 
+// ===== EMAIL OTP =====
+
+const sendOTPSchema = z.object({
+  body: z.object({
+    email: z.string().email(),
+  }),
+});
+
+/**
+ * Gửi mã OTP đến email
+ * Tạo mã 6 số, lưu vào DB (field otpCode + otpExpiresAt), gửi email
+ */
+const sendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Tạo mã OTP 6 số
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+
+    // Lưu OTP tạm (dùng email làm key, tìm hoặc tạo user tạm)
+    // Dùng collection riêng hoặc lưu tạm trong User model
+    let tempUser = await User.findOne({ email });
+    if (!tempUser) {
+      // Chưa có user với email này → lưu OTP vào bản ghi tạm
+      // Tạo bản ghi tạm (sẽ được cập nhật khi register thật)
+      tempUser = await User.create({
+        name: 'Pending',
+        phone: `temp_${Date.now()}`,
+        passwordHash: 'pending',
+        role: 'PATIENT',
+        email,
+        otpCode,
+        otpExpiresAt,
+        isVerified: false,
+        isEmailVerified: false,
+      });
+    } else {
+      tempUser.otpCode = otpCode;
+      tempUser.otpExpiresAt = otpExpiresAt;
+      await tempUser.save();
+    }
+
+    // Gửi email OTP
+    await sendOTPEmail(email, otpCode);
+
+    console.log(`[SEND OTP] OTP sent to ${email}`);
+    res.json({ message: 'Mã OTP đã được gửi đến email của bạn.' });
+  } catch (error) {
+    console.error('[SEND OTP] Error:', error);
+    res.status(500).json({ error: 'Không thể gửi mã OTP. Vui lòng thử lại.' });
+  }
+};
+
+const verifyOTPSchema = z.object({
+  body: z.object({
+    email: z.string().email(),
+    otp: z.string().length(6),
+  }),
+});
+
+/**
+ * Xác thực mã OTP
+ */
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ error: 'Email không tồn tại.' });
+    }
+
+    if (!user.otpCode || user.otpCode !== otp) {
+      return res.status(400).json({ error: 'Mã OTP không đúng.' });
+    }
+
+    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+      return res.status(400).json({ error: 'Mã OTP đã hết hạn. Vui lòng gửi lại.' });
+    }
+
+    // Xoá OTP sau khi verify thành công
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.isEmailVerified = true;
+    await user.save();
+
+    // Nếu user là tạm (pending), xoá đi để register thật sau
+    if (user.name === 'Pending' && user.phone.startsWith('temp_')) {
+      await User.findByIdAndDelete(user._id);
+    }
+
+    console.log(`[VERIFY OTP] Email ${email} verified successfully`);
+    res.json({ message: 'Xác thực email thành công.', verified: true });
+  } catch (error) {
+    console.error('[VERIFY OTP] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ===== GOOGLE SIGN-IN =====
+
+const googleLoginSchema = z.object({
+  body: z.object({
+    idToken: z.string().min(1),
+  }),
+});
+
+/**
+ * Đăng nhập bằng Google
+ * Verify Google ID Token → tìm/tạo user → trả JWT
+ */
+const googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    // Verify Google ID Token
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(process.env.GOOGLE_WEB_CLIENT_ID);
+
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_WEB_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Không lấy được email từ tài khoản Google.' });
+    }
+
+    // Tìm user theo googleId hoặc email
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      // User đã tồn tại → cập nhật googleId nếu chưa có
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      // Tạo user mới từ Google
+      user = await User.create({
+        name: name || 'Google User',
+        phone: `google_${googleId}`,
+        passwordHash: 'google_oauth',
+        email,
+        googleId,
+        role: 'PATIENT',
+        isVerified: true,
+        isEmailVerified: true,
+        avatar: picture || null,
+      });
+      console.log(`[GOOGLE LOGIN] New user created from Google: ${email}`);
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        medicalCondition: user.medicalCondition,
+        height: user.height,
+        weight: user.weight,
+        isVerified: user.isVerified,
+        avatar: user.avatar,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[GOOGLE LOGIN] Error:', error);
+    res.status(401).json({ error: 'Xác thực Google thất bại. Vui lòng thử lại.' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -337,15 +517,16 @@ module.exports = {
   resetPassword,
   changePassword,
   deleteAccount,
+  sendOTP,
+  verifyOTP,
+  googleLogin,
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
   deleteAccountSchema,
+  sendOTPSchema,
+  verifyOTPSchema,
+  googleLoginSchema,
 };
-
-
-
-
-

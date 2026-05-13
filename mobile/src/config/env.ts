@@ -49,6 +49,7 @@ export const USE_MOCK_API = getEnv('USE_MOCK_API', 'false') === 'true';
 export const DEBUG_LOGS = getEnv('DEBUG_LOGS', __DEV__ ? 'true' : 'false') === 'true';
 export const MAP_PROVIDER = getEnv('MAP_PROVIDER', 'osm');
 export const EMERGENCY_PHONE = getEnv('EMERGENCY_PHONE', '115');
+export const GOOGLE_WEB_CLIENT_ID = getEnv('GOOGLE_WEB_CLIENT_ID', '');
 
 if (__DEV__) {
   console.log('[ENV] Final config:', {

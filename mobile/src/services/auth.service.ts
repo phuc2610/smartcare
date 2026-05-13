@@ -9,6 +9,7 @@ export interface RegisterData {
   phone: string;
   password: string;
   role: UserRole;
+  email?: string;
 }
 
 export interface LoginData {
@@ -84,6 +85,10 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      // Lưu SĐT để hiển thị lại khi đăng nhập lần sau (hữu ích cho người già)
+      if (data.phone) {
+        await AsyncStorage.setItem(STORAGE_KEYS.SAVED_PHONE, data.phone);
+      }
       logger.auth('LOGIN: Storage saved successfully');
     } catch (error) {
       logger.error('LOGIN: Failed to save auth data', error);
@@ -104,11 +109,25 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
 
 export const logout = async (): Promise<void> => {
   try {
+    // Chỉ xóa token và user, GIỮ LẠI SĐT đã lưu để điền sẵn khi đăng nhập lại
     await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN);
     await AsyncStorage.removeItem(STORAGE_KEYS.USER);
-    logger.auth('Logged out successfully');
+    logger.auth('Logged out successfully (saved phone kept)');
   } catch (error) {
     logger.error('Failed to clear auth storage', error);
+  }
+};
+
+/**
+ * Lấy SĐT đã lưu từ lần đăng nhập trước
+ * Hữu ích cho người già: không cần nhớ/gõ lại SĐT
+ */
+export const getSavedPhone = async (): Promise<string | null> => {
+  try {
+    return await AsyncStorage.getItem(STORAGE_KEYS.SAVED_PHONE);
+  } catch (error) {
+    logger.error('Failed to get saved phone', error);
+    return null;
   }
 };
 
@@ -192,3 +211,95 @@ export const deleteAccount = async (password: string): Promise<{ message: string
   return result.data;
 };
 
+/**
+ * Gửi mã OTP đến email
+ */
+export const sendOTP = async (email: string): Promise<{ message: string }> => {
+  const result = await api.post<{ message: string }>('/api/auth/send-otp', { email });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Không thể gửi mã OTP');
+  }
+  
+  return result.data;
+};
+
+/**
+ * Xác thực mã OTP từ email
+ */
+export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; verified: boolean }> => {
+  const result = await api.post<{ message: string; verified: boolean }>('/api/auth/verify-otp', { email, otp });
+  
+  if (!result.ok) {
+    throw new Error(result.error || 'Mã OTP không đúng');
+  }
+  
+  return result.data;
+};
+
+/**
+ * Đăng nhập bằng Google
+ * Gọi Google Sign-In SDK → lấy idToken → gửi lên server → nhận JWT
+ */
+export const googleSignIn = async (): Promise<AuthResponse> => {
+  logger.auth('GOOGLE SIGN-IN: Starting');
+  
+  try {
+    const { GoogleSignin, statusCodes } = require('@react-native-google-signin/google-signin');
+    const { GOOGLE_WEB_CLIENT_ID } = require('../config/env');
+
+    // Cấu hình Google Sign-In
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: false,
+    });
+
+    // Kiểm tra Play Services
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    // Mở popup đăng nhập Google
+    const response = await GoogleSignin.signIn();
+    logger.auth('GOOGLE SIGN-IN: Google response received', { hasIdToken: !!response?.data?.idToken });
+
+    const idToken = response?.data?.idToken;
+    if (!idToken) {
+      throw new Error('Không lấy được token từ Google');
+    }
+
+    // Gửi idToken lên server để xác thực
+    const result = await api.post<AuthResponse>('/api/auth/google', { idToken });
+
+    if (!result.ok) {
+      throw new Error(result.error || 'Đăng nhập Google thất bại');
+    }
+
+    const { user, token } = result.data;
+
+    // Lưu token và user vào AsyncStorage
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      logger.auth('GOOGLE SIGN-IN: Storage saved successfully');
+    } catch (error) {
+      logger.error('GOOGLE SIGN-IN: Failed to save auth data', error);
+    }
+
+    logger.auth('GOOGLE SIGN-IN: Success', { userId: user?._id, name: user?.name });
+    return { user, token };
+  } catch (error: any) {
+    logger.error('GOOGLE SIGN-IN: Exception', {
+      message: error?.message,
+      code: error?.code,
+    });
+    
+    // Xử lý các lỗi đặc biệt của Google Sign-In
+    if (error?.code === '12501' || error?.code === 'SIGN_IN_CANCELLED') {
+      throw new Error('Đã hủy đăng nhập Google');
+    }
+    if (error?.code === '7' || error?.code === 'NETWORK_ERROR') {
+      throw new Error('Lỗi mạng. Vui lòng kiểm tra kết nối internet');
+    }
+    
+    throw error;
+  }
+};

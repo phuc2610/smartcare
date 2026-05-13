@@ -8,6 +8,7 @@ let getCurrentUser: (() => Promise<User | null>) | null = null;
 let registerAPI: ((data: RegisterData) => Promise<{ user: User; token: string }>) | null = null;
 let loginAPI: ((data: { phone: string; password: string }) => Promise<{ user: User; token: string }>) | null = null;
 let logoutAPI: (() => Promise<void>) | null = null;
+let googleSignInAPI: (() => Promise<{ user: User; token: string }>) | null = null;
 
 try {
   authService = require('../services/auth.service');
@@ -15,6 +16,7 @@ try {
   registerAPI = authService?.register || null;
   loginAPI = authService?.login || null;
   logoutAPI = authService?.logout || null;
+  googleSignInAPI = authService?.googleSignIn || null;
 } catch (error) {
   console.warn('Failed to load auth.service module (non-critical):', error);
 }
@@ -39,6 +41,7 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (phone: string, password: string) => Promise<void>;
   signUp: (data: RegisterData) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updatedUser: User) => void;
 }
@@ -126,13 +129,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    logger.auth('AuthContext.signInWithGoogle: Starting');
+    try {
+      if (!googleSignInAPI || typeof googleSignInAPI !== 'function') {
+        logger.error('AuthContext.signInWithGoogle: googleSignInAPI not available');
+        throw new Error('Google Sign-In service is not available');
+      }
+      const res = await googleSignInAPI();
+      logger.auth('AuthContext.signInWithGoogle: Success', { hasUser: !!res?.user });
+      setUser(res?.user || null);
+    } catch (error: any) {
+      logger.error('AuthContext.signInWithGoogle: Failed', { message: error?.message });
+      throw new Error(error?.message || 'Đăng nhập Google thất bại');
+    }
+  };
+
   const updateProfile = (updatedUser: User) => {
     setUser(updatedUser);
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, signIn, signUp, signOut, updateProfile }}
+      value={{ user, isLoading, signIn, signUp, signInWithGoogle, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
