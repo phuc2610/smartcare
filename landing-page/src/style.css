@@ -514,3 +514,146 @@ a {
     text-align: center;
   }
 }
+
+
+/* Download Section Custom Styles */
+.download-card {
+  display: flex;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  padding: 48px;
+  gap: 48px;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 20px;
+}
+
+.download-info {
+  flex: 1;
+}
+
+.badge-text {
+  color: #22c55e;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.download-info h2 {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.download-info p {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  margin-bottom: 32px;
+}
+
+.download-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.download-table td {
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.download-table .text-right {
+  text-align: right;
+  color: white;
+  font-weight: 600;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.download-qr-panel {
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 24px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 320px;
+}
+
+.qr-icon-wrapper {
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-icon-wrapper img {
+  height: 32px;
+  width: auto;
+}
+
+.qr-image {
+  width: 200px;
+  height: 200px;
+  background: white;
+  padding: 8px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.qr-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+.qr-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+}
+
+@media (max-width: 768px) {
+  .download-card {
+    flex-direction: column;
+    padding: 32px 24px;
+    gap: 32px;
+  }
+  .download-qr-panel {
+    width: 100%;
+  }
+  .download-buttons {
+    flex-direction: column;
+  }
+  .download-buttons .btn {
+    width: 100%;
+  }
+}
+

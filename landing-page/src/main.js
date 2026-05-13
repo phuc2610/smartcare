@@ -29,8 +29,14 @@ function setupLocalDownload() {
     versionText.textContent = 'Phiên bản mới nhất • Sẵn sàng tải về';
   }
 
+  const qrCodeImgMain = document.getElementById('qr-code-img-main');
+
   if (qrCodeImg) {
     qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
+  }
+  
+  if (qrCodeImgMain) {
+    qrCodeImgMain.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(apkUrl)}`;
   }
 }
 
