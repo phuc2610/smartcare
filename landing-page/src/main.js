@@ -7,6 +7,7 @@ const REPO_NAME = 'smartcare';
 document.addEventListener('DOMContentLoaded', () => {
   setupLocalDownload();
   initSmoothScrolling();
+  initCounterAnimation();
 });
 
 /**
@@ -15,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupLocalDownload() {
   const downloadBtn = document.getElementById('download-btn');
   const versionText = document.getElementById('version-text');
-  const qrCodeImg = document.getElementById('qr-code-img');
+
 
   // URL of the local APK file (resolves automatically to the correct absolute URL)
   const a = document.createElement('a');
@@ -33,10 +34,7 @@ function setupLocalDownload() {
 
   const qrCodeImgMain = document.getElementById('qr-code-img-main');
 
-  if (qrCodeImg) {
-    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(apkUrl)}`;
-  }
-  
+
   if (qrCodeImgMain) {
     qrCodeImgMain.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(apkUrl)}`;
   }
@@ -63,3 +61,49 @@ function initSmoothScrolling() {
     });
   });
 }
+
+
+/**
+ * Initialize counter animation for statistics section
+ */
+function initCounterAnimation() {
+  const counters = document.querySelectorAll(".counter");
+  let hasAnimated = false;
+
+  const observerOptions = {
+    root: null,
+    rootMargin: "0px",
+    threshold: 0.5
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !hasAnimated) {
+        hasAnimated = true;
+        counters.forEach(counter => {
+          const target = +counter.getAttribute("data-target");
+          const duration = 2000; // 2 seconds
+          const increment = target / (duration / 16); // 60fps
+          
+          let current = 0;
+          const updateCounter = () => {
+            current += increment;
+            if (current < target) {
+              counter.innerText = Math.ceil(current);
+              requestAnimationFrame(updateCounter);
+            } else {
+              counter.innerText = target;
+            }
+          };
+          updateCounter();
+        });
+      }
+    });
+  }, observerOptions);
+
+  const statsSection = document.getElementById("stats");
+  if (statsSection) {
+    observer.observe(statsSection);
+  }
+}
+
