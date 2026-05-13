@@ -11,30 +11,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Setup local download link for the APK
+ * Setup download link for the APK from GitHub Releases
  */
 function setupLocalDownload() {
+  const apkUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v1.0.0/app-release.apk`;
+
   const downloadBtn = document.getElementById('download-btn');
   const versionText = document.getElementById('version-text');
 
-
-  // URL of the local APK file (resolves automatically to the correct absolute URL)
-  const a = document.createElement('a');
-  a.href = 'smartcare-app.apk';
-  const apkUrl = a.href;
-
   if (downloadBtn) {
-    downloadBtn.href = 'smartcare-app.apk';
-    downloadBtn.setAttribute('download', 'SmartCare.apk');
+    downloadBtn.href = apkUrl;
   }
 
   if (versionText) {
-    versionText.textContent = 'Phiên bản mới nhất • Sẵn sàng tải về';
+    versionText.textContent = 'Phiên bản v1.0.0 • Sẵn sàng tải về';
   }
 
   const qrCodeImgMain = document.getElementById('qr-code-img-main');
-
-
   if (qrCodeImgMain) {
     qrCodeImgMain.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(apkUrl)}`;
   }
