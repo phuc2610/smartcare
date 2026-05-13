@@ -17,11 +17,13 @@ function setupLocalDownload() {
   const versionText = document.getElementById('version-text');
   const qrCodeImg = document.getElementById('qr-code-img');
 
-  // URL of the local APK file
-  const apkUrl = window.location.origin + '/smartcare-app.apk';
+  // URL of the local APK file (resolves automatically to the correct absolute URL)
+  const a = document.createElement('a');
+  a.href = 'smartcare-app.apk';
+  const apkUrl = a.href;
 
   if (downloadBtn) {
-    downloadBtn.href = '/smartcare-app.apk';
+    downloadBtn.href = 'smartcare-app.apk';
     downloadBtn.setAttribute('download', 'SmartCare.apk');
   }
 
