@@ -24,6 +24,7 @@ const FALLBACK_CONFIG: Record<string, string> = {
   DEBUG_LOGS: __DEV__ ? 'true' : 'false',
   MAP_PROVIDER: 'osm',
   EMERGENCY_PHONE: '115',
+  GOOGLE_WEB_CLIENT_ID: '432754323436-nmhelogscaf5s1vnr1krtel0jusqj7br.apps.googleusercontent.com',
 };
 
 export const getEnv = (key: string, defaultValue?: string): string => {
@@ -58,6 +59,7 @@ if (__DEV__) {
     DEBUG_LOGS,
     MAP_PROVIDER,
     EMERGENCY_PHONE,
+    GOOGLE_WEB_CLIENT_ID,
   });
 }
 

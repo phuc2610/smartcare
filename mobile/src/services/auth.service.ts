@@ -259,11 +259,14 @@ export const googleSignIn = async (): Promise<AuthResponse> => {
 
     // Mở popup đăng nhập Google
     const response = await GoogleSignin.signIn();
-    logger.auth('GOOGLE SIGN-IN: Google response received', { hasIdToken: !!response?.data?.idToken });
+    logger.auth('GOOGLE SIGN-IN: Google response received', { 
+      hasDataToken: !!response?.data?.idToken,
+      hasDirectToken: !!response?.idToken 
+    });
 
-    const idToken = response?.data?.idToken;
+    const idToken = response?.data?.idToken || response?.idToken;
     if (!idToken) {
-      throw new Error('Không lấy được token từ Google');
+      throw new Error('Không lấy được token từ Google. Có thể do thiếu Web Client ID.');
     }
 
     // Gửi idToken lên server để xác thực
