@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Anima
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bot, BellRing, ShieldCheck, ArrowRight } from 'lucide-react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const { width, height } = Dimensions.get('window');
 const COLORS = {
@@ -19,19 +19,19 @@ const SLIDES = [
     id: '1',
     title: 'Trợ lý y tế AI',
     description: 'Chỉ cần chụp ảnh đơn thuốc, AI sẽ tự động nhận diện và lên lịch uống thuốc cho bạn.',
-    icon: (props: any) => <Bot {...props} />,
+    icon: (props: any) => <Icon name="smart-toy" {...props} />,
   },
   {
     id: '2',
     title: 'Không bao giờ quên liều',
     description: 'Hệ thống báo thức thông minh sẽ nhắc nhở bạn uống thuốc đúng giờ mỗi ngày.',
-    icon: (props: any) => <BellRing {...props} />,
+    icon: (props: any) => <Icon name="notifications-active" {...props} />,
   },
   {
     id: '3',
     title: 'An toàn & Kết nối',
     description: 'Chia sẻ tiến trình với bác sĩ và người thân. Tự động cảnh báo khi có tương tác thuốc xấu.',
-    icon: (props: any) => <ShieldCheck {...props} />,
+    icon: (props: any) => <Icon name="security" {...props} />,
   },
 ];
 
@@ -73,7 +73,7 @@ export const WelcomeScreen = () => {
         {SLIDES.map((slide) => (
           <View key={slide.id} style={styles.slide}>
             <View style={styles.iconContainer}>
-              {slide.icon({ size: 100, color: COLORS.primary, strokeWidth: 1.5 })}
+              {slide.icon({ size: 100, color: COLORS.primary })}
             </View>
             <Text style={styles.title}>{slide.title}</Text>
             <Text style={styles.description}>{slide.description}</Text>
@@ -108,7 +108,7 @@ export const WelcomeScreen = () => {
           <Text style={styles.buttonText}>
             {currentIndex === SLIDES.length - 1 ? 'Bắt đầu ngay' : 'Tiếp tục'}
           </Text>
-          <ArrowRight size={20} color="#fff" style={{ marginLeft: 8 }} />
+          <Icon name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>

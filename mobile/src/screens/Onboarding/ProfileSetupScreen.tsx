@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateProfile } from '../../services/user.service';
 import { logger } from '../../utils/logger';
-import { Check, AlertCircle } from 'lucide-react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const COLORS = {
   primary: '#0891b2',
@@ -118,7 +118,7 @@ export const ProfileSetupScreen = () => {
 
           {error ? (
             <View style={styles.errorBox}>
-              <AlertCircle color={COLORS.error} size={20} />
+              <Icon name="error-outline" color={COLORS.error} size={20} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
@@ -198,7 +198,7 @@ export const ProfileSetupScreen = () => {
                     ]}
                     onPress={() => toggleCondition(condition)}
                   >
-                    {isSelected && <Check size={16} color={COLORS.primary} style={{ marginRight: 4 }} />}
+                    {isSelected && <Icon name="check" size={16} color={COLORS.primary} style={{ marginRight: 4 }} />}
                     <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                       {condition}
                     </Text>
