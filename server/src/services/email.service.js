@@ -57,7 +57,7 @@ const sendOTPEmail = async (toEmail, otpCode) => {
       body: JSON.stringify({
         sender: { name: 'SmartCare', email: senderEmail },
         to: [{ email: toEmail }],
-        subject: \`[SmartCare] Mã xác thực: \${otpCode}\`,
+        subject: `[SmartCare] Mã xác thực: ${otpCode}`,
         htmlContent: htmlContent
       })
     });
@@ -69,7 +69,7 @@ const sendOTPEmail = async (toEmail, otpCode) => {
     }
 
     const data = await response.json();
-    console.log(\`[EMAIL] OTP sent to \${toEmail}, messageId: \${data.messageId}\`);
+    console.log(`[EMAIL] OTP sent to ${toEmail}, messageId: ${data.messageId}`);
     return data;
   } catch (error) {
     console.error('[EMAIL] Lỗi khi gọi Brevo API:', error.message);
