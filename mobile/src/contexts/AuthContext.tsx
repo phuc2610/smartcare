@@ -51,6 +51,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updatedUser: User) => void;
+  hasSeenWelcome: boolean;
+  completeWelcome: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,10 +60,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        const welcomeStatus = await AsyncStorage.getItem('hasSeenWelcome');
+        setHasSeenWelcome(welcomeStatus === 'true');
+
         // Guard: Đảm bảo getCurrentUser tồn tại và là function
         const currentUser = await safeGetCurrentUser();
         setUser(currentUser);
@@ -211,10 +217,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(updatedUser);
   };
 
+  const completeWelcome = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenWelcome', 'true');
+      setHasSeenWelcome(true);
+    } catch (e) {
+      console.error('Failed to set welcome status', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider
-      value={{ user, isLoading, signIn, signUp, signUpWithEmail, setupAccount, completeRegistration, signInWithGoogle, signOut, updateProfile }}
-    >
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading, 
+      signIn, 
+      signUp,
+      signUpWithEmail,
+      setupAccount,
+      completeRegistration,
+      signInWithGoogle,
+      signOut,
+      updateProfile,
+      hasSeenWelcome,
+      completeWelcome
+    }}>
       {children}
     </AuthContext.Provider>
   );

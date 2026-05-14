@@ -8,17 +8,7 @@ import { updateProfile } from '../../services/user.service';
 import { logger } from '../../utils/logger';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const COLORS = {
-  primary: '#0891b2',
-  background: '#ffffff',
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-  border: '#e5e7eb',
-  error: '#ef4444',
-  chipBg: '#f3f4f6',
-  chipSelectedBg: '#cffafe',
-  chipSelectedBorder: '#06b6d4',
-};
+import { COLORS } from '../../theme';
 
 const COMMON_CONDITIONS = [
   'Tiểu đường', 'Huyết áp cao', 'Huyết áp thấp', 
@@ -343,7 +333,7 @@ const styles = StyleSheet.create({
   },
   genderBtnActive: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.chipSelectedBg,
+    backgroundColor: COLORS.primaryLight || '#E8F5F2',
   },
   genderText: {
     color: COLORS.textSecondary,
@@ -360,7 +350,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     flexDirection: 'row',
-    backgroundColor: COLORS.chipBg,
+    backgroundColor: COLORS.background || '#f3f4f6',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -370,8 +360,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chipSelected: {
-    backgroundColor: COLORS.chipSelectedBg,
-    borderColor: COLORS.chipSelectedBorder,
+    backgroundColor: COLORS.primaryLight || '#E8F5F2',
+    borderColor: COLORS.primary,
   },
   chipText: {
     color: COLORS.textSecondary,

@@ -1,18 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Animated } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../contexts/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { COLORS } from '../../theme';
 
 const { width, height } = Dimensions.get('window');
-const COLORS = {
-  primary: '#0891b2', // cyan-600
-  background: '#ffffff',
-  text: '#1f2937',
-  textSecondary: '#6b7280',
-  dot: '#e5e7eb',
-};
 
 const SLIDES = [
   {
@@ -36,7 +29,7 @@ const SLIDES = [
 ];
 
 export const WelcomeScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const { completeWelcome } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
@@ -51,11 +44,11 @@ export const WelcomeScreen = () => {
     }
   );
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     } else {
-      navigation.replace('ProfileSetup');
+      await completeWelcome();
     }
   };
 
@@ -130,7 +123,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: '#ecfeff', // cyan-50
+    backgroundColor: COLORS.primaryLight || '#E8F5F2',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
