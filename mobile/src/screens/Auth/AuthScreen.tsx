@@ -409,22 +409,7 @@ export const AuthScreen = ({ navigation }: any) => {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>hoặc</Text>
-              <View style={styles.dividerLine} />
-            </View>
 
-            {/* Google Sign-In Button */}
-            <TouchableOpacity
-              style={styles.googleButton}
-              onPress={handleGoogleSignIn}
-              disabled={loading}
-            >
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Đăng ký bằng Google</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity onPress={() => {
               setScreen('LOGIN');
