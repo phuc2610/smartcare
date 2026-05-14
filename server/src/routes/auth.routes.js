@@ -10,7 +10,11 @@ const {
   sendOTP,
   verifyOTP,
   googleLogin,
+  registerWithEmail,
+  setupAccount,
   registerSchema,
+  registerEmailSchema,
+  setupAccountSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -24,6 +28,8 @@ const { authenticate } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 router.post('/register', validate(registerSchema), register);
+router.post('/register-email', validate(registerEmailSchema), registerWithEmail);
+router.post('/setup-account', authenticate, validate(setupAccountSchema), setupAccount);
 router.post('/login', validate(loginSchema), login);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);

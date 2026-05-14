@@ -2,18 +2,19 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  phone: { type: String, required: true, unique: true },
+  phone: { type: String, unique: true, sparse: true, default: null }, // Optional - có thể đăng ký bằng email
   passwordHash: { type: String, required: true },
-  role: { type: String, enum: ['PATIENT', 'CAREGIVER', 'DOCTOR'], required: true },
+  role: { type: String, enum: ['PATIENT', 'CAREGIVER', 'DOCTOR'], default: 'PATIENT' },
   caregiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   caregiverPhone: { type: String, default: null },
-  email: { type: String, default: null },
+  email: { type: String, unique: true, sparse: true, default: null }, // Primary identifier cho đăng ký mới
   googleId: { type: String, default: null },
   isVerified: { type: Boolean, default: false },
   isEmailVerified: { type: Boolean, default: false },
   medicalCondition: { type: String, default: 'Normal' },
   height: { type: Number, default: null },
   weight: { type: Number, default: null },
+  dateOfBirth: { type: Date, default: null },
   otpCode: { type: String, default: null },
   otpExpiresAt: { type: Date, default: null },
   notificationSettings: {

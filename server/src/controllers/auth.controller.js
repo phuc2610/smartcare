@@ -13,7 +13,7 @@ const MedicalRecord = require('../models/MedicalRecord');
 const Appointment = require('../models/Appointment');
 const Alert = require('../models/Alert');
 const { hashPassword, comparePassword } = require('../utils/hash');
-const { generateToken } = require('../utils/jwt');
+const { generateToken, verifyToken, generateVerificationToken } = require('../utils/jwt');
 const { z } = require('zod');
 const { sendOTPEmail } = require('../services/email.service');
 
@@ -28,10 +28,31 @@ const registerSchema = z.object({
   }),
 });
 
-// Schema validation cho đăng nhập: phone và password
+// Schema validation cho đăng ký email
+const registerEmailSchema = z.object({
+  body: z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    password: z.string().min(6),
+    verificationToken: z.string(),
+  }),
+});
+
+// Schema validation cho setup account
+const setupAccountSchema = z.object({
+  body: z.object({
+    role: z.enum(['PATIENT', 'CAREGIVER', 'DOCTOR']),
+    medicalCondition: z.string().optional(),
+    height: z.number().optional(),
+    weight: z.number().optional(),
+    dateOfBirth: z.string().optional(), // Có thể nhận string ISO date
+  }),
+});
+
+// Schema validation cho đăng nhập: email/phone và password
 const loginSchema = z.object({
   body: z.object({
-    phone: z.string().regex(/^(\+84|84|0)(3|5|7|8|9)[0-9]{8}$/),
+    identifier: z.string().min(1), // Nhận email hoặc phone
     password: z.string(),
   }),
 });
@@ -87,28 +108,29 @@ const register = async (req, res) => {
 };
 
 /**
- * Đăng nhập bằng số điện thoại và mật khẩu
- * Luồng: Tìm user -> Kiểm tra mật khẩu -> Kiểm tra đã verify -> Tạo JWT token -> Trả về user + token
+ * Đăng nhập bằng số điện thoại hoặc email
  */
 const login = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { identifier, password } = req.body;
 
-    // Tìm user theo số điện thoại
-    const user = await User.findOne({ phone });
+    // Tìm user theo email hoặc số điện thoại
+    const isEmail = identifier.includes('@');
+    const query = isEmail ? { email: identifier } : { phone: identifier };
+    
+    const user = await User.findOne(query);
     if (!user) {
-      return res.status(401).json({ error: 'Sai số điện thoại hoặc mật khẩu.' });
+      return res.status(401).json({ error: 'Sai thông tin đăng nhập hoặc mật khẩu.' });
     }
 
     // So sánh mật khẩu với hash trong database
     const isValid = await comparePassword(password, user.passwordHash);
     if (!isValid) {
-      return res.status(401).json({ error: 'Sai số điện thoại hoặc mật khẩu.' });
+      return res.status(401).json({ error: 'Sai thông tin đăng nhập hoặc mật khẩu.' });
     }
 
-    // Kiểm tra tài khoản đã được xác thực chưa (đã bỏ vì không dùng OTP nữa)
+    // Tự động cập nhật thành true cho các tài khoản cũ
     if (!user.isVerified) {
-      // Tự động cập nhật thành true cho các tài khoản cũ
       user.isVerified = true;
       await user.save();
     }
@@ -122,10 +144,12 @@ const login = async (req, res) => {
         _id: user._id,
         name: user.name,
         phone: user.phone,
+        email: user.email,
         role: user.role,
         medicalCondition: user.medicalCondition,
         height: user.height,
         weight: user.weight,
+        dateOfBirth: user.dateOfBirth,
         caregiverId: user.caregiverId,
         caregiverPhone: user.caregiverPhone,
         isVerified: user.isVerified,
@@ -346,19 +370,23 @@ const sendOTP = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Kiểm tra email đã được đăng ký thật sự chưa
+    const existingUser = await User.findOne({ email, isEmailVerified: true, name: { $ne: 'Pending' } });
+    if (existingUser && req.path.includes('register')) {
+      return res.status(400).json({ error: 'Email đã được đăng ký. Vui lòng đăng nhập.' });
+    }
+
     // Tạo mã OTP 6 số
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
 
     // Lưu OTP tạm (dùng email làm key, tìm hoặc tạo user tạm)
-    // Dùng collection riêng hoặc lưu tạm trong User model
     let tempUser = await User.findOne({ email });
     if (!tempUser) {
-      // Chưa có user với email này → lưu OTP vào bản ghi tạm
-      // Tạo bản ghi tạm (sẽ được cập nhật khi register thật)
+      // Tạo bản ghi tạm
       tempUser = await User.create({
         name: 'Pending',
-        phone: `temp_${Date.now()}`,
+        phone: null, // Bỏ phone cho user tạm
         passwordHash: 'pending',
         role: 'PATIENT',
         email,
@@ -417,15 +445,119 @@ const verifyOTP = async (req, res) => {
     user.isEmailVerified = true;
     await user.save();
 
-    // Nếu user là tạm (pending), xoá đi để register thật sau
-    if (user.name === 'Pending' && user.phone.startsWith('temp_')) {
-      await User.findByIdAndDelete(user._id);
-    }
+    // Tạo JWT token xác thực ngắn hạn cho bước đăng ký tiếp theo
+    const verificationToken = generateVerificationToken(email);
 
     console.log(`[VERIFY OTP] Email ${email} verified successfully`);
-    res.json({ message: 'Xác thực email thành công.', verified: true });
+    res.json({ 
+      message: 'Xác thực email thành công.', 
+      verified: true,
+      verificationToken
+    });
   } catch (error) {
     console.error('[VERIFY OTP] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Đăng ký tài khoản với Email
+ */
+const registerWithEmail = async (req, res) => {
+  try {
+    const { name, email, password, verificationToken } = req.body;
+
+    // Verify token
+    let decoded;
+    try {
+      decoded = verifyToken(verificationToken);
+    } catch (err) {
+      return res.status(401).json({ error: 'Token xác thực không hợp lệ hoặc đã hết hạn.' });
+    }
+
+    if (decoded.email !== email || decoded.type !== 'otp_verification') {
+      return res.status(401).json({ error: 'Token xác thực không khớp.' });
+    }
+
+    // Kiểm tra email
+    const user = await User.findOne({ email });
+    if (!user || !user.isEmailVerified) {
+      return res.status(400).json({ error: 'Email chưa được xác thực.' });
+    }
+
+    // Hash mật khẩu
+    const passwordHash = await hashPassword(password);
+
+    // Cập nhật user tạm thành user thật
+    user.name = name;
+    user.passwordHash = passwordHash;
+    user.isVerified = true;
+    
+    // Nếu là pending temp user được tạo từ sendOTP, xóa field name pending
+    if (user.phone && user.phone.startsWith('temp_')) {
+      user.phone = null;
+    }
+
+    await user.save();
+    console.log(`[REGISTER EMAIL] User created: ${email}`);
+
+    // Trả JWT token login
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      message: 'Đăng ký thành công.',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[REGISTER EMAIL] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Thiết lập tài khoản (Bổ sung thông tin sau khi đăng ký email)
+ */
+const setupAccount = async (req, res) => {
+  try {
+    const { role, medicalCondition, height, weight, dateOfBirth } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Người dùng không tồn tại.' });
+    }
+
+    if (role) user.role = role;
+    if (medicalCondition) user.medicalCondition = medicalCondition;
+    if (height) user.height = height;
+    if (weight) user.weight = weight;
+    if (dateOfBirth) user.dateOfBirth = new Date(dateOfBirth);
+
+    await user.save();
+
+    res.json({
+      message: 'Thiết lập tài khoản thành công',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        medicalCondition: user.medicalCondition,
+        height: user.height,
+        weight: user.weight,
+        dateOfBirth: user.dateOfBirth,
+        isVerified: user.isVerified,
+      }
+    });
+  } catch (error) {
+    console.error('[SETUP ACCOUNT] Error:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -520,7 +652,11 @@ module.exports = {
   sendOTP,
   verifyOTP,
   googleLogin,
+  registerWithEmail,
+  setupAccount,
   registerSchema,
+  registerEmailSchema,
+  setupAccountSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,

@@ -12,8 +12,23 @@ export interface RegisterData {
   email?: string;
 }
 
+export interface RegisterEmailData {
+  name: string;
+  email: string;
+  password: string;
+  verificationToken: string;
+}
+
+export interface SetupAccountData {
+  role: UserRole;
+  medicalCondition?: string;
+  height?: number;
+  weight?: number;
+  dateOfBirth?: string;
+}
+
 export interface LoginData {
-  phone: string;
+  identifier: string; // Accepts email or phone
   password: string;
 }
 
@@ -58,7 +73,7 @@ export const register = async (data: RegisterData): Promise<AuthResponse> => {
 // requestOTP and verifyOTP removed for Firebase Phone Auth
 
 export const login = async (data: LoginData): Promise<AuthResponse> => {
-  logger.auth('LOGIN: Starting', { phone: data.phone });
+  logger.auth('LOGIN: Starting', { identifier: data.identifier });
   
   try {
     const result = await api.post<AuthResponse>('/api/auth/login', data);
@@ -85,9 +100,9 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-      // Lưu SĐT để hiển thị lại khi đăng nhập lần sau (hữu ích cho người già)
-      if (data.phone) {
-        await AsyncStorage.setItem(STORAGE_KEYS.SAVED_PHONE, data.phone);
+      // Lưu SĐT hoặc email để hiển thị lại khi đăng nhập lần sau
+      if (data.identifier) {
+        await AsyncStorage.setItem(STORAGE_KEYS.SAVED_PHONE, data.identifier);
       }
       logger.auth('LOGIN: Storage saved successfully');
     } catch (error) {
@@ -227,14 +242,69 @@ export const sendOTP = async (email: string): Promise<{ message: string }> => {
 /**
  * Xác thực mã OTP từ email
  */
-export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; verified: boolean }> => {
-  const result = await api.post<{ message: string; verified: boolean }>('/api/auth/verify-otp', { email, otp });
+export const verifyOTP = async (email: string, otp: string): Promise<{ message: string; verified: boolean; verificationToken: string }> => {
+  const result = await api.post<{ message: string; verified: boolean; verificationToken: string }>('/api/auth/verify-otp', { email, otp });
   
   if (!result.ok) {
     throw new Error(result.error || 'Mã OTP không đúng');
   }
   
   return result.data;
+};
+
+/**
+ * Đăng ký tài khoản với Email
+ */
+export const registerWithEmail = async (data: RegisterEmailData): Promise<AuthResponse> => {
+  logger.auth('REGISTER_EMAIL: Starting', { email: data.email, name: data.name });
+  
+  try {
+    const result = await api.post<AuthResponse>('/api/auth/register-email', data);
+    
+    if (!result.ok) {
+      throw new Error(result.error || 'Register with email failed');
+    }
+
+    const { user, token } = result.data;
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_KEYS.SAVED_PHONE, user.email || '');
+    } catch (error) {
+      logger.error('Failed to save auth data', error);
+    }
+
+    logger.auth('REGISTER_EMAIL: Success', { userId: user?._id });
+    return { user, token };
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+/**
+ * Thiết lập tài khoản (bổ sung thông tin sau khi đăng ký)
+ */
+export const setupAccount = async (data: SetupAccountData): Promise<{ message: string; user: User }> => {
+  logger.auth('SETUP_ACCOUNT: Starting', { role: data.role });
+  
+  try {
+    const result = await api.post<{ message: string; user: User }>('/api/auth/setup-account', data);
+    
+    if (!result.ok) {
+      throw new Error(result.error || 'Setup account failed');
+    }
+
+    // Cập nhật user trong storage
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(result.data.user));
+    } catch (error) {
+      logger.error('Failed to update user in storage', error);
+    }
+
+    return result.data;
+  } catch (error: any) {
+    throw error;
+  }
 };
 
 /**

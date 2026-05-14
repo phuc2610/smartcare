@@ -6,7 +6,9 @@ import { logger } from '../utils/logger';
 let authService: any = null;
 let getCurrentUser: (() => Promise<User | null>) | null = null;
 let registerAPI: ((data: RegisterData) => Promise<{ user: User; token: string }>) | null = null;
-let loginAPI: ((data: { phone: string; password: string }) => Promise<{ user: User; token: string }>) | null = null;
+let registerWithEmailAPI: ((data: import('../services/auth.service').RegisterEmailData) => Promise<{ user: User; token: string }>) | null = null;
+let setupAccountAPI: ((data: import('../services/auth.service').SetupAccountData) => Promise<{ message: string; user: User }>) | null = null;
+let loginAPI: ((data: { identifier: string; password: string }) => Promise<{ user: User; token: string }>) | null = null;
 let logoutAPI: (() => Promise<void>) | null = null;
 let googleSignInAPI: (() => Promise<{ user: User; token: string }>) | null = null;
 
@@ -14,6 +16,8 @@ try {
   authService = require('../services/auth.service');
   getCurrentUser = authService?.getCurrentUser || null;
   registerAPI = authService?.register || null;
+  registerWithEmailAPI = authService?.registerWithEmail || null;
+  setupAccountAPI = authService?.setupAccount || null;
   loginAPI = authService?.login || null;
   logoutAPI = authService?.logout || null;
   googleSignInAPI = authService?.googleSignIn || null;
@@ -39,8 +43,11 @@ const safeGetCurrentUser = async (): Promise<User | null> => {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (phone: string, password: string) => Promise<void>;
+  signIn: (identifier: string, password: string) => Promise<void>;
   signUp: (data: RegisterData) => Promise<void>;
+  signUpWithEmail: (data: import('../services/auth.service').RegisterEmailData) => Promise<void>;
+  setupAccount: (data: import('../services/auth.service').SetupAccountData) => Promise<void>;
+  completeRegistration: (registerData: import('../services/auth.service').RegisterEmailData, setupData: import('../services/auth.service').SetupAccountData) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updatedUser: User) => void;
@@ -69,8 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  const signIn = async (phone: string, password: string) => {
-    logger.auth('AuthContext.signIn: Starting', { phone });
+  const signIn = async (identifier: string, password: string) => {
+    logger.auth('AuthContext.signIn: Starting', { identifier });
     try {
       // Guard: Kiểm tra loginAPI có tồn tại
       if (!loginAPI || typeof loginAPI !== 'function') {
@@ -78,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Login service is not available');
       }
       logger.auth('AuthContext.signIn: Calling loginAPI');
-      const res = await loginAPI({ phone, password });
+      const res = await loginAPI({ identifier, password });
       logger.auth('AuthContext.signIn: API success', { hasUser: !!res?.user, userId: res?.user?._id });
       setUser(res?.user || null);
       logger.auth('AuthContext.signIn: User state updated');
@@ -111,6 +118,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         error 
       });
       throw new Error(error?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+    }
+  };
+
+  const signUpWithEmail = async (data: import('../services/auth.service').RegisterEmailData) => {
+    logger.auth('AuthContext.signUpWithEmail: Starting', { email: data.email });
+    try {
+      if (!registerWithEmailAPI || typeof registerWithEmailAPI !== 'function') {
+        throw new Error('Register with email service is not available');
+      }
+      const res = await registerWithEmailAPI(data);
+      setUser(res?.user || null);
+    } catch (error: any) {
+      logger.error('AuthContext.signUpWithEmail: Failed', { error });
+      throw new Error(error?.message || 'Đăng ký bằng email thất bại.');
+    }
+  };
+
+  const setupAccount = async (data: import('../services/auth.service').SetupAccountData) => {
+    logger.auth('AuthContext.setupAccount: Starting');
+    try {
+      if (!setupAccountAPI || typeof setupAccountAPI !== 'function') {
+        throw new Error('Setup account service is not available');
+      }
+      const res = await setupAccountAPI(data);
+      setUser(res?.user || null);
+    } catch (error: any) {
+      logger.error('AuthContext.setupAccount: Failed', { error });
+      throw new Error(error?.message || 'Thiết lập tài khoản thất bại.');
+    }
+  };
+
+  const completeRegistration = async (
+    registerData: import('../services/auth.service').RegisterEmailData,
+    setupData: import('../services/auth.service').SetupAccountData
+  ) => {
+    logger.auth('AuthContext.completeRegistration: Starting', { email: registerData.email });
+    try {
+      if (!registerWithEmailAPI || typeof registerWithEmailAPI !== 'function') {
+        throw new Error('Register with email service is not available');
+      }
+      if (!setupAccountAPI || typeof setupAccountAPI !== 'function') {
+        throw new Error('Setup account service is not available');
+      }
+      
+      // 1. Đăng ký tài khoản (không set user ngay để tránh unmount component)
+      const registerRes = await registerWithEmailAPI(registerData);
+      
+      // 2. Thiết lập thông tin (API cần JWT đã được lưu vào AsyncStorage từ bước 1)
+      const setupRes = await setupAccountAPI(setupData);
+      
+      // 3. Hoàn tất và navigate
+      setUser(setupRes?.user || registerRes?.user || null);
+    } catch (error: any) {
+      logger.error('AuthContext.completeRegistration: Failed', { error });
+      throw new Error(error?.message || 'Đăng ký và thiết lập thất bại.');
     }
   };
 
@@ -151,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, signIn, signUp, signInWithGoogle, signOut, updateProfile }}
+      value={{ user, isLoading, signIn, signUp, signUpWithEmail, setupAccount, completeRegistration, signInWithGoogle, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
