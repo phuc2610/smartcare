@@ -407,7 +407,7 @@ const sendOTP = async (req, res) => {
     res.json({ message: 'Mã OTP đã được gửi đến email của bạn.' });
   } catch (error) {
     console.error('[SEND OTP] Error:', error);
-    res.status(500).json({ error: 'Không thể gửi mã OTP. Vui lòng thử lại.' });
+    res.status(500).json({ error: `Không thể gửi mã OTP: ${error.message}` });
   }
 };
 
