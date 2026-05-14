@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { User, UserRole } from '../types';
 import { RegisterData, LoginData } from '../services/auth.service';
 import { logger } from '../utils/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 let authService: any = null;
 let getCurrentUser: (() => Promise<User | null>) | null = null;
