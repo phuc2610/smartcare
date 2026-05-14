@@ -383,10 +383,9 @@ const sendOTP = async (req, res) => {
     // Lưu OTP tạm (dùng email làm key, tìm hoặc tạo user tạm)
     let tempUser = await User.findOne({ email });
     if (!tempUser) {
-      // Tạo bản ghi tạm
+      // Tạo bản ghi tạm (không set phone để sparse unique index hoạt động đúng)
       tempUser = await User.create({
         name: 'Pending',
-        phone: null, // Bỏ phone cho user tạm
         passwordHash: 'pending',
         role: 'PATIENT',
         email,
