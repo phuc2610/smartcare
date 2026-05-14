@@ -17,6 +17,10 @@ export const updateProfile = async (data: {
   weight?: number;
   medicalCondition?: string;
   avatar?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  allergies?: string[];
+  dateOfBirth?: string;
+  isOnboardingCompleted?: boolean;
 }): Promise<{ user: User }> => {
   const result = await api.patch<{ user: User }>('/api/users/me', data);
   

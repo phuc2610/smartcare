@@ -17,7 +17,7 @@ import { COLORS } from '../../utils/constants';
 import { Logo } from '../../components/Logo';
 import { getSavedPhone, sendOTP as sendOTPAPI, verifyOTP as verifyOTPAPI } from '../../services/auth.service';
 
-type Screen = 'LOGIN' | 'REGISTER' | 'OTP_VERIFY' | 'SETUP_ACCOUNT';
+type Screen = 'LOGIN' | 'REGISTER' | 'OTP_VERIFY';
 
 const PasswordInput = React.memo(({ 
   value, 
@@ -185,8 +185,20 @@ export const AuthScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const res = await verifyOTPAPI(email, otpCode);
-      setVerificationToken(res.verificationToken);
-      setScreen('SETUP_ACCOUNT');
+      
+      // Auto complete registration without internal setup screen
+      const registerData = {
+        name,
+        email,
+        password,
+        verificationToken: res.verificationToken,
+      };
+      
+      // Default setup data. The user will be redirected to OnboardingNavigator 
+      // because isOnboardingCompleted defaults to false
+      let setupData: import('../../services/auth.service').SetupAccountData = { role };
+      
+      await completeRegistration(registerData, setupData);
     } catch (err: any) {
       setError(err?.message || 'Mã OTP không đúng hoặc đã hết hạn');
     } finally {
@@ -207,33 +219,7 @@ export const AuthScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleSetupComplete = async (skip: boolean = false) => {
-    setError('');
-    setLoading(true);
 
-    try {
-      const registerData = {
-        name,
-        email,
-        password,
-        verificationToken,
-      };
-
-      let setupData: import('../../services/auth.service').SetupAccountData = { role };
-
-      if (!skip && role === UserRole.PATIENT) {
-        if (height) setupData.height = Number(height);
-        if (weight) setupData.weight = Number(weight);
-        if (medicalCondition) setupData.medicalCondition = medicalCondition;
-      }
-
-      await completeRegistration(registerData, setupData);
-    } catch (err: any) {
-      setError(err?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -466,103 +452,7 @@ export const AuthScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        {/* ===== SETUP ACCOUNT SCREEN ===== */}
-        {screen === 'SETUP_ACCOUNT' && (
-          <View style={styles.form}>
-            <Logo size="large" containerStyle={styles.logoContainer} />
-            <Text style={styles.title}>Thiết lập tài khoản</Text>
-            <Text style={styles.subtitle}>Vui lòng chọn vai trò của bạn</Text>
 
-            <View style={styles.roleSelector}>
-              <TouchableOpacity
-                style={[styles.roleButton, role === UserRole.PATIENT && styles.roleButtonActive]}
-                onPress={() => setRole(UserRole.PATIENT)}
-              >
-                <Icon name="person" size={24} color={role === UserRole.PATIENT ? COLORS.secondary : '#9ca3af'} />
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    role === UserRole.PATIENT && styles.roleButtonTextActive,
-                    { marginTop: 8 }
-                  ]}
-                >
-                  Người bệnh
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleButton, role === UserRole.CAREGIVER && styles.roleButtonActive]}
-                onPress={() => setRole(UserRole.CAREGIVER)}
-              >
-                <Icon name="supervised-user-circle" size={24} color={role === UserRole.CAREGIVER ? COLORS.secondary : '#9ca3af'} />
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    role === UserRole.CAREGIVER && styles.roleButtonTextActive,
-                    { marginTop: 8 }
-                  ]}
-                >
-                  Người thân
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {role === UserRole.PATIENT && (
-              <View>
-                <Text style={[styles.subtitle, { marginBottom: 16 }]}>Thông tin sức khỏe (tùy chọn)</Text>
-                
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="Chiều cao (cm)"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={height}
-                    onChangeText={setHeight}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="Cân nặng (kg)"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={weight}
-                    onChangeText={setWeight}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <TextInput
-                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                  placeholder="Tình trạng bệnh lý (ví dụ: Tiểu đường, Huyết áp cao...)"
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={medicalCondition}
-                  onChangeText={setMedicalCondition}
-                  multiline
-                />
-              </View>
-            )}
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <TouchableOpacity
-              style={[styles.button, styles.primaryButton, { marginTop: 16 }]}
-              onPress={() => handleSetupComplete(false)}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Hoàn tất</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
-              onPress={() => handleSetupComplete(true)}
-              disabled={loading}
-            >
-              <Text style={styles.secondaryButtonText}>Bỏ qua & Đăng ký</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
       </ScrollView>
     </KeyboardAvoidingView>

@@ -23,7 +23,10 @@ export interface User {
   caregiverPhone?: string;
   email?: string;
   isVerified: boolean;
+  isOnboardingCompleted?: boolean;
   medicalCondition?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  allergies?: string[];
   height?: number;
   weight?: number;
   dateOfBirth?: string;

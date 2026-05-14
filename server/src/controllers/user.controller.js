@@ -6,13 +6,16 @@
 const User = require('../models/User');
 const { z } = require('zod');
 
-// Schema validation cho cập nhật profile: height, weight, medicalCondition, avatar (tất cả optional)
 const updateProfileSchema = z.object({
   body: z.object({
     height: z.number().optional(),
     weight: z.number().optional(),
     medicalCondition: z.string().optional(),
     avatar: z.string().url().optional(),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+    allergies: z.array(z.string()).optional(),
+    dateOfBirth: z.string().optional(),
+    isOnboardingCompleted: z.boolean().optional(),
   }),
 });
 
@@ -49,7 +52,7 @@ const getMe = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   try {
-    const { height, weight, medicalCondition, avatar } = req.body;
+    const { height, weight, medicalCondition, avatar, gender, allergies, dateOfBirth, isOnboardingCompleted } = req.body;
 
     // Tìm user theo ID từ JWT token
     const user = await User.findById(req.user._id);
@@ -61,6 +64,10 @@ const updateProfile = async (req, res) => {
     if (height !== undefined) user.height = height;
     if (weight !== undefined) user.weight = weight;
     if (avatar !== undefined) user.avatar = avatar;
+    if (gender !== undefined) user.gender = gender;
+    if (allergies !== undefined) user.allergies = allergies;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (isOnboardingCompleted !== undefined) user.isOnboardingCompleted = isOnboardingCompleted;
     
     // Chỉ cho phép PATIENT cập nhật medicalCondition, CAREGIVER luôn là null
     if (medicalCondition !== undefined) {
@@ -86,6 +93,10 @@ const updateProfile = async (req, res) => {
         height: user.height,
         weight: user.weight,
         avatar: user.avatar,
+        gender: user.gender,
+        allergies: user.allergies,
+        dateOfBirth: user.dateOfBirth,
+        isOnboardingCompleted: user.isOnboardingCompleted,
         caregiverId: user.caregiverId,
         caregiverPhone: user.caregiverPhone,
         isVerified: user.isVerified,

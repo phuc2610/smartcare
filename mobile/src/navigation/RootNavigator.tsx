@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { TabsNavigator } from './TabsNavigator';
+import { OnboardingNavigator } from './OnboardingNavigator';
 import { ActivityIndicator, View, Text } from 'react-native';
 import { logger } from '../utils/logger';
 
@@ -65,22 +66,13 @@ export const RootNavigator = () => {
           animationDuration: 300,
         }}
       >
-        {user ? (
-          <Stack.Screen 
-            name="Main" 
-            component={TabsNavigator}
-            options={{
-              animation: 'fade',
-            }}
-          />
-        ) : (
+        {!user ? (
+          // 1. Chưa đăng nhập -> Auth
           <>
             <Stack.Screen 
               name="Auth" 
               component={AuthScreenComponent}
-              options={{
-                animation: 'fade',
-              }}
+              options={{ animation: 'fade' }}
             />
             <Stack.Screen 
               name="ForgotPassword" 
@@ -89,10 +81,23 @@ export const RootNavigator = () => {
                 headerShown: true, 
                 title: 'Quên mật khẩu',
                 animation: 'slide_from_right',
-                animationDuration: 300,
               }}
             />
           </>
+        ) : !user.isOnboardingCompleted && user.role === 'PATIENT' ? (
+          // 2. Đã đăng nhập nhưng chưa Onboarding (chỉ áp dụng cho PATIENT)
+          <Stack.Screen 
+            name="Onboarding" 
+            component={OnboardingNavigator}
+            options={{ animation: 'fade' }}
+          />
+        ) : (
+          // 3. Đã Onboarding hoặc không phải PATIENT -> Trang chủ
+          <Stack.Screen 
+            name="Main" 
+            component={TabsNavigator}
+            options={{ animation: 'fade' }}
+          />
         )}
       </Stack.Navigator>
     </NavigationContainer>
