@@ -3,7 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
 import { TabsNavigator } from './TabsNavigator';
-import { OnboardingNavigator } from './OnboardingNavigator';
+import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
+import { ProfileSetupScreen } from '../screens/Onboarding/ProfileSetupScreen';
 import { ActivityIndicator, View, Text } from 'react-native';
 import { logger } from '../utils/logger';
 
@@ -47,7 +48,7 @@ try {
 }
 
 export const RootNavigator = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, hasSeenWelcome } = useAuth();
 
   if (isLoading) {
     return (
@@ -66,7 +67,13 @@ export const RootNavigator = () => {
           animationDuration: 300,
         }}
       >
-        {!user ? (
+        {!hasSeenWelcome ? (
+          <Stack.Screen 
+            name="Welcome" 
+            component={WelcomeScreen}
+            options={{ animation: 'fade' }}
+          />
+        ) : !user ? (
           // 1. Chưa đăng nhập -> Auth
           <>
             <Stack.Screen 
@@ -87,8 +94,8 @@ export const RootNavigator = () => {
         ) : !user.isOnboardingCompleted && user.role === 'PATIENT' ? (
           // 2. Đã đăng nhập nhưng chưa Onboarding (chỉ áp dụng cho PATIENT)
           <Stack.Screen 
-            name="Onboarding" 
-            component={OnboardingNavigator}
+            name="ProfileSetup" 
+            component={ProfileSetupScreen}
             options={{ animation: 'fade' }}
           />
         ) : (

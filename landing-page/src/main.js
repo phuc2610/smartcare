@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Setup download link for the APK from GitHub Releases
  */
 function setupLocalDownload() {
-  const apkUrl = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v1.0.0/app-release.apk`;
+  const apkUrl = `/smartcare-app.apk`;
+  const absoluteApkUrl = window.location.origin + apkUrl;
 
   const downloadBtn = document.getElementById('download-btn');
   const versionText = document.getElementById('version-text');
@@ -29,7 +30,7 @@ function setupLocalDownload() {
 
   const qrCodeImgMain = document.getElementById('qr-code-img-main');
   if (qrCodeImgMain) {
-    qrCodeImgMain.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(apkUrl)}`;
+    qrCodeImgMain.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(absoluteApkUrl)}`;
   }
 }
 
