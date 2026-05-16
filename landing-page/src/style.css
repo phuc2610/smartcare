@@ -698,3 +698,115 @@ a {
   font-weight: 500;
 }
 
+
+/* Feature Showcase */
+.showcase-row {
+  display: flex;
+  align-items: center;
+  gap: 80px;
+  margin-bottom: 120px;
+}
+
+.showcase-row.reverse {
+  flex-direction: row-reverse;
+}
+
+.showcase-row:last-child {
+  margin-bottom: 0;
+}
+
+.showcase-image {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.showcase-image img {
+  max-width: 320px;
+  width: 100%;
+  border-radius: 30px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--glass-border);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+}
+
+.showcase-image img:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 35px 60px rgba(0, 180, 216, 0.3);
+}
+
+.showcase-content {
+  flex: 1;
+}
+
+.showcase-badge {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.showcase-content h3 {
+  font-size: 2.5rem;
+  margin-bottom: 24px;
+  color: white;
+  line-height: 1.2;
+}
+
+.showcase-content p {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  line-height: 1.8;
+}
+
+.showcase-features {
+  list-style: none;
+}
+
+.showcase-features li {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  font-size: 1.1rem;
+  color: #e2e8f0;
+}
+
+.showcase-features li::before {
+  content: '?';
+  color: var(--success);
+  font-weight: bold;
+  background: rgba(34, 197, 94, 0.1);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@media (max-width: 992px) {
+  .showcase-row, .showcase-row.reverse {
+    flex-direction: column;
+    gap: 48px;
+    margin-bottom: 80px;
+    text-align: center;
+  }
+  
+  .showcase-features li {
+    text-align: left;
+  }
+  
+  .showcase-content h3 {
+    font-size: 2rem;
+  }
+}
