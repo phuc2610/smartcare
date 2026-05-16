@@ -91,7 +91,7 @@ export const RootNavigator = () => {
               }}
             />
           </>
-        ) : !user.isOnboardingCompleted && user.role === 'PATIENT' ? (
+        ) : (!user.isOnboardingCompleted && !user.height) && user.role === 'PATIENT' ? (
           // 2. Đã đăng nhập nhưng chưa Onboarding (chỉ áp dụng cho PATIENT)
           <Stack.Screen 
             name="ProfileSetup" 
