@@ -810,3 +810,44 @@ a {
     font-size: 2rem;
   }
 }
+
+/* Horizontal Snap Scroll */
+.horizontal-scroll-wrapper {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  gap: 0;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%); /* break out of container to be full width */
+  padding-bottom: 40px;
+}
+
+/* Custom Scrollbar for the horizontal slider */
+.horizontal-scroll-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+.horizontal-scroll-wrapper::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+.horizontal-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+.horizontal-slide {
+  flex: 0 0 100vw;
+  scroll-snap-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5vw;
+}
+
+.horizontal-slide .showcase-row {
+  margin-bottom: 0; /* Reset bottom margin for slides */
+  width: 100%;
+  max-width: 1200px;
+}
+
