@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLocalDownload();
   initSmoothScrolling();
   initCounterAnimation();
+  initSlideAnimations();
 });
 
 /**
@@ -101,3 +102,29 @@ function initCounterAnimation() {
   }
 }
 
+/**
+ * Initialize animations for horizontal slides
+ */
+function initSlideAnimations() {
+  const slides = document.querySelectorAll('.horizontal-slide');
+  
+  const observerOptions = {
+    root: null,
+    rootMargin: "0px",
+    threshold: 0.5
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+      } else {
+        entry.target.classList.remove('in-view');
+      }
+    });
+  }, observerOptions);
+
+  slides.forEach(slide => {
+    observer.observe(slide);
+  });
+}
