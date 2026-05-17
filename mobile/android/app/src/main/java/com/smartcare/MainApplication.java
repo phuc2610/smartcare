@@ -25,6 +25,7 @@ public class MainApplication extends Application implements ReactApplication {
           @SuppressWarnings("UnnecessaryLocalVariable")
           List<ReactPackage> packages = new PackageList(this).getPackages();
           packages.add(new FallDetectionPackage());
+          packages.add(new HeartRatePackage());
           return packages;
         }
 

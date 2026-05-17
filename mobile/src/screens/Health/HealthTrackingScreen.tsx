@@ -334,6 +334,22 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
+      {/* ❤️ Heart Rate Shortcut */}
+      <TouchableOpacity
+        style={hrShortcutStyle}
+        onPress={() => navigation.navigate('HeartRate')}
+        activeOpacity={0.85}
+      >
+        <View style={hrIconWrap}>
+          <Icon name="favorite" size={22} color="#ef4444" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={hrTitle}>Đo nhịp tim</Text>
+          <Text style={hrSub}>Dùng camera + flash · Kết quả trong 30s</Text>
+        </View>
+        <Icon name="chevron-right" size={20} color="#94a3b8" />
+      </TouchableOpacity>
+
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'meal' && styles.tabActive]}
@@ -853,6 +869,45 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
 });
+
+// Heart Rate Shortcut styles (inline để tránh xung đột StyleSheet)
+const hrShortcutStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  backgroundColor: '#fff',
+  marginHorizontal: 16,
+  marginTop: 8,
+  marginBottom: 4,
+  borderRadius: 16,
+  padding: 14,
+  gap: 12,
+  borderWidth: 1,
+  borderColor: '#fecaca',
+  shadowColor: '#ef4444',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 8,
+  elevation: 2,
+};
+const hrIconWrap = {
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+  backgroundColor: '#fef2f2',
+  justifyContent: 'center' as const,
+  alignItems: 'center' as const,
+};
+const hrTitle = {
+  fontSize: 15,
+  fontWeight: '700' as const,
+  color: '#0f172a',
+  marginBottom: 2,
+};
+const hrSub = {
+  fontSize: 12,
+  color: '#94a3b8',
+};
+
 
 
 

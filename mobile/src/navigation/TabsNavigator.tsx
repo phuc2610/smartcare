@@ -47,6 +47,7 @@ import { PrescriptionEditScreen } from '../screens/Prescription/PrescriptionEdit
 import { DependentsScreen } from '../screens/Profile/DependentsScreen';
 import { MedicationManageScreen } from '../screens/Medication/MedicationManageScreen';
 import { ManualMedicationAddScreen } from '../screens/Medication/ManualMedicationAddScreen';
+import { HeartRateScreen } from '../screens/Health/HeartRateScreen';
 import { FloatingAIChatButton } from '../components/FloatingAIChatButton';
 
 const Tab = createBottomTabNavigator();
@@ -420,6 +421,13 @@ export const TabsNavigator = () => {
       <Stack.Screen 
         name="HealthTracking" 
         component={HealthTrackingScreen} 
+        options={{ 
+          headerShown: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="HeartRate" 
+        component={HeartRateScreen} 
         options={{ 
           headerShown: false,
         }} 
