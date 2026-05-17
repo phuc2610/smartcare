@@ -15,15 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
  * Setup download link for the APK from GitHub Releases
  */
 function setupLocalDownload() {
-  const apkUrl = `/smartcare-app.apk`;
-  const absoluteApkUrl = window.location.origin + apkUrl;
+  const apkUrl = `https://github.com/phuc2610/smartcare/releases/latest/download/smartcare-app.apk`;
+  const absoluteApkUrl = apkUrl;
 
-  const downloadBtn = document.getElementById('download-btn');
+  const downloadBtns = document.querySelectorAll('a[download]');
   const versionText = document.getElementById('version-text');
 
-  if (downloadBtn) {
-    downloadBtn.href = apkUrl;
-  }
+  downloadBtns.forEach(btn => {
+    btn.href = apkUrl;
+  });
 
   if (versionText) {
     versionText.textContent = 'Phiên bản v1.2.0 • Sẵn sàng tải về';
