@@ -11,8 +11,19 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useHeartRate } from '../../hooks/useHeartRate';
 import { COLORS, SPACING, RADIUS } from '../../theme';
+
+export const HEART_RATE_STORAGE_KEY = 'heart_rate_history';
+export const MAX_HISTORY = 30; // Giữ tối đa 30 lần đo
+
+export interface HeartRateRecord {
+  bpm: number;
+  timestamp: number;
+  valid: boolean;
+  label: string;
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const WAVEFORM_WIDTH = SCREEN_WIDTH - 48;
@@ -151,6 +162,30 @@ export const HeartRateScreen: React.FC = () => {
       useNativeDriver: false,
     }).start();
   }, [progress]);
+
+  // Lưu kết quả vào AsyncStorage khi đo xong
+  useEffect(() => {
+    if (phase === 'done' && result?.valid && result.bpm > 0) {
+      const saveResult = async () => {
+        try {
+          const raw = await AsyncStorage.getItem(HEART_RATE_STORAGE_KEY);
+          const history: HeartRateRecord[] = raw ? JSON.parse(raw) : [];
+          const newRecord: HeartRateRecord = {
+            bpm: Math.round(result.bpm),
+            timestamp: Date.now(),
+            valid: result.valid,
+            label: getBpmLabel(result.bpm),
+          };
+          const updated = [newRecord, ...history].slice(0, MAX_HISTORY);
+          await AsyncStorage.setItem(HEART_RATE_STORAGE_KEY, JSON.stringify(updated));
+          console.log('[HeartRate] Saved:', newRecord.bpm, 'BPM');
+        } catch (e) {
+          console.warn('[HeartRate] Save failed:', e);
+        }
+      };
+      saveResult();
+    }
+  }, [phase, result]);
 
   const bpmColor = getBpmColor(realtimeBpm || result?.bpm || null);
   const displayBpm = result?.bpm || realtimeBpm;

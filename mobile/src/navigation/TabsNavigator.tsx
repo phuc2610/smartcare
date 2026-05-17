@@ -49,6 +49,7 @@ import { MedicationManageScreen } from '../screens/Medication/MedicationManageSc
 import { ManualMedicationAddScreen } from '../screens/Medication/ManualMedicationAddScreen';
 import { HeartRateScreen } from '../screens/Health/HeartRateScreen';
 import { FloatingAIChatButton } from '../components/FloatingAIChatButton';
+import { QuickActionSheet } from '../components/QuickActionSheet';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -120,6 +121,7 @@ const DashboardStack = React.memo(() => {
 const MainTabs = () => {
   const { user } = useAuth();
   const isCaregiver = user?.role === UserRole.CAREGIVER;
+  const [showQuickActions, setShowQuickActions] = React.useState(false);
 
   return (
     <View style={{ flex: 1 }}>
@@ -159,16 +161,24 @@ const MainTabs = () => {
           <Tab.Screen
             name="Add"
             component={AddMedicationScreen}
+            listeners={{
+              tabPress: (e) => {
+                // Chặn navigate mặc định, mở popup thay thế
+                e.preventDefault();
+                setShowQuickActions(true);
+              },
+            }}
             options={{
               tabBarLabel: '',
               tabBarIcon: ({ focused }: { focused: boolean }) => (
-                <AnimatedAddButton focused={focused} />
+                <AnimatedAddButton focused={showQuickActions} />
               ),
               tabBarButton: (props) => (
                 <TouchableOpacity
                   {...props}
                   style={[props.style, styles.addButtonContainer]}
                   activeOpacity={0.8}
+                  onPress={() => setShowQuickActions(true)}
                 />
               ),
             }}
@@ -197,6 +207,10 @@ const MainTabs = () => {
       />
       </Tab.Navigator>
       <FloatingAIChatButton />
+      <QuickActionSheet
+        visible={showQuickActions}
+        onClose={() => setShowQuickActions(false)}
+      />
     </View>
   );
 };

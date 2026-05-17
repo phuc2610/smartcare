@@ -21,6 +21,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { EditTaskModal } from '../../components/EditTaskModal';
 import { useFallDetection } from '../../hooks/useFallDetection';
 import { FallAlertModal } from '../../components/FallAlertModal';
+import { HealthSummaryCard } from '../../components/HealthSummaryCard';
 
 interface DashboardScreenProps {
   targetUserId?: string;
@@ -705,6 +706,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
             )}
           </View>
         </View>
+      )}
+
+      {/* Health Summary Card — tóm tắt sức khỏe */}
+      {!readOnly && (
+        <HealthSummaryCard healthLogs={[...reminders, ...healthLogs]} />
       )}
 
       {/* Health Tracking Shortcut */}
