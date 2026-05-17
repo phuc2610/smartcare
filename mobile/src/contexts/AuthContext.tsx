@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { RegisterData, LoginData } from '../services/auth.service';
 import { logger } from '../utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../utils/constants';
 
 let authService: any = null;
 let getCurrentUser: (() => Promise<User | null>) | null = null;
@@ -51,7 +52,7 @@ interface AuthContextType {
   completeRegistration: (registerData: import('../services/auth.service').RegisterEmailData, setupData: import('../services/auth.service').SetupAccountData) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (updatedUser: User) => void;
+  updateProfile: (updatedUser: User) => Promise<void>;
   hasSeenWelcome: boolean;
   completeWelcome: () => Promise<void>;
 }
@@ -70,8 +71,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setHasSeenWelcome(welcomeStatus === 'true');
 
         // Guard: Đảm bảo getCurrentUser tồn tại và là function
-        const currentUser = await safeGetCurrentUser();
-        setUser(currentUser);
+        const cachedUser = await safeGetCurrentUser();
+        
+        if (cachedUser) {
+          // Hiển thị user từ cache ngay lập tức
+          setUser(cachedUser);
+          
+          // Sau đó, fetch user mới nhất từ server để đồng bộ
+          // (đảm bảo isOnboardingCompleted, height... luôn đúng)
+          try {
+            const { getMe } = require('../services/user.service');
+            const freshData = await getMe();
+            if (freshData?.user) {
+              setUser(freshData.user);
+              // Cập nhật lại AsyncStorage với dữ liệu mới nhất
+              await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(freshData.user));
+              logger.auth('checkAuth: User synced from server', { 
+                userId: freshData.user._id,
+                isOnboardingCompleted: freshData.user.isOnboardingCompleted,
+                hasHeight: !!freshData.user.height,
+              });
+            }
+          } catch (fetchErr) {
+            // Server không khả dụng → dùng cached user (đã set ở trên)
+            logger.auth('checkAuth: Server fetch failed, using cached user', fetchErr);
+          }
+        } else {
+          setUser(null);
+        }
       } catch (e) {
         console.warn('Auth Check Failed (non-critical):', e);
         // Set user to null và tiếp tục, không crash app
@@ -214,8 +241,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateProfile = (updatedUser: User) => {
+  const updateProfile = async (updatedUser: User) => {
     setUser(updatedUser);
+    // Đồng bộ user mới vào AsyncStorage để lần mở app tiếp theo không bị cũ
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+    } catch (e) {
+      logger.error('Failed to sync updated user to AsyncStorage', e);
+    }
   };
 
   const completeWelcome = async () => {

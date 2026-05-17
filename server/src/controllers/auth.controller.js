@@ -607,7 +607,8 @@ const googleLoginSchema = z.object({
 
 /**
  * Đăng nhập bằng Google
- * Verify Google ID Token → tìm/tạo user → trả JWT
+ * Verify Google ID Token → tìm user đã đăng ký → trả JWT
+ * Nếu email chưa đăng ký → trả lỗi "Tài khoản không hợp lệ"
  */
 const googleLogin = async (req, res) => {
   try {
@@ -629,30 +630,28 @@ const googleLogin = async (req, res) => {
       return res.status(400).json({ error: 'Không lấy được email từ tài khoản Google.' });
     }
 
-    // Tìm user theo googleId hoặc email
-    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+    // Tìm user theo googleId hoặc email (phải là user thật, không phải Pending)
+    let user = await User.findOne({ 
+      $or: [{ googleId }, { email }],
+      name: { $ne: 'Pending' },
+      isVerified: true,
+    });
 
-    if (user) {
-      // User đã tồn tại → cập nhật googleId nếu chưa có
-      if (!user.googleId) {
-        user.googleId = googleId;
-        await user.save();
-      }
-    } else {
-      // Tạo user mới từ Google
-      user = await User.create({
-        name: name || 'Google User',
-        phone: `google_${googleId}`,
-        passwordHash: 'google_oauth',
-        email,
-        googleId,
-        role: 'PATIENT',
-        isVerified: true,
-        isEmailVerified: true,
-        avatar: picture || null,
+    if (!user) {
+      // Email chưa được đăng ký trong hệ thống
+      return res.status(401).json({ 
+        error: 'Tài khoản không hợp lệ. Email này chưa được đăng ký trong hệ thống. Vui lòng đăng ký tài khoản trước.' 
       });
-      console.log(`[GOOGLE LOGIN] New user created from Google: ${email}`);
     }
+
+    // User đã tồn tại → cập nhật googleId và avatar nếu chưa có
+    if (!user.googleId) {
+      user.googleId = googleId;
+    }
+    if (!user.avatar && picture) {
+      user.avatar = picture;
+    }
+    await user.save();
 
     const token = generateToken(user._id);
 
