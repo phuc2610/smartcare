@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform, Dimensions } from 'react-native';
 import { showError, showSuccess } from '../../utils/alert';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Defs, LinearGradient, Stop, Circle, Line, Text as SvgText, Rect } from 'react-native-svg';
 import { useAuth } from '../../contexts/AuthContext';
 import { getComprehensiveReport, exportReportPDF } from '../../services/report.service';
 import { analyzeReport } from '../../services/ai.service';
@@ -9,6 +11,107 @@ import { ReportSummary } from '../../types';
 import { COLORS } from '../../utils/constants';
 import { StatCard } from '../../components/StatCard';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { HEART_RATE_STORAGE_KEY, HeartRateRecord } from '../Health/HeartRateScreen';
+
+const SCREEN_W = Dimensions.get('window').width;
+const CHART_W = SCREEN_W - 32 - 32; // margin 16*2, padding 16*2
+const CHART_H = 130;
+const PAD_L = 32; const PAD_R = 12; const PAD_T = 14; const PAD_B = 28;
+const PLOT_W = CHART_W - PAD_L - PAD_R;
+const PLOT_H = CHART_H - PAD_T - PAD_B;
+
+const getBpmColor = (bpm: number) => {
+  if (bpm < 60) return '#3b82f6';
+  if (bpm <= 100) return '#22c55e';
+  if (bpm <= 140) return '#f59e0b';
+  return '#ef4444';
+};
+const getBpmStatus = (bpm: number) => {
+  if (bpm < 60) return { label: 'Nhịp chậm', color: '#3b82f6', bg: '#dbeafe' };
+  if (bpm <= 100) return { label: 'Bình thường', color: '#22c55e', bg: '#d1fae5' };
+  if (bpm <= 140) return { label: 'Nhịp nhanh', color: '#f59e0b', bg: '#fef3c7' };
+  return { label: 'Rất nhanh', color: '#ef4444', bg: '#fee2e2' };
+};
+
+// ============ Heart Rate Chart (SVG) ============
+const HeartRateReportChart: React.FC<{ data: HeartRateRecord[] }> = ({ data }) => {
+  if (data.length === 0) return null;
+  const display = data.slice(0, 10).reverse();
+  const bpms = display.map(d => d.bpm);
+  const rawMin = Math.min(...bpms);
+  const rawMax = Math.max(...bpms);
+  const pad = Math.max((rawMax - rawMin) * 0.25, 15);
+  const minY = Math.max(0, rawMin - pad);
+  const maxY = rawMax + pad;
+  const rangeY = maxY - minY || 1;
+  const n = display.length;
+
+  const pts = display.map((d, i) => ({
+    x: PAD_L + (i / Math.max(n - 1, 1)) * PLOT_W,
+    y: PAD_T + PLOT_H - ((d.bpm - minY) / rangeY) * PLOT_H,
+    bpm: d.bpm, ts: d.timestamp,
+  }));
+
+  const linePath = pts.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+    const prev = pts[i - 1];
+    const cx1 = prev.x + (pt.x - prev.x) / 3;
+    const cx2 = prev.x + (2 * (pt.x - prev.x)) / 3;
+    return `${acc} C ${cx1.toFixed(1)} ${prev.y.toFixed(1)}, ${cx2.toFixed(1)} ${pt.y.toFixed(1)}, ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+  }, '');
+
+  const areaPath = `${linePath} L ${pts[pts.length-1].x.toFixed(1)} ${(PAD_T+PLOT_H).toFixed(1)} L ${pts[0].x.toFixed(1)} ${(PAD_T+PLOT_H).toFixed(1)} Z`;
+  const latestColor = getBpmColor(pts[pts.length - 1]?.bpm || 75);
+  const yLabels = [Math.round(maxY), Math.round((minY + maxY) / 2), Math.round(minY)];
+
+  return (
+    <View>
+      <Svg width={CHART_W} height={CHART_H}>
+        <Defs>
+          <LinearGradient id="rptGrad" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={latestColor} stopOpacity="0.3" />
+            <Stop offset="100%" stopColor={latestColor} stopOpacity="0.02" />
+          </LinearGradient>
+        </Defs>
+        {/* Grid */}
+        {[0, 0.5, 1].map((t, i) => (
+          <Line key={i} x1={PAD_L} y1={PAD_T + t * PLOT_H} x2={PAD_L + PLOT_W} y2={PAD_T + t * PLOT_H} stroke="#f1f5f9" strokeWidth="1" />
+        ))}
+        {/* Y labels */}
+        {yLabels.map((v, i) => (
+          <SvgText key={i} x={PAD_L - 4} y={PAD_T + [0, 0.5, 1][i] * PLOT_H + 4} textAnchor="end" fontSize="9" fill="#94a3b8">{v}</SvgText>
+        ))}
+        {/* Area */}
+        {n > 1 && <Path d={areaPath} fill="url(#rptGrad)" />}
+        {/* Line */}
+        {n > 1 && <Path d={linePath} stroke={latestColor} strokeWidth="2.5" fill="none" strokeLinecap="round" />}
+        {/* Points */}
+        {pts.map((pt, i) => {
+          const isLast = i === pts.length - 1;
+          const c = getBpmColor(pt.bpm);
+          return (
+            <React.Fragment key={i}>
+              {isLast && <Circle cx={pt.x} cy={pt.y} r={10} fill={c} fillOpacity="0.12" />}
+              <Circle cx={pt.x} cy={pt.y} r={isLast ? 5 : 3.5} fill={isLast ? c : '#fff'} stroke={c} strokeWidth={isLast ? 0 : 2} />
+            </React.Fragment>
+          );
+        })}
+        {/* X labels */}
+        {pts.map((pt, i) => {
+          if (n > 5 && i % 2 !== 0 && i !== n - 1) return null;
+          const d = new Date(pt.ts);
+          return (
+            <SvgText key={i} x={pt.x} y={PAD_T + PLOT_H + 18} textAnchor="middle" fontSize="9" fill="#94a3b8">
+              {`${d.getDate()}/${d.getMonth() + 1}`}
+            </SvgText>
+          );
+        })}
+        {/* Normal range band label */}
+        <SvgText x={PAD_L + PLOT_W + 2} y={PAD_T + PLOT_H * 0.1} fontSize="8" fill="#22c55e" fontWeight="600">OK</SvgText>
+      </Svg>
+    </View>
+  );
+};
 
 type ReportRange = 'today' | 'week' | 'month';
 
@@ -23,6 +126,14 @@ export const ReportScreen = ({ route }: any) => {
   const [aiNotes, setAiNotes] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [heartHistory, setHeartHistory] = useState<HeartRateRecord[]>([]);
+
+  // Load heart rate history from AsyncStorage
+  useEffect(() => {
+    AsyncStorage.getItem(HEART_RATE_STORAGE_KEY)
+      .then(raw => { if (raw) setHeartHistory(JSON.parse(raw)); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchReport();
@@ -323,6 +434,123 @@ export const ReportScreen = ({ route }: any) => {
         )}
       </View>
 
+      {/* ===== NHỊP TIM CHART ===== */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionTitleRow}>
+            <Icon name="favorite" size={16} color="#ef4444" />
+            <Text style={styles.sectionTitle}>Nhịp tim</Text>
+          </View>
+          {heartHistory.length > 0 && (
+            <Text style={styles.hrCount}>{heartHistory.length} lần đo</Text>
+          )}
+        </View>
+
+        {heartHistory.length === 0 ? (
+          <View style={styles.hrEmpty}>
+            <Icon name="favorite-border" size={32} color="#fca5a5" />
+            <Text style={styles.hrEmptyTitle}>Chưa có dữ liệu nhịp tim</Text>
+            <Text style={styles.hrEmptySub}>Dùng tính năng đo nhịp tim để xem biểu đồ phân tích tại đây</Text>
+          </View>
+        ) : (
+          <>
+            {/* Latest reading */}
+            {(() => {
+              const latest = heartHistory[0];
+              const status = getBpmStatus(latest.bpm);
+              const avg = Math.round(heartHistory.reduce((s, r) => s + r.bpm, 0) / heartHistory.length);
+              const minBpm = Math.min(...heartHistory.map(r => r.bpm));
+              const maxBpm = Math.max(...heartHistory.map(r => r.bpm));
+              return (
+                <>
+                  {/* Top stats */}
+                  <View style={styles.hrStatsRow}>
+                    <View style={[styles.hrStatCard, { borderColor: status.color + '30', backgroundColor: status.bg + '50' }]}>
+                      <Icon name="favorite" size={16} color={status.color} />
+                      <Text style={[styles.hrStatNum, { color: status.color }]}>{latest.bpm}</Text>
+                      <Text style={styles.hrStatUnit}>BPM</Text>
+                      <Text style={[styles.hrStatLabel, { color: status.color }]}>{status.label}</Text>
+                      <Text style={styles.hrStatSub}>Mới nhất</Text>
+                    </View>
+                    <View style={styles.hrMiniStats}>
+                      <View style={styles.hrMiniRow}>
+                        <Icon name="show-chart" size={13} color="#64748b" />
+                        <Text style={styles.hrMiniLabel}>TB: <Text style={styles.hrMiniVal}>{avg} BPM</Text></Text>
+                      </View>
+                      <View style={styles.hrMiniRow}>
+                        <Icon name="arrow-downward" size={13} color="#3b82f6" />
+                        <Text style={styles.hrMiniLabel}>Thấp: <Text style={[styles.hrMiniVal, { color: '#3b82f6' }]}>{minBpm}</Text></Text>
+                      </View>
+                      <View style={styles.hrMiniRow}>
+                        <Icon name="arrow-upward" size={13} color="#ef4444" />
+                        <Text style={styles.hrMiniLabel}>Cao: <Text style={[styles.hrMiniVal, { color: '#ef4444' }]}>{maxBpm}</Text></Text>
+                      </View>
+                      <View style={styles.hrMiniRow}>
+                        <Icon name="schedule" size={13} color="#64748b" />
+                        <Text style={styles.hrMiniLabel}>
+                          {new Date(latest.timestamp).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
+                          {' · '}{new Date(latest.timestamp).toLocaleDateString('vi', { day: '2-digit', month: '2-digit' })}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Chart */}
+                  <Text style={styles.hrChartTitle}>Biểu đồ xu hướng ({Math.min(heartHistory.length, 10)} điểm gần nhất)</Text>
+                  <HeartRateReportChart data={heartHistory} />
+
+                  {/* Legend */}
+                  <View style={styles.hrLegend}>
+                    {[
+                      { c: '#3b82f6', l: '< 60 Chậm' },
+                      { c: '#22c55e', l: '60–100 Bình thường' },
+                      { c: '#f59e0b', l: '101–140 Nhanh' },
+                      { c: '#ef4444', l: '> 140 Rất nhanh' },
+                    ].map((item, i) => (
+                      <View key={i} style={styles.hrLegendItem}>
+                        <View style={[styles.hrLegendDot, { backgroundColor: item.c }]} />
+                        <Text style={styles.hrLegendText}>{item.l}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* History table */}
+                  <Text style={styles.hrHistTitle}>Lịch sử {heartHistory.length} lần đo</Text>
+                  {heartHistory.slice(0, 5).map((r, i) => {
+                    const s = getBpmStatus(r.bpm);
+                    return (
+                      <View key={i} style={styles.hrHistRow}>
+                        <Icon name="favorite" size={12} color={s.color} />
+                        <Text style={[styles.hrHistBpm, { color: s.color }]}>{r.bpm} BPM</Text>
+                        <View style={[styles.hrHistBadge, { backgroundColor: s.bg }]}>
+                          <Text style={[styles.hrHistBadgeText, { color: s.color }]}>{s.label}</Text>
+                        </View>
+                        <Text style={styles.hrHistTime}>
+                          {new Date(r.timestamp).toLocaleDateString('vi', { day: '2-digit', month: '2-digit' })}
+                          {' '}{new Date(r.timestamp).toLocaleTimeString('vi', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                  {heartHistory.length > 5 && (
+                    <Text style={styles.hrMore}>+ {heartHistory.length - 5} lần đo khác</Text>
+                  )}
+
+                  {/* Medical note for heart rate */}
+                  <View style={styles.medDisclaimer}>
+                    <Icon name="info-outline" size={13} color="#64748b" />
+                    <Text style={styles.medDisclaimerText}>
+                      Nhịp tim bình thường khi nghỉ ngơi: <Text style={{ fontWeight: '700' }}>60–100 BPM</Text> (WHO).
+                      Kết quả đo bằng camera chỉ mang tính tham khảo, không thay thế thiết bị y tế lâm sàng.
+                    </Text>
+                  </View>
+                </>
+              );
+            })()}
+          </>
+        )}
+      </View>
+
       {/* Medication History */}
       {report.reminders && report.reminders.length > 0 && (() => {
         // Group reminders by medicationName
@@ -400,14 +628,33 @@ export const ReportScreen = ({ route }: any) => {
       {/* AI Notes - Only for week and month */}
       {(selectedRange === 'week' || selectedRange === 'month') && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Lưu ý</Text>
+          <View style={styles.sectionTitleRow}>
+            <Icon name="auto-awesome" size={16} color="#8b5cf6" />
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Phân tích AI</Text>
+          </View>
+          <View style={styles.aiDisclaimerTop}>
+            <Icon name="warning-amber" size={12} color="#f59e0b" />
+            <Text style={styles.aiDisclaimerTopText}>
+              Thông tin này do AI tạo ra dựa trên dữ liệu của bạn, chỉ mang tính tham khảo, không phải lời khuyên y tế.
+            </Text>
+          </View>
           {loadingAI ? (
             <View style={styles.aiLoadingContainer}>
               <ActivityIndicator size="small" color={COLORS.primary} />
               <Text style={styles.aiLoadingText}>AI đang phân tích...</Text>
             </View>
           ) : aiNotes ? (
-            <FormattedNotes text={aiNotes} />
+            <>
+              <FormattedNotes text={aiNotes} />
+              {/* Medical disclaimer */}
+              <View style={styles.medDisclaimer}>
+                <Icon name="local-hospital" size={13} color="#64748b" />
+                <Text style={styles.medDisclaimerText}>
+                  ⚠️ <Text style={{ fontWeight: '700' }}>Lưu ý y khoa:</Text> Các phân tích trên được tạo bởi AI dựa theo dữ liệu bạn nhập.{' '}
+                  Không thay thế chẩn đoán từ bác sĩ hoặc chức năng của thiết bị y tế. Nếu có triệu chứng bất thường, hãy tham khảo bác sĩ ngay.
+                </Text>
+              </View>
+            </>
           ) : (
             <Text style={styles.emptyText}>Chưa có lưu ý</Text>
           )}
@@ -751,6 +998,93 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+
+  // ======= Heart Rate Section =======
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  hrCount: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
+  hrEmpty: { alignItems: 'center', paddingVertical: 20, gap: 8 },
+  hrEmptyTitle: { fontSize: 14, fontWeight: '700', color: '#334155' },
+  hrEmptySub: { fontSize: 12, color: '#94a3b8', textAlign: 'center' },
+
+  hrStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  hrStatCard: {
+    width: 88,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: 'center',
+    gap: 2,
+  },
+  hrStatNum: { fontSize: 28, fontWeight: '800', letterSpacing: -1, lineHeight: 30 },
+  hrStatUnit: { fontSize: 11, color: '#94a3b8', fontWeight: '600' },
+  hrStatLabel: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  hrStatSub: { fontSize: 9, color: '#94a3b8', marginTop: 1 },
+  hrMiniStats: { flex: 1, justifyContent: 'space-around', gap: 4 },
+  hrMiniRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hrMiniLabel: { fontSize: 12, color: '#64748b' },
+  hrMiniVal: { fontWeight: '700', color: '#0f172a' },
+
+  hrChartTitle: { fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 6 },
+
+  hrLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, marginBottom: 14 },
+  hrLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hrLegendDot: { width: 7, height: 7, borderRadius: 3.5 },
+  hrLegendText: { fontSize: 10, color: '#94a3b8' },
+
+  hrHistTitle: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 8 },
+  hrHistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  hrHistBpm: { fontSize: 14, fontWeight: '700', width: 64 },
+  hrHistBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  hrHistBadgeText: { fontSize: 11, fontWeight: '600' },
+  hrHistTime: { flex: 1, textAlign: 'right', fontSize: 11, color: '#94a3b8' },
+  hrMore: { fontSize: 12, color: COLORS.primary, textAlign: 'center', marginTop: 8 },
+
+  // Medical disclaimer
+  medDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  medDisclaimerText: { flex: 1, fontSize: 11, color: '#64748b', lineHeight: 16 },
+
+  // AI disclaimer top
+  aiDisclaimerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    backgroundColor: '#fffbeb',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  aiDisclaimerTopText: { flex: 1, fontSize: 11, color: '#92400e', lineHeight: 15 },
 });
 
 // Component to format AI notes with bold text
