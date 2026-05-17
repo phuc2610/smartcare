@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Setup download link for the APK from GitHub Releases
  */
 function setupLocalDownload() {
-  const apkUrl = `https://github.com/phuc2610/smartcare/releases/latest/download/smartcare-app.apk`;
+  const apkUrl = `https://github.com/phuc2610/smartcare/releases/download/v1.2.0/smartcare-app.apk`;
   const absoluteApkUrl = apkUrl;
 
   const downloadBtns = document.querySelectorAll('a[download]');
