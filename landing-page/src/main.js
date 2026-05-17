@@ -26,7 +26,7 @@ function setupLocalDownload() {
   }
 
   if (versionText) {
-    versionText.textContent = 'Phiên bản v1.0.0 • Sẵn sàng tải về';
+    versionText.textContent = 'Phiên bản v1.2.0 • Sẵn sàng tải về';
   }
 
   const qrCodeImgMain = document.getElementById('qr-code-img-main');
