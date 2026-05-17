@@ -205,7 +205,8 @@ export const TabsNavigator = () => {
     <Stack.Navigator
       screenOptions={{
         animation: 'slide_from_right',
-        animationDuration: 300,
+        animationDuration: 280,
+        gestureEnabled: true,
         header: ({ route, navigation: nav }) => {
           const titles: Record<string, string> = {
             Chat: 'Trợ lý AI',
@@ -444,17 +445,17 @@ export const TabsNavigator = () => {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    height: 64,
-    paddingBottom: SPACING.sm,
-    paddingTop: SPACING.sm,
+    borderTopWidth: 0,
+    height: 68,
+    paddingBottom: SPACING.sm + 2,
+    paddingTop: SPACING.sm + 2,
     ...SHADOWS.tabBar,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: SPACING.xs,
+    letterSpacing: 0.2,
   },
   tabBarIcon: {
     marginTop: SPACING.xs,
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: -28,
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: COLORS.surface,
     ...SHADOWS.floating,
   },

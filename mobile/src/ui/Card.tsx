@@ -34,17 +34,15 @@ const CardComponent = forwardRef<View, CardProps>(({
   onPress,
 }, ref) => {
   const opacity = useSharedValue(animated ? 0 : 1);
-  const translateY = useSharedValue(animated ? 20 : 0);
-  const scale = useSharedValue(animated ? 0.95 : 1);
+  const translateY = useSharedValue(animated ? 16 : 0);
 
   useEffect(() => {
     if (animated) {
       const animationDelay = delay + index * STAGGER_DELAY;
       const { opacity: op, translateY: ty } = MOTION.listItem(1, 0);
       
-      opacity.value = withDelay(animationDelay, withTiming(1, { duration: 300 }));
-      translateY.value = withDelay(animationDelay, withSpring(0, { damping: 20, stiffness: 100 }));
-      scale.value = withDelay(animationDelay, withSpring(1, { damping: 20, stiffness: 100 }));
+      opacity.value = withDelay(animationDelay, withTiming(1, { duration: 350 }));
+      translateY.value = withDelay(animationDelay, withSpring(0, { damping: 22, stiffness: 60 }));
     }
   }, [animated, delay, index]);
 
@@ -52,7 +50,6 @@ const CardComponent = forwardRef<View, CardProps>(({
     opacity: opacity.value,
     transform: [
       { translateY: translateY.value },
-      { scale: scale.value },
     ],
   }));
 
@@ -92,7 +89,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
+    padding: SPACING.xl,
     marginBottom: SPACING.md,
   },
 });

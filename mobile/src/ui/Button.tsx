@@ -1,6 +1,8 @@
 /**
  * Button Component
  * Interactive button with press animations and accessibility
+ * 
+ * Updated: Gentler press feedback, snappy spring physics
  */
 
 import React from 'react';
@@ -46,31 +48,29 @@ export const Button: React.FC<ButtonProps> = ({
   rightIcon,
 }) => {
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: opacity.value,
   }));
 
   const handlePressIn = () => {
     if (disabled || loading) return;
-    scale.value = withSpring(0.95, SPRING.smooth);
-    opacity.value = withTiming(0.8, TIMING.fast);
+    // Gentle sink - no opacity change for clarity
+    scale.value = withSpring(0.96, SPRING.snappy);
   };
 
   const handlePressOut = () => {
     if (disabled || loading) return;
-    scale.value = withSpring(1, SPRING.smooth);
-    opacity.value = withTiming(1, TIMING.fast);
+    // Bounce back with satisfying spring
+    scale.value = withSpring(1, SPRING.bouncy);
   };
 
   const handlePress = () => {
     if (disabled || loading) return;
     
-    // Bounce effect
+    // Quick bounce effect on tap
     scale.value = withSequence(
-      withTiming(0.9, TIMING.fast),
+      withTiming(0.94, TIMING.fast),
       withSpring(1, SPRING.bouncy)
     );
     
@@ -86,7 +86,7 @@ export const Button: React.FC<ButtonProps> = ({
       case 'outline':
         return {
           backgroundColor: 'transparent',
-          borderWidth: 2,
+          borderWidth: 1.5,
           borderColor: COLORS.primary,
         };
       case 'ghost':
@@ -198,4 +198,5 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
 

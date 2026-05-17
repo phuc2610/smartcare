@@ -63,8 +63,9 @@ export const RootNavigator = () => {
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false,
-          animation: 'fade',
-          animationDuration: 300,
+          animation: 'slide_from_right',
+          animationDuration: 280,
+          gestureEnabled: true,
         }}
       >
         {!hasSeenWelcome ? (
