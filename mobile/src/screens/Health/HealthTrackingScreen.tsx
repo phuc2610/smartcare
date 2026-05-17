@@ -334,22 +334,6 @@ export const HealthTrackingScreen = ({ navigation }: any) => {
         keyboardShouldPersistTaps="handled"
         removeClippedSubviews={false}
       >
-      {/* ❤️ Heart Rate Shortcut */}
-      <TouchableOpacity
-        style={hrShortcutStyle}
-        onPress={() => navigation.navigate('HeartRate')}
-        activeOpacity={0.85}
-      >
-        <View style={hrIconWrap}>
-          <Icon name="favorite" size={22} color="#ef4444" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={hrTitle}>Đo nhịp tim</Text>
-          <Text style={hrSub}>Dùng camera + flash · Kết quả trong 30s</Text>
-        </View>
-        <Icon name="chevron-right" size={20} color="#94a3b8" />
-      </TouchableOpacity>
-
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'meal' && styles.tabActive]}

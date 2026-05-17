@@ -67,8 +67,8 @@ const ACTIONS: ActionItem[] = [
   },
   {
     icon: 'medication',
-    label: 'Thêm thuốc thủ công',
-    sublabel: 'Nhập thông tin thuốc',
+    label: 'Quản lý thuốc',
+    sublabel: 'Thêm, chỉnh sửa thuốc',
     route: 'MedicationManage',
     color: '#3b82f6',
     bgColor: '#dbeafe',
@@ -160,12 +160,9 @@ export const QuickActionSheet: React.FC<QuickActionSheetProps> = ({ visible, onC
         {/* Handle bar */}
         <View style={styles.handle} />
 
-        {/* Header */}
+        {/* Header — chỉ hiện mô tả */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Thêm nhanh</Text>
-            <Text style={styles.headerSub}>Chọn tính năng bạn muốn thực hiện</Text>
-          </View>
+          <Text style={styles.headerSub}>Chọn tính năng bạn muốn thực hiện</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Icon name="close" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
@@ -227,20 +224,14 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.3,
-  },
   headerSub: {
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textSecondary,
-    marginTop: 2,
+    fontWeight: '500',
   },
   closeBtn: {
     width: 36,
