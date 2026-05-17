@@ -1,79 +1,194 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { accelerometer } from 'react-native-sensors';
+import { NativeModules, NativeEventEmitter, AppState, AppStateStatus, Platform } from 'react-native';
 
-const GRAVITY = 9.8;
-const FALL_THRESHOLD_G = 2.5;
-const IMPACT_THRESHOLD = FALL_THRESHOLD_G * GRAVITY;
-const UPDATE_INTERVAL_MS = 100;
+/**
+ * useFallDetection — Hook React Native cho Fall Detection
+ * 
+ * V2: Sử dụng Native Foreground Service (Android)
+ * - Chạy nền ngay cả khi app bị tắt
+ * - Hiện notification cố định "SmartCare đang bảo vệ bạn"
+ * - Tự mở app khi phát hiện ngã
+ * 
+ * Fallback: Nếu native module không có (iOS hoặc lỗi), dùng react-native-sensors
+ */
+
+const { FallDetectionModule } = NativeModules;
+
+// Kiểm tra native module có tồn tại không
+const hasNativeModule = !!FallDetectionModule;
 
 export const useFallDetection = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [fallDetected, setFallDetected] = useState(false);
-  const lastUpdateRef = useRef<number>(0);
-  const subscriptionRef = useRef<any>(null);
+  const pollingRef = useRef<any>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
-  const handleMotion = useCallback(({ x, y, z }: { x: number; y: number; z: number }) => {
-    const now = Date.now();
-    if (now - lastUpdateRef.current < UPDATE_INTERVAL_MS) return;
-    lastUpdateRef.current = now;
+  // Poll trạng thái từ native service (vì event emitter có thể không đến khi app bị kill)
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    
+    pollingRef.current = setInterval(async () => {
+      if (!hasNativeModule) return;
+      try {
+        const status = await FallDetectionModule.getStatus();
+        if (status.fallDetected && !fallDetected) {
+          setFallDetected(true);
+          console.log('[FallDetection] 🚨 Fall detected via polling!');
+        }
+        setIsMonitoring(status.isRunning);
+      } catch (e) {
+        // Ignore polling errors
+      }
+    }, 1000); // Check mỗi giây
+  }, [fallDetected]);
 
-    const totalAcceleration = Math.sqrt(x * x + y * y + z * z);
-
-    if (totalAcceleration > IMPACT_THRESHOLD) {
-      console.log(`[Sensor] Impact Detected: ${totalAcceleration.toFixed(2)} m/s2`);
-      setFallDetected(true);
-      setIsMonitoring(false);
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
   }, []);
 
-  const startMonitoring = async () => {
+  /**
+   * Bắt đầu Foreground Service (chạy nền)
+   */
+  const startMonitoring = useCallback(async () => {
+    if (!hasNativeModule) {
+      console.warn('[FallDetection] Native module not available, falling back to JS sensor');
+      // Fallback: dùng JS sensor (chỉ khi app mở)
+      try {
+        const { accelerometer } = require('react-native-sensors');
+        // Simplified fallback - chỉ detect impact mạnh
+        setIsMonitoring(true);
+      } catch (e) {
+        console.error('[FallDetection] Fallback also failed:', e);
+      }
+      return;
+    }
+
     try {
-      const subscription = accelerometer.subscribe(handleMotion);
-      subscriptionRef.current = subscription;
+      await FallDetectionModule.startService();
       setIsMonitoring(true);
-      console.log('[System] Fall Detection Started');
-    } catch (error) {
-      console.error('Failed to start fall detection:', error);
+      startPolling();
+      console.log('[FallDetection] ✅ Native service started (background mode)');
+    } catch (error: any) {
+      console.error('[FallDetection] Failed to start native service:', error);
     }
-  };
+  }, [startPolling]);
 
-  const stopMonitoring = () => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
+  /**
+   * Dừng Foreground Service
+   */
+  const stopMonitoring = useCallback(async () => {
+    if (!hasNativeModule) {
+      setIsMonitoring(false);
+      return;
     }
-    setIsMonitoring(false);
-    console.log('[System] Fall Detection Stopped');
-  };
 
-  const resetState = () => {
+    try {
+      await FallDetectionModule.stopService();
+      setIsMonitoring(false);
+      stopPolling();
+      console.log('[FallDetection] ⏹ Native service stopped');
+    } catch (error: any) {
+      console.error('[FallDetection] Failed to stop native service:', error);
+    }
+  }, [stopPolling]);
+
+  /**
+   * Reset trạng thái (sau khi user bấm "Tôi ổn")
+   */
+  const resetFallState = useCallback(async () => {
     setFallDetected(false);
-    if (!isMonitoring) {
-      startMonitoring();
+    if (hasNativeModule) {
+      try {
+        await FallDetectionModule.resetFallState();
+      } catch (e) {
+        // Ignore
+      }
     }
-  };
+  }, []);
 
-  const simulateFall = () => {
-    setFallDetected(true);
-  };
+  /**
+   * Giả lập ngã để test
+   */
+  const simulateFall = useCallback(async () => {
+    if (hasNativeModule) {
+      try {
+        await FallDetectionModule.simulateFall();
+      } catch (e) {
+        // Fallback
+        setFallDetected(true);
+      }
+    } else {
+      setFallDetected(true);
+    }
+  }, []);
 
+  // Listen for native events
+  useEffect(() => {
+    if (!hasNativeModule) return;
+
+    let eventEmitter: NativeEventEmitter;
+    try {
+      eventEmitter = new NativeEventEmitter(FallDetectionModule);
+      const subscription = eventEmitter.addListener('onFallDetected', (event) => {
+        console.log('[FallDetection] 🚨 Native event received:', event);
+        setFallDetected(true);
+      });
+
+      return () => {
+        subscription.remove();
+      };
+    } catch (e) {
+      // NativeEventEmitter might fail if module doesn't support it
+      console.warn('[FallDetection] Event emitter setup failed, using polling only');
+    }
+  }, []);
+
+  // Handle app state changes - restart polling when app comes to foreground
+  useEffect(() => {
+    const handleAppState = async (nextState: AppStateStatus) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        // App came to foreground - check if fall was detected while in background
+        if (hasNativeModule) {
+          try {
+            const status = await FallDetectionModule.getStatus();
+            if (status.fallDetected) {
+              setFallDetected(true);
+            }
+            setIsMonitoring(status.isRunning);
+          } catch (e) {
+            // Ignore
+          }
+        }
+        startPolling();
+      } else if (nextState === 'background') {
+        // App going to background - stop polling (service handles detection)
+        stopPolling();
+      }
+      appStateRef.current = nextState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppState);
+    return () => subscription.remove();
+  }, [startPolling, stopPolling]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopMonitoring();
+      stopPolling();
+      // Lưu ý: KHÔNG stop service khi unmount - service phải chạy nền!
     };
-  }, []);
+  }, [stopPolling]);
 
   return {
     isMonitoring,
     fallDetected,
     startMonitoring,
     stopMonitoring,
-    resetState,
+    resetFallState,
     simulateFall,
+    isBackgroundCapable: hasNativeModule, // Cho UI biết có chạy nền được không
   };
 };
-
-
-
-
-

@@ -19,6 +19,8 @@ import { RecommendationList } from '../../components/RecommendationList';
 import { Loading } from '../../ui/Loading';
 import { EmptyState } from '../../ui/EmptyState';
 import { EditTaskModal } from '../../components/EditTaskModal';
+import { useFallDetection } from '../../hooks/useFallDetection';
+import { FallAlertModal } from '../../components/FallAlertModal';
 
 interface DashboardScreenProps {
   targetUserId?: string;
@@ -47,6 +49,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   const [sosLoading, setSosLoading] = useState(false);
   const [sosSent, setSosSent] = useState(false);
   const sosPulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Fall Detection — Apple Watch style (V2: chạy nền)
+  const { isMonitoring, fallDetected, startMonitoring, resetFallState, simulateFall, isBackgroundCapable } = useFallDetection();
+  const [showFallAlert, setShowFallAlert] = useState(false);
+
+  // Tự động bật Fall Detection khi vào Dashboard (chỉ cho patient)
+  useEffect(() => {
+    if (!readOnly && user?.role === 'PATIENT') {
+      startMonitoring();
+    }
+  }, [readOnly, user?.role]);
+
+  // Hiện modal khi phát hiện ngã
+  useEffect(() => {
+    if (fallDetected) {
+      setShowFallAlert(true);
+    }
+  }, [fallDetected]);
+
+  const handleFallAlertDismiss = () => {
+    setShowFallAlert(false);
+    resetFallState();
+  };
+
+  const handleFallSOSTriggered = () => {
+    // SOS đã được gửi từ FallAlertModal
+    console.log('[Dashboard] Fall SOS triggered automatically');
+  };
 
   const effectiveUserId = targetUserId || user?._id;
 
@@ -654,6 +684,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               <Icon name="chevron-right" size={24} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </Animated.View>
+
+          {/* Fall Detection Status Indicator */}
+          <View style={styles.fallDetectionRow}>
+            <View style={styles.fallDetectionStatus}>
+              <View style={[
+                styles.fallDetectionDot,
+                { backgroundColor: isMonitoring ? '#22C55E' : '#9CA3AF' }
+              ]} />
+              <Text variant="caption" style={styles.fallDetectionText}>
+                {isMonitoring 
+                  ? `Phát hiện té ngã: Đang bảo vệ${isBackgroundCapable ? ' (chạy nền)' : ''}`
+                  : 'Phát hiện té ngã: Tắt'}
+              </Text>
+            </View>
+            {__DEV__ && (
+              <TouchableOpacity onPress={simulateFall} style={styles.testFallBtn}>
+                <Text style={styles.testFallText}>Thử</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -919,6 +969,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         onSave={editingType === 'medication' ? handleSaveReminder : editingType === 'health' ? handleSaveHealthLog : handleSaveAppointment}
         task={editingTask}
         type={editingType}
+      />
+
+      {/* Fall Detection Modal — Apple Watch Style */}
+      <FallAlertModal
+        visible={showFallAlert}
+        onDismiss={handleFallAlertDismiss}
+        onTriggerSOS={handleFallSOSTriggered}
       />
     </Screen>
   );
@@ -1221,6 +1278,40 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     marginTop: 2,
+  },
+
+  // ===== Fall Detection Indicator =====
+  fallDetectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  fallDetectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  fallDetectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  fallDetectionText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
+  testFallBtn: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  testFallText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   // ===== Filter Chips =====
